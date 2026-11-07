@@ -34,7 +34,7 @@ final class OpenFinalAccessibilityMarker: SourceGraphMutator {
 
     private func validateRedundantOpen(_ classDecl: Declaration) {
         let isOpenClass = classDecl.accessibility.isExplicitly(.open)
-        let retainsPublic = configuration.retainsPublicDeclarations(inModules: classDecl.location.file.modules)
+        let retainsPublic = configuration.settings(for: classDecl).retainsPublic
 
         if isOpenClass, !retainsPublic, !isSubclassedCrossModule(classDecl) {
             graph.markRedundantOpenAccessibility(classDecl, modules: classDecl.location.file.modules)

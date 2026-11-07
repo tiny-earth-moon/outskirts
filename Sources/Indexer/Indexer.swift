@@ -18,7 +18,9 @@ class Indexer {
         return (included, files.subtracting(included))
     }
 
+    /// Whether every declaration of the file is retained, by `retain_files` or an override with `retain.all`.
     func isRetained(_ file: SourceFile) -> Bool {
         configuration.retainFilesMatchers.anyMatch(filename: file.path.string)
+            || (!configuration.overrides.isEmpty && configuration.settings(forModules: file.modules, path: file.path).retainsAll)
     }
 }

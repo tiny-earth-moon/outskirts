@@ -102,7 +102,85 @@ final class RetainPublicModulesTest: SPMSourceGraphTestCase {
         XCTAssertEqual(warnings, "")
     }
 
+    // MARK: - Overrides (configuration v2)
+
+    /// An override retains the public declarations of one module only, the redundant public analysis still reports the
+    /// other one, with the results of `retain_public_modules` for the same module.
+    func testOverrideRetainsThePublicDeclarationsOfOneModuleOnly() throws {
+        try analyze(v2: """
+        overrides:
+          - modules: ["RetainPublicL*"]
+            retain: {public: true}
+        """)
+        let retainingByOverride = describedResults()
+
+        module(Self.libraryModule) {
+            self.assertReferenced(.class("PublicLibClass"))
+            self.assertNotRedundantPublicAccessibility(.functionFree("publicLibHelper()"))
+            self.assertNotReferenced(.functionFree("internalLibFunction()"))
+        }
+
+        module(Self.executableModule) {
+            self.assertNotReferenced(.functionFree("unusedPublicAppFunction()"))
+            self.assertRedundantPublicAccessibility(.functionFree("usedPublicAppFunction()"))
+        }
+
+        analyze(retainPublicModules: [Self.libraryModule])
+        XCTAssertEqual(retainingByOverride, describedResults())
+    }
+
+    /// An override matching the files of a module retains all their declarations.
+    func testOverrideRetainsEveryDeclarationOfTheMatchedFiles() throws {
+        try analyze(v2: """
+        overrides:
+          - paths: ["\(Self.executableModule)/**"]
+            retain: {all: true}
+        """)
+
+        module(Self.executableModule) {
+            self.assertReferenced(.functionFree("unusedPublicAppFunction()"))
+        }
+
+        module(Self.libraryModule) {
+            self.assertNotReferenced(.functionFree("internalLibFunction()"))
+        }
+    }
+
+    /// An override turning a rule off drops its results for the declarations it matches only.
+    func testOverrideTurnsARuleOffForTheMatchedModules() throws {
+        let configuration = try analyze(v2: """
+        overrides:
+          - modules: [\(Self.executableModule)]
+            rules: {redundant-public: off}
+        """)
+        let results = try OutputDeclarationFilter(configuration: configuration, logger: Self.logger).filter(Self.results, with: nil)
+
+        func redundantPublicModules(_ results: [ScanResult]) -> Set<String> {
+            Set(results.filter { $0.overridableRule == .redundantPublic }.flatMap(\.declaration.location.file.modules))
+        }
+
+        XCTAssertEqual(redundantPublicModules(Self.results), [Self.libraryModule, Self.executableModule])
+        XCTAssertEqual(redundantPublicModules(results), [Self.libraryModule])
+        XCTAssertTrue(results.contains { $0.declaration.name == "unusedPublicAppFunction()" })
+    }
+
     // MARK: - Private
+
+    /// Analyzes the fixture with a configuration v2 file written next to its sources, which the paths of the file
+    /// start from.
+    @discardableResult
+    private func analyze(v2 yaml: String) throws -> Configuration {
+        let file = ExecutableFixturesProjectPath.appending("Sources/.outskirts-test-\(UUID().uuidString).yml")
+        try ("version: 2\nrules: {redundant-open: on, missing-final: on}\n" + yaml).write(to: file.url, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: file.url) }
+
+        let configuration = Configuration()
+        try configuration.load(from: file) { XCTFail("unexpected warning: \($0)") }
+
+        let sources = ["\(Self.libraryModule)/RetainPublicLib.swift", "\(Self.executableModule)/main.swift"]
+        index(sourceFiles: sources.map { ExecutableFixturesProjectPath.appending("Sources/\($0)") }, configuration: configuration)
+        return configuration
+    }
 
     /// What running the mutators writes to stderr, with a logger that is not quiet.
     private func mutatorWarnings(retainPublicModules: [String], scannedModules: Set<String>) throws -> String {

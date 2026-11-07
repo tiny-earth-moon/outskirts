@@ -21,12 +21,12 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
     }
 
     func mutate() throws {
-        guard !configuration.retainPublic else { return }
+        guard !configuration.retainsEveryPublicDeclaration else { return }
         guard !configuration.disableRedundantPublicAnalysis else { return }
 
         // The public accessibility of a module whose public declarations are retained is its interface.
         let rootDeclarations = graph.rootDeclarations.filter {
-            !configuration.retainsPublicDeclarations(inModules: $0.location.file.modules)
+            !configuration.settings(for: $0).retainsPublic
         }
         let nonExtensionKinds = rootDeclarations.filter { !$0.kind.isExtensionKind }
         let extensionKinds = rootDeclarations.filter(\.kind.isExtensionKind)
