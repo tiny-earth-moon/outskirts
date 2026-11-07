@@ -122,7 +122,8 @@
                 configuration: configuration,
                 xcodebuild: xcodebuild,
                 project: ProjectStub(),
-                schemes: ["SchemeA"]
+                schemes: ["SchemeA"],
+                shell: shell
             )
 
             try driver.build()

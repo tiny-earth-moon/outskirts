@@ -80,27 +80,8 @@ public enum CacheManager {
         }
     }
 
-    /// Records the project in the DerivedData folder of the current scan and marks it as used, then evicts
-    /// the stale folders from the cache, keeping the current one. Returns the evicted entries.
-    public static func refresh(
-        derivedData: URL,
-        projectPath: String,
-        maxAgeDays: Int,
-        maxSizeGB: Int,
-        cacheDirectory: URL? = nil,
-        fileManager: FileManager = .default
-    ) throws -> [EvictedCacheEntry] {
-        try refresh(
-            directories: [derivedData],
-            projectPath: projectPath,
-            maxAgeDays: maxAgeDays,
-            maxSizeGB: maxSizeGB,
-            cacheDirectory: cacheDirectory,
-            fileManager: fileManager
-        )
-    }
-
-    /// Like `refresh(derivedData:…)` for several folders used by the current scan, all of them kept.
+    /// Records the project in each build folder of the current scan (DerivedData folder or scratch path) and marks it
+    /// as used, then evicts the stale folders from the cache, keeping the current ones. Returns the evicted entries.
     public static func refresh(
         directories: [URL],
         projectPath: String,

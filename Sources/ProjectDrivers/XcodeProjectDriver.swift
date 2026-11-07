@@ -14,6 +14,9 @@
         private let xcodebuild: Xcodebuild
         private let project: XcodeProjectlike
         private let schemes: Set<String>
+        private let shell: Shell
+        /// The builds of the `variants` setting, resolved once.
+        private var resolvedVariants: [XcodeBuildVariant]?
 
         public convenience init(
             projectPath: FilePath,
@@ -78,7 +81,8 @@
                 configuration: configuration,
                 xcodebuild: xcodebuild,
                 project: project,
-                schemes: schemes
+                schemes: schemes,
+                shell: shell
             )
         }
 
@@ -87,19 +91,61 @@
             configuration: Configuration,
             xcodebuild: Xcodebuild,
             project: XcodeProjectlike,
-            schemes: Set<String>
+            schemes: Set<String>,
+            shell: Shell
         ) {
             self.logger = logger
             self.configuration = configuration
             self.xcodebuild = xcodebuild
             self.project = project
             self.schemes = schemes
+            self.shell = shell
+        }
+
+        /// The names of the builds scanned together, empty with `variants: default`.
+        public var builtVariants: [String] {
+            guard configuration.variants != .default else { return [] }
+
+            return resolvedVariants?.map(\.name) ?? []
+        }
+
+        private func variants() throws -> [XcodeBuildVariant] {
+            if let resolvedVariants {
+                return resolvedVariants
+            }
+
+            let variantLogger = logger.contextualized(with: "xcode:variants")
+            let resolver = XcodeVariantResolver(
+                shell: shell,
+                logger: variantLogger,
+                warn: { [logger] in logger.warn($0) },
+                buildArguments: configuration.buildArguments
+            )
+            let variants = try resolver.resolve(configuration.variants) {
+                try xcodebuild.supportedPlatforms(project: project, schemes: Array(schemes), additionalArguments: configuration.buildArguments)
+            }
+            if configuration.variants != .default {
+                variantLogger.debug("Variants: \(variants.map(\.name).joined(separator: ", "))")
+            }
+            resolvedVariants = variants
+            return variants
+        }
+
+        /// The build arguments of each build: those of the scan alone with `variants: default`.
+        private func buildArgumentsOfEachBuild() throws -> [[String]] {
+            guard configuration.variants != .default else { return [configuration.buildArguments] }
+
+            return try variants().map { configuration.buildArguments + $0.arguments }
         }
     }
 
     extension XcodeProjectDriver: ProjectDriver {
         public func build() throws {
             guard !configuration.skipBuild else { return }
+            guard configuration.variants == .default else {
+                try buildVariants()
+                return
+            }
 
             if configuration.cleanBuild {
                 try xcodebuild.removeDerivedData(for: project, allSchemes: Array(schemes), buildArguments: configuration.buildArguments)
@@ -122,14 +168,16 @@
             let indexStorePaths: Set<FilePath> = if !configuration.indexStorePath.isEmpty {
                 Set(configuration.indexStorePath)
             } else {
-                try [xcodebuild.indexStorePath(project: project, schemes: Array(schemes), buildArguments: configuration.buildArguments, skipBuild: configuration.skipBuild)]
+                try buildArgumentsOfEachBuild().mapSet {
+                    try xcodebuild.indexStorePath(project: project, schemes: Array(schemes), buildArguments: $0, skipBuild: configuration.skipBuild)
+                }
             }
 
             if configuration.indexStorePath.isEmpty {
                 let evicted = try xcodebuild.refreshCache(
                     project: project,
                     schemes: Array(schemes),
-                    buildArguments: configuration.buildArguments,
+                    buildArgumentsOfEachBuild: buildArgumentsOfEachBuild(),
                     maxAgeDays: configuration.cacheMaxAgeDays,
                     maxSizeGB: configuration.cacheMaxSizeGB
                 )
@@ -171,6 +219,31 @@
                 indexStorePaths: indexStorePaths,
                 globalAccentColorNames: targets.flatMapSet(\.globalAccentColorNames)
             )
+        }
+
+        // MARK: - Private
+
+        /// One build of the schemes per variant, one after the other: concurrent builds would multiply the memory needed.
+        private func buildVariants() throws {
+            for variant in try variants() {
+                let buildArguments = configuration.buildArguments + variant.arguments
+                if configuration.cleanBuild {
+                    try xcodebuild.removeDerivedData(for: project, allSchemes: Array(schemes), buildArguments: buildArguments)
+                }
+
+                for scheme in schemes {
+                    if configuration.outputFormat.supportsAuxiliaryOutput {
+                        let asterisk = logger.colorize("*", .boldGreen)
+                        logger.info("\(asterisk) Building \(scheme) for \(variant.name)...")
+                    }
+
+                    do {
+                        try xcodebuild.build(project: project, scheme: scheme, allSchemes: Array(schemes), additionalArguments: buildArguments)
+                    } catch {
+                        throw PeripheryError.packageError(message: "The build of the variant '\(variant.name)' failed:\n\(error)")
+                    }
+                }
+            }
         }
     }
 #endif
