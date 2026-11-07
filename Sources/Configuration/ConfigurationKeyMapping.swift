@@ -1,9 +1,9 @@
 /// Where a key of the configuration format 1 lives in the format 2. Both formats load into the same settings, which
 /// keep the v1 keys: a v2 file is read through this table, so the v1 keys are the only mapping layer.
-public struct ConfigurationKeyMapping: Sendable {
-    public let v1Key: String
+struct ConfigurationKeyMapping: Sendable {
+    let v1Key: String
     /// The dotted path of the option in a v2 file, e.g. `retain.public`.
-    public let v2Path: String
+    let v2Path: String
     /// The value a v2 file gives the v1 key, shaped like a v1 value; nil when the file leaves the path out. Absent for
     /// a v1 key that only exists as an alias of another one at the same path.
     let value: (@Sendable (ConfigurationV2) -> Any?)?
@@ -15,10 +15,10 @@ public struct ConfigurationKeyMapping: Sendable {
     }
 
     /// Every v1 key, some more than once when several v2 options drive it.
-    public static let all: [Self] = projectAndBuild + exclude + report + baseline + retain + rules + analysis
+    static let all: [Self] = projectAndBuild + exclude + report + baseline + retain + rules + analysis
 
     /// The v2 paths that no v1 key drives.
-    public static let v2OnlyPaths = ["version", "exclude.index_defaults"] + RuleIdentifier.allCases
+    static let v2OnlyPaths = ["version", "exclude.index_defaults"] + RuleIdentifier.allCases
         .filter { $0.v1Key == nil }
         .map { "rules.\($0.rawValue)" }
 

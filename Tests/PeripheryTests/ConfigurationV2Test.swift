@@ -262,7 +262,9 @@ final class ConfigurationV2Test: XCTestCase {
 
         for yaml in [Self.fullV2, "version: 2\n", "version: 2\nrules: {unused: on}\nretain: {objc: off}\n"] {
             let data = try JSONEncoder().encode(try ConfigurationV2(yaml: yaml))
-            XCTAssertEqual(validator.validate(try JSONSerialization.jsonObject(with: data)), [], yaml)
+            var file = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            file["version"] = 2
+            XCTAssertEqual(validator.validate(file), [], yaml)
         }
     }
 

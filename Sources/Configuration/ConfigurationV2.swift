@@ -1,11 +1,10 @@
 import Shared
 import Yams
 
-/// The configuration file format 2, which a file opts into with `version: 2`: the options grouped by section. Every
+/// The options of the configuration file format 2, which a file opts into with `version: 2`, grouped by section. Every
 /// value is optional, a value left out keeps the default. `ConfigurationKeyMapping` maps each one onto the setting it
 /// shares with the format 1.
 struct ConfigurationV2: Codable, Sendable {
-    var version: Int
     var rules: [RuleIdentifier: RuleState]?
     var retain: RetainSectionV2?
     var exclude: ExcludeSectionV2?
