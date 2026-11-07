@@ -12,20 +12,16 @@ public struct ConfigurationOverride {
         .redundantAccessLevel, .emptyExtension, .superfluousIgnore,
     ]
 
-    /// Target name globs, one of which a module of the declaration must match; empty for any module.
-    let modules: [String]
-    /// Absolute path globs, one of which the file of the declaration must match; empty for any file.
-    let paths: [String]
     let retainPublic: Bool?
     let retainAll: Bool?
     let rules: [RuleIdentifier: Bool]
 
+    /// Target name globs, one of which a module of the declaration must match; empty for any module.
     private let moduleMatchers: [FilenameMatcher]
+    /// Absolute path globs, one of which the file of the declaration must match; empty for any file.
     private let pathMatchers: [FilenameMatcher]
 
     init(modules: [String], paths: [String], retainPublic: Bool?, retainAll: Bool?, rules: [RuleIdentifier: Bool]) {
-        self.modules = modules
-        self.paths = paths
         self.retainPublic = retainPublic
         self.retainAll = retainAll
         self.rules = rules
