@@ -30,7 +30,7 @@ See [Configuration: The configuration file](configuration.md#the-configuration-f
 
 Configuration file. A relative path is resolved from `--project-root`. Default: `.outskirts.yml`, else `.periphery.yml`, in the project root.
 
-See [Configuration: The configuration file](configuration.md#the-configuration-file), [Configuration: Command line and file](configuration.md#command-line-and-file), [Configuration: Paths](configuration.md#paths).
+See [Getting started: Exit status](getting-started.md#exit-status), [Configuration: The configuration file](configuration.md#the-configuration-file), [Configuration: Command line and file](configuration.md#command-line-and-file), [Configuration: Paths](configuration.md#paths).
 
 ### `--explain`
 
@@ -655,6 +655,16 @@ Exit with status 1 if any result is reported.
 Key `strict` · flag, `--no-strict` to switch off · default `false`.
 
 See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Exit status](getting-started.md#exit-status), [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Continuous integration: Quiet reports](ci.md#quiet-reports).
+
+### `--exit-codes`
+
+Since 3.22.0.
+
+Exit status contract: v1 exits with status 1 on any failure, v2 tells findings (1) from configuration errors (2) and project, build or index store failures (3).
+
+Key `exit_codes` · one of `v1`, `v2` · default `v1`.
+
+See [Getting started: Exit status](getting-started.md#exit-status), [Continuous integration: Quiet reports](ci.md#quiet-reports).
 
 ### `--disable-update-check`
 

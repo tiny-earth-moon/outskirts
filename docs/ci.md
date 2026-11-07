@@ -99,6 +99,8 @@ outskirts scan --quiet --format github-markdown \
 
 The exit status does not depend on `--quiet`: use `--strict` to fail the job.
 
+To tell unused code from a scan that did not run, add `--exit-codes v2`: findings with `--strict` exit with status 1, a configuration error with 2, a project, build or index store failure with 3; see [Getting started: Exit status](getting-started.md#exit-status).
+
 ## Baseline ratchet
 
 To make a baseline shrink over time, run `--strict --strict-baseline` on every change and `--prune-baseline` on a schedule, see [Baseline ratchet](baselines.md#baseline-ratchet).
