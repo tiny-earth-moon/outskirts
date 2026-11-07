@@ -43,6 +43,7 @@ struct ScanCommand: ParsableCommand {
     var removedBazelOptions: RemovedBazelOptions
 
     func validate() throws {
+        selectExitCodesOption()
         try removedBazelOptions.rejectUse()
 
         if let maxResults = resultsOptions.maxResults, maxResults < 1 {
@@ -55,6 +56,13 @@ struct ScanCommand: ParsableCommand {
             } catch {
                 throw ValidationError("\(error)")
             }
+        }
+    }
+
+    /// Selects the exit status contract given by `--exit-codes`, before the configuration file is read.
+    private func selectExitCodesOption() {
+        if let exitCodes = resultsOptions.exitCodes {
+            ExitCodes.selected = exitCodes
         }
     }
 
@@ -112,6 +120,7 @@ struct ScanCommand: ParsableCommand {
         configuration.apply(\.$color, miscellaneousOptions.noColor ? .never : miscellaneousOptions.color)
         configuration.apply(\.$disableUpdateCheck, miscellaneousOptions.disableUpdateCheck)
         configuration.apply(\.$strict, resultsOptions.strict)
+        configuration.apply(\.$exitCodes, resultsOptions.exitCodes)
         configuration.apply(\.$indexStorePath, given(buildOptions.indexStorePath))
         configuration.apply(\.$skipBuild, buildOptions.skipBuild)
         configuration.apply(\.$excludeTests, buildOptions.excludeTests)
@@ -164,6 +173,8 @@ struct ScanCommand: ParsableCommand {
         let configuration = Configuration()
         var configurationWarnings: [String] = []
 
+        // A configuration file that cannot be read cannot set `exit_codes`: only the option applies to its failure.
+        selectExitCodesOption()
         if !projectOptions.setup {
             try configuration.load(from: projectOptions.locationOptions.config) { configurationWarnings.append($0) }
         }
@@ -173,6 +184,7 @@ struct ScanCommand: ParsableCommand {
         configuration.summary = resultsOptions.summary
         configuration.projectRoot = projectRoot
         apply(to: configuration)
+        ExitCodes.selected = configuration.exitCodes
 
         configuration.buildFilenameMatchers()
         let baseline = try ScanPreflight.validate(configuration)
@@ -342,6 +354,7 @@ struct ScanCommand: ParsableCommand {
 extension OutputFormat: ArgumentParser.ExpressibleByArgument {}
 extension ColorOption: ArgumentParser.ExpressibleByArgument {}
 extension PlatformConditionalRetention: ArgumentParser.ExpressibleByArgument {}
+extension ExitCodes: ArgumentParser.ExpressibleByArgument {}
 
 extension FilePath: ArgumentParser.ExpressibleByArgument {
     public init?(argument: String) {

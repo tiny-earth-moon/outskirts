@@ -52,7 +52,7 @@ struct SPMVariantResolver {
             try rejectConflictingBuildArguments()
             let resolved = try variants.compactMap(resolve)
             guard !resolved.isEmpty else {
-                throw PeripheryError.usageError("None of the variants can be built: \(variants.map(\.spec).joined(separator: ", ")).")
+                throw PeripheryError.buildFailed(message: "None of the variants can be built: \(variants.map(\.spec).joined(separator: ", ")).")
             }
 
             return resolved

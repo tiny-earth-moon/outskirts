@@ -186,6 +186,9 @@ public final class Configuration {
     @Setting(key: "strict", description: "Exit with status 1 if any result is reported.", defaultValue: false)
     public var strict: Bool
 
+    @Setting(key: "exit_codes", description: "Exit status contract: v1 exits with status 1 on any failure, v2 tells findings (1) from configuration errors (2) and project, build or index store failures (3).", defaultValue: .default)
+    public var exitCodes: ExitCodes
+
     @Setting(key: "index_store_path", description: "Index store paths, relative to the project root; implies skip_build.", defaultValue: [], convert: SettingConverter.filePathList)
     public var indexStorePath: [FilePath]
 
@@ -352,7 +355,7 @@ public final class Configuration {
         $retainJsAccessible, $retainObjcAnnotated, $retainUnusedProtocolFuncParams, $retainUnusedParametersWithoutDefault, $retainSwiftUIPreviews, $disableRedundantPublicAnalysis, $enableRedundantPublicMembers, $enableOpenFinalAnalysis, $enableEmptyExtensionAnalysis, $enableRedundantAccessLevelAnalysis, $reportUnusedTypeParameters,
         $disablePlatformConditionalRetention, $platformConditionalRetention, $disableUnusedImportAnalysis, $enableUnusedSystemImports, $disableUnusedLocalizedStringAnalysis, $localizedStringCatalogExclude, $localizedStringKeyPatterns, $localizedStringKeyLiteralMatch, $retainRuntimeLocalizedKeys, $superfluousIgnoreComments, $retainUnusedImportedModules,
         $externalEncodableProtocols, $externalCodableProtocols, $externalTestCaseClasses, $verbose, $quiet, $color,
-        $disableUpdateCheck, $strict, $indexStorePath,
+        $disableUpdateCheck, $strict, $exitCodes, $indexStorePath,
         $skipBuild, $skipSchemesValidation, $cleanBuild, $strictIndex, $cacheMaxAgeDays, $cacheMaxSizeGB, $buildArguments, $variants, $xcodeListArguments, $relativeResults, $relativeResultsBase, $changedSince, $changedLines,
         $jsonPackageManifestPath, $retainCodableProperties, $retainEncodableProperties, $retainEquatableProperties,
         $retainHashableProperties, $baseline, $writeBaseline, $pruneBaseline, $strictBaseline,

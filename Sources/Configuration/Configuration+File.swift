@@ -135,3 +135,16 @@ extension PlatformConditionalRetention: Yams.ScalarRepresentable {
         rawValue.represented()
     }
 }
+
+extension ExitCodes: Yams.ScalarRepresentable {
+    public func represented() -> Node.Scalar {
+        rawValue.represented()
+    }
+}
+
+public extension Configuration {
+    /// Whether the error comes from a configuration file that is not valid YAML.
+    static func isMalformedFileError(_ error: Error) -> Bool {
+        error is YamlError
+    }
+}

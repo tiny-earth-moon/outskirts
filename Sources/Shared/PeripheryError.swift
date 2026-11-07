@@ -28,6 +28,7 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
     case changeCurrentDirectoryFailed(FilePath)
     case noIndexedSourceFiles(fileCount: Int, indexStorePaths: [String])
     case outdatedIndexData(message: String)
+    case buildFailed(message: String)
 
     public var errorDescription: String? {
         switch self {
@@ -91,7 +92,31 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
             return "None of the \(fileCount) source file(s) of the scanned targets have index data, so no results can be reported. Index store(s):\(paths)\nThe index store is probably stale or was produced by a different build; rebuild the project and make sure '--index-store-path' points to its index store."
         case let .outdatedIndexData(message):
             return message
+        case let .buildFailed(message):
+            return message
         }
+    }
+
+    /// The class of the failure, which gives its exit status. Every case is classified explicitly.
+    public var failureClass: FailureClass {
+        switch self {
+        case .foundIssues, .staleBaselineEntries:
+            .findings
+        case .usageError, .notInGitWorkTree, .unknownGitRef, .removedBazelOption, .invalidScheme, .guidedSetupError,
+             .pathDoesNotExist, .changeCurrentDirectoryFailed:
+            .configuration
+        case .shellCommandFailed, .shellOutputEncodingFailed, .executableNotFound, .underlyingError,
+             .sourceGraphIntegrityError, .updateCheckError, .xcodebuildNotConfigured, .packageError,
+             .swiftVersionParseError, .swiftVersionUnsupportedError, .jsonDeserializationError, .indexStoreNotFound,
+             .indexStoreNotFoundAfterSkippedBuild, .spmIndexStoreNotFound, .noIndexedSourceFiles, .outdatedIndexData,
+             .buildFailed:
+            .project
+        }
+    }
+
+    /// The exit status of the failure: `EXIT_FAILURE` with `v1`, the status of its class with `v2`.
+    public func exitCode(for mode: ExitCodes) -> Int32 {
+        failureClass.exitStatus(for: mode)
     }
 
     public var description: String {

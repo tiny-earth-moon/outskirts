@@ -1,6 +1,7 @@
 import ArgumentParser
 import Configuration
 import Foundation
+import Shared
 import SystemPackage
 
 /// The default values of the options. A fresh configuration on each access: `Configuration` is a mutable class, so a shared
@@ -206,6 +207,9 @@ struct ResultsOptions: ParsableArguments {
 
     @Flag(inversion: .prefixedNo, help: "Exit with non-zero status if any unused code is found")
     var strict: Bool?
+
+    @Option(help: "Exit status contract: 'v1' exits with status 1 on any failure, 'v2' exits with 1 for findings with '--strict', 2 for a configuration error, 3 for a project, build or index store failure (default: v1)")
+    var exitCodes: ExitCodes?
 
     @Option(help: "File path where formatted results are written. A relative path is resolved from '--project-root'.", completion: .file())
     var writeResults: FilePath?
