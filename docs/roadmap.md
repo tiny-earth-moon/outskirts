@@ -49,10 +49,10 @@ Recent releases, newest first:
 
 The 4.0 theme ([#241](https://github.com/tiny-earth-moon/outskirts/issues/241)): what ships on any platform or configuration is used; everything else is reported with a stable id and can be removed safely. These changes are breaking and ship together:
 
-- Configuration v2: schema, strict validation and per-module overrides ([#238](https://github.com/tiny-earth-moon/outskirts/issues/238)).
-- Output v2: stable rule-aware ids, relative paths and baseline v2 ([#239](https://github.com/tiny-earth-moon/outskirts/issues/239)).
-- Distinct, documented exit codes for findings and failures ([#232](https://github.com/tiny-earth-moon/outskirts/issues/232)).
-- Cleanup: drop the hidden `--no-color` flag and the Bazel shims, and a quieter `--index-store-path` mode ([#240](https://github.com/tiny-earth-moon/outskirts/issues/240)).
+- Configuration v2: schema, strict validation and per-module overrides ([#374](https://github.com/tiny-earth-moon/outskirts/issues/374)).
+- Output v2: stable rule-aware ids, relative paths and baseline v2 ([#375](https://github.com/tiny-earth-moon/outskirts/issues/375)).
+- Distinct, documented exit codes for findings and failures ([#373](https://github.com/tiny-earth-moon/outskirts/issues/373)).
+- Cleanup: drop the hidden `--no-color` flag and the Bazel shims, and a quieter `--index-store-path` mode ([#376](https://github.com/tiny-earth-moon/outskirts/issues/376)).
 - Removal of unused declarations by `outskirts fix` once every variant is scanned ([#236](https://github.com/tiny-earth-moon/outskirts/issues/236)).
 
 Ideas and requests are welcome as [issues](https://github.com/tiny-earth-moon/outskirts/issues).
