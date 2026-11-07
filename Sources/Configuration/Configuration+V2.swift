@@ -1,6 +1,7 @@
 import Foundation
 import Shared
 import SystemPackage
+import Yams
 
 extension Configuration {
     /// The configuration file formats: 1 when the file has no `version`.
@@ -16,55 +17,36 @@ extension Configuration {
         return version
     }
 
-    /// Loads a file that declares `version: 2` into the settings, through `ConfigurationKeyMapping`. An unknown key and a
-    /// value that does not decode are errors, reported together.
-    func loadV2(yaml: String, document: [AnyHashable: Any], path: FilePath) throws {
-        var problems = Self.unknownV2Keys(in: document)
+    /// Loads a file that declares `version: 2` into the settings, through `ConfigurationKeyMapping`. An unknown key, a
+    /// value of the wrong type, an invalid enum value and a value a setting rejects are errors, all reported together
+    /// with their line by a `ConfigurationFileError`.
+    func loadV2(yaml: String, path: FilePath) throws {
+        guard let root = try Yams.compose(yaml: yaml) else { return }
 
-        if problems.isEmpty {
-            do {
-                problems = apply(try ConfigurationV2(yaml: yaml))
-            } catch let error as DecodingError {
-                problems = [error.readableReason()]
+        let validation = ConfigurationV2Validation.validate(root)
+        var problems = validation.problems
+
+        if let model = validation.model {
+            problems += apply(model).map { path, message in
+                ConfigurationV2Validation.Problem(mark: ConfigurationV2Validation.mark(ofPath: path, in: root), message: message)
             }
         }
 
         guard problems.isEmpty else {
-            throw PeripheryError.usageError(problems.map { "\(path.string): \($0)" }.joined(separator: "\n"))
+            let ordered = problems.enumerated().sorted { lhs, rhs in
+                (lhs.element.mark?.line ?? .max, lhs.element.mark?.column ?? .max, lhs.offset) <
+                    (rhs.element.mark?.line ?? .max, rhs.element.mark?.column ?? .max, rhs.offset)
+            }
+
+            throw ConfigurationFileError(problems: ordered.map { $0.element.formatted(file: path) })
         }
     }
 
     // MARK: - Private
 
-    private static let knownV2Paths = Set(ConfigurationKeyMapping.all.map(\.v2Path) + ConfigurationKeyMapping.v2OnlyPaths)
-
-    /// The paths that hold other options, e.g. `retain`.
-    private static let v2Sections = Set(knownV2Paths.flatMap { path in
-        let components = path.split(separator: ".")
-        return (1 ..< max(1, components.count)).map { components.prefix($0).joined(separator: ".") }
-    })
-
-    private static func unknownV2Keys(in mapping: [AnyHashable: Any], prefix: String = "") -> [String] {
-        let entries = mapping.map { (key: "\($0.key.base)", value: $0.value) }.sorted { $0.key < $1.key }
-
-        return entries.flatMap { key, value -> [String] in
-            let path = prefix.isEmpty ? key : "\(prefix).\(key)"
-
-            if knownV2Paths.contains(path) {
-                return []
-            }
-            if v2Sections.contains(path) {
-                // A section that is not a mapping is reported by the decoder.
-                return (value as? [AnyHashable: Any]).map { unknownV2Keys(in: $0, prefix: path) } ?? []
-            }
-
-            return ["unknown key '\(path)'"]
-        }
-    }
-
-    /// Assigns the values of the file to the settings, returns the problems.
-    private func apply(_ model: ConfigurationV2) -> [String] {
-        var problems: [String] = []
+    /// Assigns the values of the file to the settings, returns the problems with the path they concern.
+    private func apply(_ model: ConfigurationV2) -> [(path: String, message: String)] {
+        var problems: [(path: String, message: String)] = []
         var assigned: [String: (path: String, value: String)] = [:]
 
         for mapping in ConfigurationKeyMapping.all {
@@ -72,7 +54,7 @@ extension Configuration {
 
             if let previous = assigned[mapping.v1Key] {
                 if previous.value != "\(value)" {
-                    problems.append("'\(previous.path)' and '\(mapping.v2Path)' must have the same value, they are not configurable separately yet")
+                    problems.append((mapping.v2Path, "'\(previous.path)' and '\(mapping.v2Path)' must have the same value, they are not configurable separately yet"))
                 }
                 continue
             }
@@ -80,13 +62,13 @@ extension Configuration {
             assigned[mapping.v1Key] = (mapping.v2Path, "\(value)")
 
             if let message = setting(withKey: mapping.v1Key).assign(value, reportedKey: mapping.v2Path) {
-                problems.append(message)
+                problems.append((mapping.v2Path, message))
             }
         }
 
         for rule in RuleIdentifier.allCases where rule.v1Key == nil {
             if let state = model.rules?[rule], state.isOn != rule.isEnabledByDefault {
-                problems.append("'rules.\(rule.rawValue)' cannot be turned \(state.isOn ? "on" : "off"), the rule is always checked")
+                problems.append(("rules.\(rule.rawValue)", "'rules.\(rule.rawValue)' cannot be turned \(state.isOn ? "on" : "off"), the rule is always checked"))
             }
         }
 

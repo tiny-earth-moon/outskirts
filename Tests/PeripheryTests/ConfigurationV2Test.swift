@@ -168,7 +168,7 @@ final class ConfigurationV2Test: XCTestCase {
         XCTAssertEqual(dropped.indexExclude, ["Other/**"])
     }
 
-    func testUnknownKeysAreErrors() throws {
+    func testUnknownKeysAreErrorsWithTheirLineAndASuggestion() throws {
         let file = try write("""
         version: 2
         retain: {pubic: true}
@@ -176,39 +176,75 @@ final class ConfigurationV2Test: XCTestCase {
         strict: true
         """)
 
-        XCTAssertThrowsError(try Configuration().load(from: file) { _ in }) { error in
-            XCTAssertEqual(error.localizedDescription, [
-                "\(file.string): unknown key 'retain.pubic'",
-                "\(file.string): unknown key 'rules.unused-imports'",
-                "\(file.string): unknown key 'strict'",
-            ].joined(separator: "\n"))
-        }
+        XCTAssertEqual(try problems(loading: file), [
+            "\(file.string):2:10: unknown key 'retain.pubic' (did you mean 'retain.public'?)",
+            "\(file.string):3:9: unknown key 'rules.unused-imports' (did you mean 'rules.unused-import'?)",
+            "\(file.string):4:1: unknown key 'strict' (did you mean 'report.strict'?)",
+        ])
+    }
+
+    func testWrongTypeIsAnErrorWithItsLine() throws {
+        let file = try write("version: 2\nreport:\n  strict: maybe\n")
+
+        XCTAssertEqual(try problems(loading: file), ["\(file.string):3:11: 'report.strict' must be a boolean"])
+    }
+
+    func testInvalidEnumValueIsAnErrorWithItsLine() throws {
+        let file = try write("version: 2\nreport: {format: jsno}\n")
+        let formats = OutputFormat.allCases.map { "'\($0.rawValue)'" }.joined(separator: ", ")
+
+        XCTAssertEqual(try problems(loading: file), ["\(file.string):2:18: 'report.format': expected one of \(formats), got 'jsno'"])
     }
 
     func testWrongValueIsAnError() throws {
-        for yaml in ["report: {strict: maybe}", "report: {format: jsno}", "rules: {unused-import: sometimes}", "retain: {objc: all}"] {
+        for yaml in ["report: {strict: maybe}", "report: {format: jsno}", "rules: {unused-import: sometimes}", "retain: {objc: all}", "retain: {properties_of: [Codable, Sendable]}"] {
             let file = try write("version: 2\n" + yaml)
 
             XCTAssertThrowsError(try Configuration().load(from: file) { _ in }, yaml) { error in
-                XCTAssertTrue(error.localizedDescription.hasPrefix("\(file.string): '"), error.localizedDescription)
+                XCTAssertTrue(error is ConfigurationFileError, "\(error)")
+                XCTAssertTrue(error.localizedDescription.hasPrefix("\(file.string):2:"), error.localizedDescription)
+                XCTAssertFalse(error.localizedDescription.contains("\n"), error.localizedDescription)
             }
         }
+    }
+
+    func testEveryProblemIsReportedTogetherInLineOrder() throws {
+        let file = try write("""
+        version: 2
+        report:
+          format: jsno
+          strict: maybe
+          colour: auto
+        retain:
+          objc: all
+        rules: {unused-import: sometimes, redundant-open: on, missing-final: off}
+        """)
+
+        let reported = try problems(loading: file)
+
+        XCTAssertEqual(reported.map { $0.split(separator: ":").dropFirst().prefix(2).joined(separator: ":") }, ["3:11", "4:11", "5:3", "7:9", "8:24", "8:70"], reported.joined(separator: "\n"))
+        XCTAssertTrue(reported[2].hasSuffix("unknown key 'report.colour' (did you mean 'report.color'?)"), reported[2])
+        XCTAssertTrue(reported[5].hasSuffix("'rules.redundant-open' and 'rules.missing-final' must have the same value, they are not configurable separately yet"), reported[5])
+    }
+
+    func testValidEntriesNextToAProblemAreStillRead() throws {
+        let file = try write("version: 2\nreport: {format: jsno, exit_codes: v2}\n")
+        let configuration = Configuration()
+
+        XCTAssertThrowsError(try configuration.load(from: file) { _ in })
+        XCTAssertEqual(configuration.exitCodes, .v2)
     }
 
     func testAlwaysCheckedRuleCannotBeTurnedOff() throws {
         let file = try write("version: 2\nrules: {unused: off}\n")
 
-        XCTAssertThrowsError(try Configuration().load(from: file) { _ in }) { error in
-            XCTAssertEqual(error.localizedDescription, "\(file.string): 'rules.unused' cannot be turned off, the rule is always checked")
-        }
+        XCTAssertEqual(try problems(loading: file), ["\(file.string):2:17: 'rules.unused' cannot be turned off, the rule is always checked"])
     }
 
     func testRulesSharingAV1KeyMustAgree() throws {
         let file = try write("version: 2\nrules: {redundant-open: on, missing-final: off}\n")
 
-        XCTAssertThrowsError(try Configuration().load(from: file) { _ in }) { error in
-            XCTAssertEqual(error.localizedDescription, "\(file.string): 'rules.redundant-open' and 'rules.missing-final' must have the same value, they are not configurable separately yet")
-        }
+        XCTAssertEqual(try problems(loading: file), ["\(file.string):2:44: 'rules.redundant-open' and 'rules.missing-final' must have the same value, they are not configurable separately yet"])
     }
 
     // MARK: - Version 1 files
@@ -230,6 +266,15 @@ final class ConfigurationV2Test: XCTestCase {
 
         XCTAssertEqual(warnings, ["\(file.string): invalid key 'rules'"])
         XCTAssertTrue(configuration.strict)
+    }
+
+    func testV1FileOnlyWarnsOnTheMistakesThatAreErrorsInV2() throws {
+        var warnings: [String] = []
+        let file = try write("retain_pubic: true\nstrict: maybe\nformat: jsno\n")
+        try Configuration().load(from: file) { warnings.append($0) }
+
+        XCTAssertEqual(warnings.count, 3, warnings.joined(separator: "\n"))
+        XCTAssertTrue(warnings.allSatisfy { $0.hasPrefix("\(file.string): ") }, warnings.joined(separator: "\n"))
     }
 
     func testUnsupportedVersionIsAnError() throws {
@@ -298,6 +343,18 @@ final class ConfigurationV2Test: XCTestCase {
         let file = directory.appendingPathComponent(".outskirts.yml")
         try yaml.write(to: file, atomically: true, encoding: .utf8)
         return FilePath(file.path)
+    }
+
+    /// The problems that loading the file throws, each on its own line.
+    private func problems(loading file: FilePath, file testFile: StaticString = #filePath, line: UInt = #line) throws -> [String] {
+        do {
+            try Configuration().load(from: file) { XCTFail("unexpected warning: \($0)", file: testFile, line: line) }
+        } catch let error as ConfigurationFileError {
+            return error.problems
+        }
+
+        XCTFail("the file loads", file: testFile, line: line)
+        return []
     }
 
     private func loadV1(_ yaml: String) throws -> Configuration {
