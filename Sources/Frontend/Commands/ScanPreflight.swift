@@ -69,6 +69,11 @@ enum ScanPreflight {
     private static func optionChecks(of configuration: Configuration) -> [() throws -> Void] {
         [
             {
+                if configuration.variants != .default, !configuration.indexStorePath.isEmpty {
+                    throw PeripheryError.usageError("The '--variants' option builds the package and cannot be combined with '--index-store-path'.")
+                }
+            },
+            {
                 if configuration.skipStdoutResults, configuration.writeResults == nil {
                     throw PeripheryError.usageError("The '--skip-stdout-results' option requires '--write-results', otherwise the results would not be output anywhere.")
                 }

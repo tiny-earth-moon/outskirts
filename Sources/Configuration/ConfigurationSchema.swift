@@ -27,7 +27,7 @@ public extension Configuration {
             ("type", .string("object")),
             ("additionalProperties", .bool(false)),
             ("properties", .object(properties)),
-            ("definitions", .object([("reportExcludeEntry", Self.reportExcludeEntrySchema)])),
+            ("definitions", .object([("reportExcludeEntry", Self.reportExcludeEntrySchema), ("buildVariant", Self.buildVariantSchema)])),
         ])
 
         return schema.serialized() + "\n"
@@ -66,8 +66,35 @@ public extension Configuration {
         case .reportExclude:
             let entry: JSONValue = .object([("$ref", .string("#/definitions/reportExcludeEntry"))])
             return [("oneOf", .array([entry, .object([("type", .string("array")), ("items", entry)])]))]
+        case .buildVariants:
+            let variant: JSONValue = .object([("$ref", .string("#/definitions/buildVariant"))])
+            return [("oneOf", .array([
+                .object([("type", .string("string")), ("enum", .array([.string("default"), .string("auto")]))]),
+                .object([("type", .string("array")), ("items", variant), ("minItems", .int(1))]),
+            ]))]
         }
     }
+
+    private static let buildVariantSchema: JSONValue = .object([
+        ("oneOf", .array([
+            .object([
+                ("type", .string("string")),
+                ("pattern", .string("^[^,=]+(,(sdk|configuration)=[^,=]+)*$")),
+                ("description", .string("'<triple>[,sdk=<sdk>][,configuration=<configuration>]', e.g. 'arm64-apple-ios18.0-simulator'.")),
+            ]),
+            .object([
+                ("type", .string("object")),
+                ("description", .string("A build for a target triple.")),
+                ("properties", .object([
+                    ("triple", .object([("type", .string("string")), ("description", .string("Target triple passed to 'swift build --triple'."))])),
+                    ("sdk", .object([("type", .string("string")), ("description", .string("SDK name for 'xcrun --sdk' (e.g. 'iphonesimulator'), or SDK path; derived from the triple on macOS when omitted."))])),
+                    ("configuration", .object([("type", .string("string")), ("description", .string("Build configuration, e.g. 'debug' or 'release'."))])),
+                ])),
+                ("required", .array([.string("triple")])),
+                ("additionalProperties", .bool(false)),
+            ]),
+        ])),
+    ])
 
     private static let reportExcludeEntrySchema: JSONValue = .object([
         ("oneOf", .array([

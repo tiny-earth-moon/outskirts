@@ -25,6 +25,10 @@ public struct EvictedCacheEntry: Equatable {
 
 public enum CacheManager {
     static let derivedDataPrefix = "DerivedData-"
+    /// The scratch paths of the Swift package builds of the `variants` setting.
+    public static let packageBuildPrefix = "PackageBuild-"
+    /// The cache entries subject to eviction.
+    static let evictablePrefixes = [derivedDataPrefix, packageBuildPrefix]
     static let projectSidecarName = ".outskirts-project"
 
     /// Clears the outskirts cache directory and the one left by releases that predate the rename.
@@ -86,15 +90,34 @@ public enum CacheManager {
         cacheDirectory: URL? = nil,
         fileManager: FileManager = .default
     ) throws -> [EvictedCacheEntry] {
-        if fileManager.fileExists(atPath: derivedData.path) {
-            try recordProject(projectPath, in: derivedData, fileManager: fileManager)
-            try touch(derivedData, fileManager: fileManager)
+        try refresh(
+            directories: [derivedData],
+            projectPath: projectPath,
+            maxAgeDays: maxAgeDays,
+            maxSizeGB: maxSizeGB,
+            cacheDirectory: cacheDirectory,
+            fileManager: fileManager
+        )
+    }
+
+    /// Like `refresh(derivedData:…)` for several folders used by the current scan, all of them kept.
+    public static func refresh(
+        directories: [URL],
+        projectPath: String,
+        maxAgeDays: Int,
+        maxSizeGB: Int,
+        cacheDirectory: URL? = nil,
+        fileManager: FileManager = .default
+    ) throws -> [EvictedCacheEntry] {
+        for directory in directories where fileManager.fileExists(atPath: directory.path) {
+            try recordProject(projectPath, in: directory, fileManager: fileManager)
+            try touch(directory, fileManager: fileManager)
         }
         return try evictStale(
             cacheDirectory: cacheDirectory ?? URL(fileURLWithPath: Constants.cachePath().string),
             maxAgeDays: maxAgeDays,
             maxSizeBytes: Int64(maxSizeGB) << 30,
-            keeping: derivedData,
+            keeping: directories,
             fileManager: fileManager
         )
     }
@@ -115,10 +138,6 @@ public enum CacheManager {
         }
     }
 
-    /// Removes the `DerivedData-*` folders of the cache, except `keeping`, that are stale. A folder is stale when
-    /// the project recorded in its sidecar no longer exists, or when its modification date is older than
-    /// `maxAgeDays` (0 disables this age rule). Then, when `maxSizeBytes` is above 0, the least recently
-    /// used folders are removed until the folders left fit in `maxSizeBytes` bytes (the size of `keeping` counts).
     @discardableResult
     static func evictStale(
         cacheDirectory: URL,
@@ -128,10 +147,33 @@ public enum CacheManager {
         now: Date = Date(),
         fileManager: FileManager = .default
     ) throws -> [EvictedCacheEntry] {
+        try evictStale(
+            cacheDirectory: cacheDirectory,
+            maxAgeDays: maxAgeDays,
+            maxSizeBytes: maxSizeBytes,
+            keeping: keeping.map { [$0] } ?? [],
+            now: now,
+            fileManager: fileManager
+        )
+    }
+
+    /// Removes the `DerivedData-*` and `PackageBuild-*` folders of the cache, except `keeping`, that are stale. A folder is stale when
+    /// the project recorded in its sidecar no longer exists, or when its modification date is older than
+    /// `maxAgeDays` (0 disables this age rule). Then, when `maxSizeBytes` is above 0, the least recently
+    /// used folders are removed until the folders left fit in `maxSizeBytes` bytes (the size of `keeping` counts).
+    @discardableResult
+    static func evictStale(
+        cacheDirectory: URL,
+        maxAgeDays: Int,
+        maxSizeBytes: Int64 = 0,
+        keeping: [URL],
+        now: Date = Date(),
+        fileManager: FileManager = .default
+    ) throws -> [EvictedCacheEntry] {
         guard fileManager.fileExists(atPath: cacheDirectory.path) else { return [] }
 
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86400)
-        let keptName = keeping?.lastPathComponent
+        let keptNames = Set(keeping.map(\.lastPathComponent))
         let entries = try fileManager.contentsOfDirectory(
             at: cacheDirectory,
             includingPropertiesForKeys: [.contentModificationDateKey],
@@ -157,8 +199,8 @@ public enum CacheManager {
             }
         }
 
-        for entry in entries where entry.lastPathComponent.hasPrefix(derivedDataPrefix) {
-            let isKept = entry.lastPathComponent == keptName
+        for entry in entries where evictablePrefixes.contains(where: entry.lastPathComponent.hasPrefix) {
+            let isKept = keptNames.contains(entry.lastPathComponent)
             let modified = try entry.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
             let isStale = !isKept
                 && (isOrphan(entry, fileManager: fileManager) || (maxAgeDays > 0 && (modified.map { $0 < cutoff } ?? false)))

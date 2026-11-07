@@ -28,8 +28,13 @@ public extension OutputFormatter {
             .map { "\($0.key): \($0.value)" }
             .joined(separator: ", ")
 
+        var summaryLine = "\(asterisk) Summary: \(counted(summary.resultCount, "result")) (\(counts))"
+        if !summary.variants.isEmpty {
+            summaryLine += " across \(counted(summary.variants.count, "variant")): \(summary.variants.joined(separator: ", "))"
+        }
+
         var lines = [
-            "\(asterisk) Summary: \(counted(summary.resultCount, "result")) (\(counts))",
+            summaryLine,
             "\(asterisk) Unused lines (estimate): \(summary.unusedLineCount)",
             "\(asterisk) Files entirely unused: \(summary.unusedFiles.count)",
         ]

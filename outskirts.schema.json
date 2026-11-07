@@ -420,6 +420,26 @@
       },
       "default": []
     },
+    "variants": {
+      "description": "Builds of a Swift package to scan together: 'default' is the single build of build_arguments; 'auto' builds every platform of the package's 'platforms' whose SDK is installed (the host when none is declared, or on Linux); or a list of '<triple>[,sdk=<sdk>][,configuration=<configuration>]' or {triple, sdk, configuration}. Other than 'default', it implies 'platform_conditional_retention: auto' unless that is given.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "default",
+            "auto"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/buildVariant"
+          },
+          "minItems": 1
+        }
+      ],
+      "default": "default"
+    },
     "xcode_list_arguments": {
       "description": "Extra arguments for the 'xcodebuild -list' call that lists schemes (guided setup).",
       "type": [
@@ -563,6 +583,37 @@
           "required": [
             "path",
             "kinds"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "buildVariant": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[^,=]+(,(sdk|configuration)=[^,=]+)*$",
+          "description": "'<triple>[,sdk=<sdk>][,configuration=<configuration>]', e.g. 'arm64-apple-ios18.0-simulator'."
+        },
+        {
+          "type": "object",
+          "description": "A build for a target triple.",
+          "properties": {
+            "triple": {
+              "type": "string",
+              "description": "Target triple passed to 'swift build --triple'."
+            },
+            "sdk": {
+              "type": "string",
+              "description": "SDK name for 'xcrun --sdk' (e.g. 'iphonesimulator'), or SDK path; derived from the triple on macOS when omitted."
+            },
+            "configuration": {
+              "type": "string",
+              "description": "Build configuration, e.g. 'debug' or 'release'."
+            }
+          },
+          "required": [
+            "triple"
           ],
           "additionalProperties": false
         }

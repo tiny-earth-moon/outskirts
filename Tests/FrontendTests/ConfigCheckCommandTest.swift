@@ -83,6 +83,33 @@ final class ConfigCheckCommandTest: XCTestCase {
         XCTAssertTrue(output.stderr.contains("error: The '--changed-lines' option requires '--changed-since', otherwise there is nothing to compare the lines with."), output.stderr)
     }
 
+    func testVariantsFormsAreAccepted() throws {
+        try write(".outskirts.yml", "variants:\n  - arm64-apple-macosx15.0\n  - triple: arm64-apple-ios18.0-simulator\n    sdk: iphonesimulator\n")
+        XCTAssertEqual(try check([]).status, 0)
+
+        try write(".outskirts.yml", "variants: auto\n")
+        XCTAssertEqual(try check([]).status, 0)
+    }
+
+    func testInvalidVariantsExitOneWithTheExpectedForms() throws {
+        try write(".outskirts.yml", "variants: [default, arm64-apple-macosx15.0]\n")
+
+        let output = try check([])
+
+        XCTAssertEqual(output.status, 1)
+        XCTAssertEqual(output.warnings.count, 1, output.stderr)
+        XCTAssertTrue(output.warnings.first?.contains("'variants' expects 'default', 'auto', or a list of") == true, output.stderr)
+    }
+
+    func testVariantsWithIndexStorePathExitOneWithTheScanError() throws {
+        try write(".outskirts.yml", "variants: auto\nindex_store_path: [.build/index]\n")
+
+        let output = try check([])
+
+        XCTAssertEqual(output.status, 1)
+        XCTAssertTrue(output.stderr.contains("cannot be combined with '--index-store-path'"), output.stderr)
+    }
+
     func testEveryUsageErrorIsReported() throws {
         try write(".outskirts.yml", "skip_stdout_results: true\nchanged_lines: true\nstrict_baseline: true\n")
 

@@ -54,6 +54,9 @@ struct BuildOptions: ParsableArguments {
     @Option(parsing: .upToNextOption, help: "Index store paths, relative paths being resolved from '--project-root'. Implies '--skip-build'", completion: .directory)
     var indexStorePath: [FilePath] = defaultConfiguration.$indexStorePath.defaultValue
 
+    @Option(parsing: .upToNextOption, help: "Builds of a Swift package to scan together: 'default' (the single build of the build arguments), 'auto' (every platform of the package's 'platforms' whose SDK is installed), or one or more '<triple>[,sdk=<sdk>][,configuration=<configuration>]', e.g. 'arm64-apple-ios18.0-simulator' (default: default)")
+    var variants: [String] = []
+
     @Option(help: "Maximum age in days of unused Xcode build caches before they are evicted at the end of a scan. 0 disables eviction (default: 14)")
     var cacheMaxAgeDays: Int?
 

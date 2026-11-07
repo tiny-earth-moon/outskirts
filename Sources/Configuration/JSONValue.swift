@@ -28,6 +28,10 @@ indirect enum JSONValue {
             guard case let .pattern(pattern) = value else { return nil }
 
             self = .string(pattern)
+        case let value as BuildVariants:
+            guard value == .default || value == .auto else { return nil }
+
+            self = .string(value.description)
         case let values as [Any]:
             self = .array(values.compactMap(JSONValue.init(settingValue:)))
         default:

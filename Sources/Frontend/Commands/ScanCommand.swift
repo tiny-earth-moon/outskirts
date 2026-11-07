@@ -48,6 +48,21 @@ struct ScanCommand: ParsableCommand {
         if let maxResults = resultsOptions.maxResults, maxResults < 1 {
             throw ValidationError("'--max-results' must be at least 1")
         }
+
+        if !buildOptions.variants.isEmpty {
+            do {
+                _ = try BuildVariants(arguments: buildOptions.variants)
+            } catch {
+                throw ValidationError("\(error)")
+            }
+        }
+    }
+
+    /// The `--variants` given, nil when none. A malformed value is rejected by `validate()` beforehand.
+    private var givenVariants: BuildVariants? {
+        guard !buildOptions.variants.isEmpty else { return nil }
+
+        return try? BuildVariants(arguments: buildOptions.variants)
     }
 
     /// Applies the options given on the command line to a configuration that holds the values of the configuration file.
@@ -107,6 +122,7 @@ struct ScanCommand: ParsableCommand {
         configuration.apply(\.$cacheMaxAgeDays, buildOptions.cacheMaxAgeDays)
         configuration.apply(\.$cacheMaxSizeGB, buildOptions.cacheMaxSizeGb)
         configuration.apply(\.$buildArguments, given(buildArguments))
+        configuration.apply(\.$variants, givenVariants)
         configuration.apply(\.$relativeResults, resultsOptions.relativeResults)
         configuration.apply(\.$relativeResultsBase, resultsOptions.relativeTo)
         configuration.apply(\.$changedSince, resultsOptions.changedSince)
@@ -228,7 +244,8 @@ struct ScanCommand: ParsableCommand {
 
         let printsToStdout = Self.shouldPrintToStdout(configuration: configuration, resultCount: filteredResults.count)
         let summaryPlacement = Self.summaryPlacement(configuration: configuration, printsToStdout: printsToStdout, resultCount: reportedResults.count)
-        let summary = summaryPlacement == .none ? nil : formatter.summarize(reportedResults)
+        var summary = summaryPlacement == .none ? nil : formatter.summarize(reportedResults)
+        summary?.variants = scanOutput.driver.builtVariants
         let reportSummary = summaryPlacement == .inReport ? summary : nil
 
         let formattedOutput = try formatter.format(reportedResults, summary: reportSummary, colored: colored)
