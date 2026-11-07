@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 
 /// The exit status contract: `v1` keeps the historical statuses, `v2` tells findings from failures.
-public enum ExitCodes: String, CaseIterable, Equatable, Sendable {
+public enum ExitCodes: String, CaseIterable, Codable, Equatable, Sendable {
     case v1
     case v2
 

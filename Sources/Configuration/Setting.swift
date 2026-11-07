@@ -38,6 +38,9 @@ extension AbstractSetting {
     private var value: Value
     /// Whether a value was given, by the configuration file or the command line, even one equal to the default.
     public private(set) var isExplicitlySet = false
+    /// Whether the values given go through `normalize`. Turned off by `exclude.index_defaults: false`, so that
+    /// `index_exclude` no longer adds its default globs.
+    var isNormalizing = true
 
     init(
         key: String,
@@ -59,7 +62,7 @@ extension AbstractSetting {
     public var wrappedValue: Value {
         get { value }
         set {
-            value = normalize(newValue)
+            value = isNormalizing ? normalize(newValue) : newValue
             isExplicitlySet = true
         }
     }
@@ -81,7 +84,7 @@ extension AbstractSetting {
 
         do {
             let conversion = try convert(newValue)
-            value = normalize(conversion.value)
+            value = isNormalizing ? normalize(conversion.value) : conversion.value
             isExplicitlySet = true
 
             return conversion.remark.map { "'\(key)' \($0)" }

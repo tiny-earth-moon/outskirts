@@ -161,6 +161,7 @@ var targets: [PackageDescription.Target] = [
             .target(name: "TestShared"),
             .target(name: "PeripheryKit"),
             .target(name: "Fix"),
+            .product(name: "Yams", package: "Yams"),
         ]
     ),
     .testTarget(

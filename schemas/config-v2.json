@@ -1,0 +1,600 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/tiny-earth-moon/outskirts/master/schemas/config-v2.json",
+  "title": "outskirts configuration, format 2",
+  "description": "Configuration file of outskirts that declares 'version: 2', with the options grouped by section. A file without 'version', or with 'version: 1', uses the format 1 that outskirts.schema.json describes.",
+  "type": "object",
+  "required": [
+    "version"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 2,
+      "description": "Format of the configuration file."
+    },
+    "rules": {
+      "type": "object",
+      "description": "Rules to check, by id: on or off.",
+      "additionalProperties": false,
+      "properties": {
+        "unused": {
+          "$ref": "#/definitions/ruleState",
+          "description": "On by default. Always checked, cannot be turned off yet."
+        },
+        "unused-import": {
+          "$ref": "#/definitions/ruleState",
+          "description": "On by default. v1: disable_unused_import_analysis."
+        },
+        "unused-parameter": {
+          "$ref": "#/definitions/ruleState",
+          "description": "On by default. Always checked, cannot be turned off yet."
+        },
+        "unused-localized-string": {
+          "$ref": "#/definitions/ruleState",
+          "description": "On by default. v1: disable_unused_localized_string_analysis."
+        },
+        "unused-asset-color": {
+          "$ref": "#/definitions/ruleState",
+          "description": "Off by default. v1: detect_unused_asset_catalog_colors."
+        },
+        "unused-asset-image": {
+          "$ref": "#/definitions/ruleState",
+          "description": "Off by default. v1: detect_unused_asset_catalog_images."
+        },
+        "assign-only-property": {
+          "$ref": "#/definitions/ruleState",
+          "description": "On by default. v1: retain_assign_only_properties."
+        },
+        "unassigned-optional": {
+          "$ref": "#/definitions/ruleState",
+          "description": "Off by default. v1: enable_unassigned_optional_analysis."
+        },
+        "redundant-protocol": {
+          "$ref": "#/definitions/ruleState",
+          "description": "On by default. Always checked, cannot be turned off yet."
+        },
+        "redundant-conformance": {
+          "$ref": "#/definitions/ruleState",
+          "description": "On by default. Always checked, cannot be turned off yet."
+        },
+        "redundant-public": {
+          "$ref": "#/definitions/ruleState",
+          "description": "On by default. v1: disable_redundant_public_analysis."
+        },
+        "redundant-open": {
+          "$ref": "#/definitions/ruleState",
+          "description": "Off by default. v1: enable_open_final_analysis."
+        },
+        "missing-final": {
+          "$ref": "#/definitions/ruleState",
+          "description": "Off by default. v1: enable_open_final_analysis."
+        },
+        "redundant-access-level": {
+          "$ref": "#/definitions/ruleState",
+          "description": "Off by default. v1: enable_redundant_access_level_analysis."
+        },
+        "empty-extension": {
+          "$ref": "#/definitions/ruleState",
+          "description": "Off by default. v1: enable_empty_extension_analysis."
+        },
+        "superfluous-ignore": {
+          "$ref": "#/definitions/ruleState",
+          "description": "On by default. v1: superfluous_ignore_comments."
+        }
+      }
+    },
+    "retain": {
+      "type": "object",
+      "description": "Declarations kept although they look unused.",
+      "additionalProperties": false,
+      "properties": {
+        "public": {
+          "type": "boolean",
+          "description": "Retain all public declarations, for framework and library projects. v1: retain_public."
+        },
+        "public_modules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Modules whose public declarations are retained. v1: retain_public_modules."
+        },
+        "public_excluded_spis": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Public SPIs analyzed even when public declarations are retained. v1: no_retain_spi."
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Source file globs whose declarations are all retained. v1: retain_files."
+        },
+        "attributes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Attributes (without the @) whose declarations are retained, optionally '<attribute>:kind1,kind2'. v1: retain_attributes."
+        },
+        "objc": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "off",
+                "annotated",
+                "accessible"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "annotated",
+                  "accessible"
+                ]
+              }
+            }
+          ],
+          "description": "Declarations exposed to Objective-C that are retained: 'annotated' (@objc / @objcMembers), 'accessible' (also implicitly exposed), a list of both, or 'off'. v1: retain_objc_annotated, retain_objc_accessible."
+        },
+        "js_accessible": {
+          "type": "boolean",
+          "description": "Retain protocols that inherit JSExport and their members. v1: retain_js_accessible."
+        },
+        "properties_of": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Codable",
+              "Encodable",
+              "Equatable",
+              "Hashable"
+            ]
+          },
+          "description": "Protocols whose conforming types keep all their properties. v1: retain_codable_properties, retain_encodable_properties, retain_equatable_properties, retain_hashable_properties."
+        },
+        "assign_only_property_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Property types retained when assigned but never read. v1: retain_assign_only_property_types."
+        },
+        "external_codable_protocols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "External protocols that inherit Codable. v1: external_codable_protocols."
+        },
+        "external_encodable_protocols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "External protocols that inherit Encodable. v1: external_encodable_protocols."
+        },
+        "external_test_case_classes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "XCTestCase subclasses that live in external targets. v1: external_test_case_classes."
+        },
+        "unused_protocol_parameters": {
+          "type": "boolean",
+          "description": "Retain unused protocol function parameters. v1: retain_unused_protocol_func_params."
+        },
+        "unused_parameters_without_default": {
+          "type": "boolean",
+          "description": "Retain unused function parameters that have no default value. v1: retain_unused_parameters_without_default."
+        },
+        "swiftui_previews": {
+          "type": "boolean",
+          "description": "Retain SwiftUI previews. v1: retain_swift_ui_previews."
+        },
+        "imported_modules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Imported modules retained even when unused. v1: retain_unused_imported_modules."
+        },
+        "synthesized_uses": {
+          "type": "boolean",
+          "description": "Retain stored properties of types described through reflection. v1: retain_synthesized_uses."
+        },
+        "platform_conditional": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "all-clauses",
+            "off"
+          ],
+          "description": "How declarations possibly used by a build missing from the index are retained. v1: platform_conditional_retention, and disable_platform_conditional_retention for 'off'."
+        },
+        "localized_string_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Key patterns (globs, or regular expressions between slashes) of String Catalog keys used dynamically. v1: localized_string_key_patterns."
+        },
+        "localized_string_literals": {
+          "type": "boolean",
+          "description": "Retain localized string keys equal to any string literal of the source. v1: localized_string_key_literal_match."
+        },
+        "runtime_localized_keys": {
+          "type": "boolean",
+          "description": "Retain every key that a localized string key built at runtime may look up. v1: retain_runtime_localized_keys."
+        }
+      }
+    },
+    "exclude": {
+      "type": "object",
+      "description": "Files and targets left out.",
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Source file globs left out of indexing. v1: index_exclude."
+        },
+        "index_defaults": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep the default index globs (**/*?.build/**/*, **/SourcePackages/checkouts/**) next to 'index'."
+        },
+        "report": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/reportExcludeEntry"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/reportExcludeEntry"
+              }
+            }
+          ],
+          "description": "Source file globs left out of the results; the files are still indexed. v1: report_exclude."
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Targets left out of indexing. v1: exclude_targets."
+        },
+        "tests": {
+          "type": "boolean",
+          "description": "Leave test targets out of indexing. v1: exclude_tests."
+        },
+        "localized_string_catalogs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "String Catalog globs left out of the localized strings analysis. v1: localized_string_catalog_exclude."
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "description": "Options of the rules that take more than on or off.",
+      "additionalProperties": false,
+      "properties": {
+        "redundant_public_members": {
+          "type": "boolean",
+          "description": "Also find redundant public accessibility on the members of public types and extensions. v1: enable_redundant_public_members."
+        },
+        "unused_system_imports": {
+          "type": "boolean",
+          "description": "Also analyze imports of system frameworks (experimental). v1: enable_unused_system_imports."
+        },
+        "unused_type_parameters": {
+          "type": "boolean",
+          "description": "Also report unused generic parameters of types. v1: report_unused_type_parameters."
+        },
+        "unconstructed_enum_cases": {
+          "type": "boolean",
+          "description": "Find enum cases that are only matched in patterns and never constructed. v1: enable_unconstructed_enum_case_analysis."
+        },
+        "metal_functions": {
+          "type": "boolean",
+          "description": "Find Metal functions that no Swift string literal names. v1: detect_unused_metal_functions."
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "description": "The project to scan.",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to the .xcodeproj or .xcworkspace. v1: project."
+        },
+        "schemes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Schemes to build. v1: schemes."
+        },
+        "skip_schemes_validation": {
+          "type": "boolean",
+          "description": "Do not check that the schemes exist. v1: skip_schemes_validation."
+        },
+        "xcode_list_arguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Extra arguments for 'xcodebuild -list'. v1: xcode_list_arguments."
+        },
+        "package_manifest": {
+          "type": "string",
+          "description": "Package manifest as JSON. v1: json_package_manifest_path."
+        },
+        "generic_config": {
+          "type": "string",
+          "description": "Project configuration file for other build systems. v1: generic_project_config."
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "description": "The build and the index store.",
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments passed to swift build or xcodebuild. v1: build_arguments."
+        },
+        "skip": {
+          "type": "boolean",
+          "description": "Skip the build step. v1: skip_build."
+        },
+        "clean": {
+          "type": "boolean",
+          "description": "Remove existing build artifacts before building. v1: clean_build."
+        },
+        "index_store_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Index store paths, relative to the project root; implies 'skip'. v1: index_store_path."
+        },
+        "strict_index": {
+          "type": "boolean",
+          "description": "Fail when a source file is newer than its index data. v1: strict_index."
+        },
+        "cache_max_age_days": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Age in days after which unused Xcode build caches are evicted; 0 disables the rule. v1: cache_max_age_days."
+        },
+        "cache_max_size_gb": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total size in gigabytes above which the least recently used Xcode build caches are evicted; 0 disables the limit. v1: cache_max_size_gb."
+        }
+      }
+    },
+    "report": {
+      "type": "object",
+      "description": "The results and the output.",
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": [
+            "xcode",
+            "csv",
+            "json",
+            "checkstyle",
+            "codeclimate",
+            "github-actions",
+            "github-markdown",
+            "gitlab-codequality",
+            "sarif",
+            "agent"
+          ],
+          "description": "Output format of the results. v1: format."
+        },
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Source file globs kept in the results; supersedes exclude.report. v1: report_include."
+        },
+        "relative": {
+          "type": "boolean",
+          "description": "Report paths relative to the project root, or to 'relative_to'. v1: relative_results."
+        },
+        "relative_to": {
+          "type": "string",
+          "description": "Directory the result paths are relative to. v1: relative_results_base."
+        },
+        "changed_since": {
+          "type": "string",
+          "description": "Report only the results in files changed since this git ref. v1: changed_since."
+        },
+        "changed_lines": {
+          "type": "boolean",
+          "description": "With 'changed_since', report only the results on changed lines. v1: changed_lines."
+        },
+        "write": {
+          "type": "string",
+          "description": "Also write the formatted results to this file. v1: write_results."
+        },
+        "skip_stdout": {
+          "type": "boolean",
+          "description": "Do not print the results to stdout; requires 'write'. v1: skip_stdout_results."
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "Exit with status 1 if any result is reported. v1: strict."
+        },
+        "exit_codes": {
+          "type": "string",
+          "enum": [
+            "v1",
+            "v2"
+          ],
+          "description": "Exit status contract. v1: exit_codes."
+        },
+        "verbose": {
+          "type": "boolean",
+          "description": "Enable verbose logging. v1: verbose."
+        },
+        "quiet": {
+          "type": "boolean",
+          "description": "Print only the results. v1: quiet."
+        },
+        "color": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "always",
+            "never"
+          ],
+          "description": "Colored output mode. v1: color."
+        },
+        "update_check": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check for a new version. v1: disable_update_check, inverted."
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "description": "The baseline of accepted results.",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Baseline file whose entries are hidden from the results. v1: baseline."
+        },
+        "write": {
+          "type": "string",
+          "description": "Write the results to this baseline file. v1: write_baseline."
+        },
+        "prune": {
+          "type": "boolean",
+          "description": "Rewrite the baseline keeping only the entries that still match. v1: prune_baseline."
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "Exit with status 1 if the baseline holds entries that no longer match. v1: strict_baseline."
+        }
+      }
+    },
+    "variants": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "default",
+            "auto"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/buildVariant"
+          },
+          "minItems": 1
+        }
+      ],
+      "description": "Builds to scan together: 'default', 'auto', or a list of variants. v1: variants."
+    }
+  },
+  "definitions": {
+    "ruleState": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "on",
+            "off"
+          ]
+        }
+      ]
+    },
+    "reportExcludeEntry": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "A glob, or '<glob>:kind1,kind2'."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "kinds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "path",
+            "kinds"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "buildVariant": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[^,=]+(,(sdk|configuration)=[^,=]+)*$"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "triple": {
+              "type": "string"
+            },
+            "sdk": {
+              "type": "string"
+            },
+            "configuration": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "triple"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}
