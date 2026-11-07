@@ -7,7 +7,7 @@ import Shared
 enum ExitStatus {
     /// The class of a failure that is not a `PeripheryError`, nil for the errors of the argument parser.
     private static func failureClass(of error: Error) -> FailureClass? {
-        if Configuration.isMalformedFileError(error) {
+        if Configuration.isMalformedFileError(error) || error is ConfigurationFileError {
             return .configuration
         }
         if error is ExitCode || error is CleanExit || error is ValidationError {

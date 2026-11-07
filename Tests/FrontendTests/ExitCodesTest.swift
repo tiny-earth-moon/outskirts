@@ -63,6 +63,47 @@ final class ExitCodesTest: XCTestCase {
         }
     }
 
+    func testInvalidVersion2FileIsAConfigurationError() throws {
+        let path = directory.appendingPathComponent(".outskirts.yml")
+        try "version: 2\nretain: {pubic: true}\n".write(to: path, atomically: true, encoding: .utf8)
+
+        XCTAssertThrowsError(try Configuration().load(from: .init(path.path)) { _ in }) { error in
+            self.assertStatus(of: error, v1: 1, v2: 2)
+        }
+    }
+
+    func testInvalidVersion2FileStopsTheScanBeforeTheBuild() throws {
+        let path = directory.appendingPathComponent(".outskirts.yml")
+        try "version: 2\nreport: {exit_codes: v2, strict: maybe}\nretain: {pubic: true}\n".write(to: path, atomically: true, encoding: .utf8)
+        let command = try ScanCommand.parse(["--project-root", directory.path])
+        let currentDirectory = FileManager.default.currentDirectoryPath
+        defer {
+            FileManager.default.changeCurrentDirectoryPath(currentDirectory)
+            ExitCodes.selected = .default
+        }
+
+        // The configuration is loaded before the Swift toolchain is asked for its version and the project is set up.
+        XCTAssertThrowsError(try command.prepareScan()) { error in
+            XCTAssertEqual((error as? ConfigurationFileError)?.problems.count, 2, "\(error)")
+        }
+        // The file's own valid `exit_codes` applies to its failure.
+        XCTAssertEqual(ExitCodes.selected, .v2)
+    }
+
+    func testExitCodesOptionAppliesToAnInvalidVersion2File() throws {
+        let path = directory.appendingPathComponent(".outskirts.yml")
+        try "version: 2\nreport: {exit_codes: v2}\nretain: {pubic: true}\n".write(to: path, atomically: true, encoding: .utf8)
+        let command = try ScanCommand.parse(["--project-root", directory.path, "--exit-codes", "v1"])
+        let currentDirectory = FileManager.default.currentDirectoryPath
+        defer {
+            FileManager.default.changeCurrentDirectoryPath(currentDirectory)
+            ExitCodes.selected = .default
+        }
+
+        XCTAssertThrowsError(try command.prepareScan())
+        XCTAssertEqual(ExitCodes.selected, .v1)
+    }
+
     func testMissingConfigurationFileIsAConfigurationError() {
         assertStatus(of: PeripheryError.pathDoesNotExist(path: "missing.yml"), v1: 1, v2: 2)
     }

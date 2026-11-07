@@ -173,10 +173,19 @@ struct ScanCommand: ParsableCommand {
         let configuration = Configuration()
         var configurationWarnings: [String] = []
 
-        // A configuration file that cannot be read cannot set `exit_codes`: only the option applies to its failure.
+        // A configuration file that cannot be read cannot set `exit_codes`: only the option applies to its failure. A
+        // `version: 2` file with problems still sets it when its own value is valid. Nothing is built before the file
+        // is valid.
         selectExitCodesOption()
         if !projectOptions.setup {
-            try configuration.load(from: projectOptions.locationOptions.config) { configurationWarnings.append($0) }
+            do {
+                try configuration.load(from: projectOptions.locationOptions.config) { configurationWarnings.append($0) }
+            } catch let error as ConfigurationFileError {
+                if resultsOptions.exitCodes == nil {
+                    ExitCodes.selected = configuration.exitCodes
+                }
+                throw error
+            }
         }
 
         configuration.guidedSetup = projectOptions.setup
