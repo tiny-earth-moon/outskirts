@@ -368,6 +368,15 @@
       "type": "boolean",
       "default": false
     },
+    "exit_codes": {
+      "description": "Exit status contract: v1 exits with status 1 on any failure, v2 tells findings (1) from configuration errors (2) and project, build or index store failures (3).",
+      "type": "string",
+      "enum": [
+        "v1",
+        "v2"
+      ],
+      "default": "v1"
+    },
     "index_store_path": {
       "description": "Index store paths, relative to the project root; implies skip_build.",
       "type": [

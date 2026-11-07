@@ -111,7 +111,7 @@ struct FixCommand: ParsableCommand {
         } catch {
             let restoration = FixWriter.restore(plan)
             logger.error("The build failed after the fixes were applied:\n\(error.localizedDescription)")
-            throw PeripheryError.usageError(restoration.summary(relativeTo: configuration.projectRoot, changeCount: plan.changes.count))
+            throw PeripheryError.buildFailed(message: restoration.summary(relativeTo: configuration.projectRoot, changeCount: plan.changes.count))
         }
         logger.info("The project builds with the fixes.")
     }

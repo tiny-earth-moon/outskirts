@@ -247,10 +247,26 @@ Linux is built and tested in CI on Ubuntu, in the official Swift containers (Swi
 
 ## Exit status
 
-| Status | Meaning |
-|--------|---------|
+`scan` and `fix` follow one of two contracts, chosen with `--exit-codes v1|v2` or `exit_codes: v1|v2` in the configuration file; the option overrides the file. `v1`, the default, keeps the statuses of earlier versions: a failure exits with status 1, like findings with `--strict`.
+
+| Status | `v1` (default) |
+|--------|----------------|
 | 0 | The scan completed (results may have been reported). |
 | 1 | `--strict` and at least one result was reported, `--strict-baseline` and the baseline holds entries that no longer match, or the scan failed (build error, invalid configuration, unreadable file, options that cannot be combined such as `--skip-stdout-results` without `--write-results`...). |
 | 64 | The command line could not be parsed: unknown option, missing or invalid value. |
 | 130 | Interrupted with Ctrl-C (`SIGINT`); the running build is stopped first. |
 | 143 | Terminated with `SIGTERM`; the running build is stopped first. |
+
+`v2` tells findings from failures, so that a CI job can treat unused code as a soft failure and a scan that did not run as an infrastructure failure:
+
+| Status | `v2` |
+|--------|------|
+| 0 | The scan completed: no result, or results without `--strict`. |
+| 1 | `--strict` and at least one result was reported, or `--strict-baseline` and the baseline holds entries that no longer match. |
+| 2 | Configuration error: malformed configuration file, missing `--config` file, rejected generic project config, invalid option or setting value detected by outskirts, options that cannot be combined, no project found. |
+| 3 | Project, build or index store failure: failed build, index store not found or without data for the scanned files, unsupported Swift version, and any other failure that stops the scan. |
+| 64 | The command line could not be parsed: unknown option, missing or invalid value. |
+| 130 | Interrupted with Ctrl-C (`SIGINT`); the running build is stopped first. |
+| 143 | Terminated with `SIGTERM`; the running build is stopped first. |
+
+When the configuration file itself cannot be parsed, its `exit_codes` cannot be read: the failure exits with status 1, or 2 when `--exit-codes v2` is given on the command line. Scripts that treat any non-zero status as a failure, or status 1 as findings, work with both contracts; with `v2`, a script that tests status 1 to detect failures must also accept 2 and 3.
