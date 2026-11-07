@@ -80,6 +80,14 @@ Key `build_arguments` · list of strings · default empty.
 
 See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x).
 
+### `--variants`
+
+Since 3.22.0.
+
+Builds of a Swift package to scan together: 'default' is the single build of build_arguments; 'auto' builds every platform of the package's 'platforms' whose SDK is installed (the host when none is declared, or on Linux); or a list of '<triple>[,sdk=<sdk>][,configuration=<configuration>]' or {triple, sdk, configuration}. Other than 'default', it implies 'platform_conditional_retention: auto' unless that is given.
+
+Key `variants` · `default`, `auto`, or a list · default `default`.
+
 ### `xcode_list_arguments`
 
 Extra arguments for the 'xcodebuild -list' call that lists schemes (guided setup).
@@ -94,7 +102,7 @@ Remove existing build artifacts before building.
 
 Key `clean_build` · flag, `--no-clean-build` to switch off · default `false`.
 
-See [Troubleshooting: Results in the wrong place or false positives in one file](troubleshooting.md#results-in-the-wrong-place-or-false-positives-in-one-file), [Credits: External contributions](credits.md#external-contributions).
+See [Troubleshooting: Results in the wrong place or false positives in one file](troubleshooting.md#results-in-the-wrong-place-or-false-positives-in-one-file), [Troubleshooting: Swift packages: variants](troubleshooting.md#swift-packages-variants), [Credits: External contributions](credits.md#external-contributions).
 
 ### `--skip-build`
 
@@ -150,7 +158,7 @@ Age in days after which unused Xcode build caches are evicted at the end of a sc
 
 Key `cache_max_age_days` · integer · default `14`.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Troubleshooting: Swift packages: variants](troubleshooting.md#swift-packages-variants).
 
 ### `--cache-max-size-gb`
 
@@ -158,7 +166,7 @@ Total size in gigabytes above which the least recently used Xcode build caches a
 
 Key `cache_max_size_gb` · integer · default `20`.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Roadmap: Published](roadmap.md#published).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Troubleshooting: Swift packages: variants](troubleshooting.md#swift-packages-variants), [Roadmap: Published](roadmap.md#published).
 
 ## Files and scope
 
@@ -334,7 +342,7 @@ How declarations possibly used by a build missing from the index are retained: '
 
 Key `platform_conditional_retention` · one of `auto`, `all-clauses`, `off` · default `all-clauses`.
 
-See [Framework conventions and retention: Platform conditionals](framework-conventions.md#platform-conditionals), [Troubleshooting: Scanning several platforms or configurations](troubleshooting.md#scanning-several-platforms-or-configurations), [Troubleshooting: Retaining only what the missing builds may use](troubleshooting.md#retaining-only-what-the-missing-builds-may-use).
+See [Framework conventions and retention: Platform conditionals](framework-conventions.md#platform-conditionals), [Troubleshooting: Scanning several platforms or configurations](troubleshooting.md#scanning-several-platforms-or-configurations), [Troubleshooting: Swift packages: variants](troubleshooting.md#swift-packages-variants), [Troubleshooting: Retaining only what the missing builds may use](troubleshooting.md#retaining-only-what-the-missing-builds-may-use).
 
 ### `--detect-unused-asset-catalog-colors`
 

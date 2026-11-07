@@ -99,7 +99,45 @@ When every platform is built, also pass [`--disable-platform-conditional-retenti
 
   Add `-configuration Release COMPILER_INDEX_STORE_ENABLE=YES` to build another configuration into the same store: Xcode only indexes Debug builds by default.
 
-- **Swift packages**: give each platform its own `--scratch-path` and build it with `--triple` and `--sdk`, see [Swift package is platform-specific](#swift-package-is-platform-specific). With the `swiftbuild` build system (the default since Swift 6.4), the index store of a scratch path is `<scratch-path>/out`.
+- **Swift packages**: use [`variants`](#swift-packages-variants) below, which builds each platform into its own scratch path. To build them yourself, give each platform its own `--scratch-path`, build it with `--triple` and `--sdk` (see [Swift package is platform-specific](#swift-package-is-platform-specific)), then pass every store with `--index-store-path`. With the `swiftbuild` build system (the default since Swift 6.4), the index store of a scratch path is `<scratch-path>/out`.
+
+### Swift packages: variants
+
+Since 3.22.0.
+
+[`variants: auto`](options.md#--variants) builds a Swift package once per platform of its `platforms` and scans the stores together, with [`platform_conditional_retention: auto`](#retaining-only-what-the-missing-builds-may-use) unless you set that option yourself:
+
+```sh
+outskirts scan --variants auto
+```
+
+Or in `.outskirts.yml`:
+
+```yaml
+variants: auto
+```
+
+- Each Apple platform other than macOS is built for its simulator, e.g. `platforms: [.macOS(.v15), .iOS(.v18)]` builds `arm64-apple-macosx15.0` and `arm64-apple-ios18.0-simulator` (`x86_64` on an Intel Mac). Mac Catalyst and DriverKit are left out. A package that declares no platform, and any package on Linux, is built for the host only.
+- The SDK of each build comes from `xcrun --sdk <name> --show-sdk-path`. A platform whose SDK is not installed is skipped with a warning, and the names written in its `#if` clauses stay retained.
+- The builds run one after the other, with the build arguments given after `--` (`--build-tests` included), and the scan stops at the first one that fails, naming it. Each build has its own scratch path in the outskirts cache, evicted with the Xcode caches by [`cache_max_age_days`](options.md#--cache-max-age-days) and [`cache_max_size_gb`](options.md#--cache-max-size-gb); `--clean-build` cleans each of them.
+- The summary line lists the variants built, e.g. `* Summary: 5 results (unused: 5) across 2 variants: arm64-apple-macosx15.0, arm64-apple-ios18.0-simulator`.
+
+To choose the builds, list them instead, each as `<triple>[,sdk=<sdk>][,configuration=<configuration>]`, or as a mapping in `.outskirts.yml`. The SDK is a name for `xcrun` or a path; when it is left out, it is derived from the triple on macOS:
+
+```sh
+outskirts scan --variants arm64-apple-macosx15.0 \
+  arm64-apple-ios18.0-simulator,configuration=release
+```
+
+```yaml
+variants:
+  - arm64-apple-macosx15.0
+  - triple: arm64-apple-ios18.0-simulator
+    sdk: iphonesimulator
+    configuration: release
+```
+
+`variants` cannot be combined with `--index-store-path`, nor with build arguments that set `--triple`, `--sdk`, `--arch`, `--scratch-path` or `--build-path`. It only applies to Swift packages for now: for Xcode projects and other build systems, build each destination yourself and repeat `--index-store-path`, as shown above.
 
 Build all the stores from the same version of the sources. If one of them was built before an edit, outskirts prints the [warning above](#index-data-older-than-its-source) for the files concerned.
 
@@ -161,7 +199,7 @@ The output is a JSON array of the results reported by every scan. If a declarati
 
 ## Swift package is platform-specific
 
-`swift build` builds for the host by default, which fails for a package that only supports another platform (e.g. iOS only). Pass the target triple and SDK to the build after `--`; outskirts finds the index store of that build on its own:
+`swift build` builds for the host by default, which fails for a package that only supports another platform (e.g. iOS only). With `variants: auto`, outskirts builds the platforms the package declares instead, see [Swift packages: variants](#swift-packages-variants). Or pass the target triple and SDK to the build after `--`; outskirts finds the index store of that build on its own:
 
 ```sh
 outskirts scan -- \
