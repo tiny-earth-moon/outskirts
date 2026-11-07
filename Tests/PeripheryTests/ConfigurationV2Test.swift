@@ -4,6 +4,7 @@ import Shared
 import SystemPackage
 @testable import TestShared
 import XCTest
+import Yams
 
 final class ConfigurationV2Test: XCTestCase {
     private var directory: URL!
@@ -306,8 +307,9 @@ final class ConfigurationV2Test: XCTestCase {
         let validator = JSONSchemaValidator(schema: try Self.schema())
 
         for yaml in [Self.fullV2, "version: 2\n", "version: 2\nrules: {unused: on}\nretain: {objc: off}\n"] {
-            let data = try JSONEncoder().encode(try ConfigurationV2(yaml: yaml))
-            var file = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            // Through YAML rather than JSONSerialization: on Linux the latter turns booleans into `NSNumber` 0 and 1.
+            let encoded = try YAMLEncoder().encode(try ConfigurationV2(yaml: yaml))
+            var file = try XCTUnwrap(try Yams.load(yaml: encoded) as? [String: Any])
             file["version"] = 2
             XCTAssertEqual(validator.validate(file), [], yaml)
         }
