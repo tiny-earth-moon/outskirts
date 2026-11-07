@@ -23,8 +23,8 @@ public enum SPM {
             self.logger = logger
         }
 
-        public func clean() throws {
-            try shell.exec(["swift", "package", "clean"])
+        public func clean(additionalArguments: [String] = []) throws {
+            try shell.exec(["swift", "package", "clean"] + additionalArguments)
         }
 
         public func build(additionalArguments: [String]) throws {
@@ -128,6 +128,14 @@ public enum SPM {
 
 public struct PackageDescription: Decodable {
     public let targets: [Target]
+    /// The `platforms` of the manifest, nil when it declares none.
+    public let platforms: [Platform]?
+
+    public struct Platform: Decodable, Equatable {
+        /// Lowercased, e.g. `macos`, `ios`, `maccatalyst`.
+        public let name: String
+        public let version: String
+    }
 }
 
 public struct Target: Decodable {

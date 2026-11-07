@@ -88,6 +88,19 @@ final class ScanSummaryTest: FixtureSourceGraphTestCase {
         ] as NSDictionary)
     }
 
+    func testTextSummaryLineNamesTheBuiltVariantsOnlyWhenThereAreSome() {
+        let formatter = OutputFormat.xcode.formatter.init(configuration: Configuration(), logger: logger)
+        var summary = ScanSummary(resultCount: 1, countsByAnnotation: ["unused": 1], unusedLineCount: 1, unusedFiles: [])
+
+        XCTAssertEqual(formatter.describe(summary, colored: false).split(separator: "\n").first, "* Summary: 1 result (unused: 1)")
+
+        summary.variants = ["arm64-apple-macosx15.0", "arm64-apple-ios18.0-simulator"]
+        XCTAssertEqual(
+            formatter.describe(summary, colored: false).split(separator: "\n").first,
+            "* Summary: 1 result (unused: 1) across 2 variants: arm64-apple-macosx15.0, arm64-apple-ios18.0-simulator"
+        )
+    }
+
     func testTextSummaryListsCountsLinesAndUnusedFiles() {
         let results = sampleResults()
         let formatter = OutputFormat.xcode.formatter.init(configuration: Configuration(), logger: logger)

@@ -11,6 +11,10 @@ public final class SPMProjectDriver {
     private let pkg: SPM.Package
     private let configuration: Configuration
     private let logger: Logger
+    private let shell: Shell
+    private var packageDescription: PackageDescription?
+    /// The builds of the `variants` setting, resolved once.
+    private var resolvedVariants: [SPMBuildVariant]?
 
     public convenience init(configuration: Configuration, shell: Shell, logger: Logger) throws {
         if !configuration.schemes.isEmpty {
@@ -18,41 +22,102 @@ public final class SPMProjectDriver {
         }
 
         let pkg = SPM.Package(configuration: configuration, shell: shell, logger: logger)
-        self.init(pkg: pkg, configuration: configuration, logger: logger)
+        self.init(pkg: pkg, configuration: configuration, logger: logger, shell: shell)
     }
 
-    init(pkg: SPM.Package, configuration: Configuration, logger: Logger) {
+    init(pkg: SPM.Package, configuration: Configuration, logger: Logger, shell: Shell) {
         self.pkg = pkg
         self.configuration = configuration
         self.logger = logger
+        self.shell = shell
+    }
+
+    /// The names of the builds scanned together, empty with `variants: default`.
+    public var builtVariants: [String] {
+        guard configuration.variants != .default else { return [] }
+
+        return resolvedVariants?.map(\.name) ?? []
+    }
+
+    private func description() throws -> PackageDescription {
+        if let packageDescription {
+            return packageDescription
+        }
+
+        let description = try pkg.load()
+        packageDescription = description
+        return description
+    }
+
+    private func variants() throws -> [SPMBuildVariant] {
+        if let resolvedVariants {
+            return resolvedVariants
+        }
+
+        let platforms = configuration.variants == .auto ? try description().platforms : nil
+        let resolver = SPMVariantResolver(
+            shell: shell,
+            logger: logger.contextualized(with: "spm:variants"),
+            warn: { [logger] in logger.warn($0) },
+            projectPath: pkg.path,
+            buildArguments: configuration.buildArguments
+        )
+        let variants = try resolver.resolve(configuration.variants, platforms: platforms)
+        if configuration.variants != .default {
+            logger.contextualized(with: "spm:variants").debug("Variants: \(variants.map(\.name).joined(separator: ", "))")
+        }
+        resolvedVariants = variants
+        return variants
     }
 }
 
 extension SPMProjectDriver: ProjectDriver {
     public func build() throws {
         if !configuration.skipBuild {
-            if configuration.cleanBuild {
-                try pkg.clean()
+            guard configuration.variants != .default else {
+                if configuration.cleanBuild {
+                    try pkg.clean()
+                }
+
+                if configuration.outputFormat.supportsAuxiliaryOutput {
+                    let asterisk = logger.colorize("*", .boldGreen)
+                    logger.info("\(asterisk) Building...")
+                }
+
+                try pkg.build(additionalArguments: configuration.buildArguments)
+                return
             }
 
-            if configuration.outputFormat.supportsAuxiliaryOutput {
-                let asterisk = logger.colorize("*", .boldGreen)
-                logger.info("\(asterisk) Building...")
-            }
+            // One build at a time: concurrent builds of the same package would multiply the memory needed.
+            for variant in try variants() {
+                if configuration.cleanBuild {
+                    try pkg.clean(additionalArguments: variant.scratchPath.map { ["--scratch-path", $0.string] } ?? [])
+                }
 
-            try pkg.build(additionalArguments: configuration.buildArguments)
+                if configuration.outputFormat.supportsAuxiliaryOutput {
+                    let asterisk = logger.colorize("*", .boldGreen)
+                    logger.info("\(asterisk) Building \(variant.name)...")
+                }
+
+                do {
+                    try pkg.build(additionalArguments: configuration.buildArguments + variant.arguments)
+                } catch {
+                    throw PeripheryError.packageError(message: "The build of the variant '\(variant.name)' failed:\n\(error)")
+                }
+            }
         }
     }
 
     public func plan(logger: ContextualLogger) throws -> IndexPlan {
         let indexStorePaths: Set<FilePath> = if !configuration.indexStorePath.isEmpty {
             Set(configuration.indexStorePath)
-        } else {
+        } else if configuration.variants == .default {
             try [pkg.indexStorePath(additionalArguments: configuration.buildArguments)]
+        } else {
+            try variantIndexStorePaths()
         }
 
-        // Load package description once and reuse it
-        let description = try pkg.load()
+        let description = try description()
 
         let excludedTestTargets = configuration.excludeTests ? testTargetNames(from: description) : []
         let collector = SourceFileCollector(
@@ -79,6 +144,27 @@ extension SPMProjectDriver: ProjectDriver {
     }
 
     // MARK: - Private
+
+    private func variantIndexStorePaths() throws -> Set<FilePath> {
+        let variants = try variants()
+        let stores = try variants.mapSet { try pkg.indexStorePath(additionalArguments: configuration.buildArguments + $0.arguments) }
+        let scratchPaths = variants.compactMap(\.scratchPath)
+
+        if !scratchPaths.isEmpty {
+            let evicted = try CacheManager.refresh(
+                directories: scratchPaths.map { URL(fileURLWithPath: $0.string) },
+                projectPath: pkg.path.lexicallyNormalized().string,
+                maxAgeDays: configuration.cacheMaxAgeDays,
+                maxSizeGB: configuration.cacheMaxSizeGB
+            )
+            for entry in evicted {
+                let size = ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .file)
+                logger.info("Evicted unused build cache \(entry.name) (\(size))")
+            }
+        }
+
+        return stores
+    }
 
     func expectedSourceFiles(from description: PackageDescription, excluding excludedTargets: Set<String>) -> [String: Set<FilePath>] {
         let excluded = excludedTargets.union(configuration.excludeTargets)

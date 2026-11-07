@@ -19,6 +19,8 @@ public struct ScanSummary: Equatable {
     public let unusedLineCount: Int
     /// The Swift files whose every top-level declaration, imports excepted, is reported as unused, sorted by path.
     public let unusedFiles: [UnusedFile]
+    /// The builds scanned together with the `variants` setting, empty with `variants: default`.
+    public var variants: [String] = []
 }
 
 struct ScanSummaryBuilder {

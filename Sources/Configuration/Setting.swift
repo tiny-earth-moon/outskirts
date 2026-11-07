@@ -36,6 +36,8 @@ extension AbstractSetting {
     private let convert: Converter
     private let normalize: (Value) -> Value
     private var value: Value
+    /// Whether a value was given, by the configuration file or the command line, even one equal to the default.
+    public private(set) var isExplicitlySet = false
 
     init(
         key: String,
@@ -56,7 +58,10 @@ extension AbstractSetting {
 
     public var wrappedValue: Value {
         get { value }
-        set { value = normalize(newValue) }
+        set {
+            value = normalize(newValue)
+            isExplicitlySet = true
+        }
     }
 
     public var projectedValue: Setting {
@@ -77,10 +82,12 @@ extension AbstractSetting {
         do {
             let conversion = try convert(newValue)
             value = normalize(conversion.value)
+            isExplicitlySet = true
 
             return conversion.remark.map { "'\(key)' \($0)" }
         } catch {
             value = defaultValue
+            isExplicitlySet = false
 
             switch error {
             case let .wrongType(expected, received):
@@ -153,6 +160,8 @@ enum SettingValueKind: Equatable {
     case enumeration([String])
     /// A glob, `<glob>:kind1,kind2` or `{path, kinds}`, or a list of them.
     case reportExclude
+    /// `default`, `auto`, or a list of variants, each a compact string or `{triple, sdk, configuration}`.
+    case buildVariants
 
     init(inferredFrom type: Any.Type) {
         if type == Bool.self {
@@ -169,6 +178,8 @@ enum SettingValueKind: Equatable {
             self = .pathList
         } else if type == [ReportExcludeEntry].self {
             self = .reportExclude
+        } else if type == BuildVariants.self {
+            self = .buildVariants
         } else {
             preconditionFailure("No configuration file shape for settings of type \(type), pass a 'kind'")
         }

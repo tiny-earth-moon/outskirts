@@ -38,6 +38,9 @@ public final class Configuration {
     @Setting(key: "build_arguments", description: "Arguments passed to the underlying build tool (swift build or xcodebuild).", defaultValue: [])
     public var buildArguments: [String]
 
+    @Setting(key: "variants", description: "Builds of a Swift package to scan together: 'default' is the single build of build_arguments; 'auto' builds every platform of the package's 'platforms' whose SDK is installed (the host when none is declared, or on Linux); or a list of '<triple>[,sdk=<sdk>][,configuration=<configuration>]' or {triple, sdk, configuration}. Other than 'default', it implies 'platform_conditional_retention: auto' unless that is given.", defaultValue: .default, convert: SettingConverter.buildVariants)
+    public var variants: BuildVariants
+
     @Setting(key: "xcode_list_arguments", description: "Extra arguments for the 'xcodebuild -list' call that lists schemes (guided setup).", defaultValue: [])
     public var xcodeListArguments: [String]
 
@@ -117,9 +120,16 @@ public final class Configuration {
     @Setting(key: "platform_conditional_retention", description: "How declarations possibly used by a build missing from the index are retained: 'all-clauses' retains the names written in the platform #if clauses no indexed build compiled, and the declarations marked @available(X, unavailable); 'auto' also narrows #if blocks nested in another one, and stops retaining @available(X, unavailable) once builds for X and for a platform where the declaration is available are indexed, e.g. with '--index-store-path' repeated; 'off' retains neither.", defaultValue: .default)
     public var platformConditionalRetention: PlatformConditionalRetention
 
-    /// The platform conditional retention in effect: `disable_platform_conditional_retention` forces `off`.
+    /// The platform conditional retention in effect: `disable_platform_conditional_retention` forces `off`, and
+    /// `variants` other than `default` turn on `auto` unless `platform_conditional_retention` is given.
     public var resolvedPlatformConditionalRetention: PlatformConditionalRetention {
-        disablePlatformConditionalRetention ? .off : platformConditionalRetention
+        if disablePlatformConditionalRetention {
+            return .off
+        }
+        if variants != .default, !$platformConditionalRetention.isExplicitlySet {
+            return .auto
+        }
+        return platformConditionalRetention
     }
 
     @Setting(key: "disable_unused_import_analysis", description: "Turn off the analysis of unused imports.", defaultValue: false)
@@ -343,7 +353,7 @@ public final class Configuration {
         $disablePlatformConditionalRetention, $platformConditionalRetention, $disableUnusedImportAnalysis, $enableUnusedSystemImports, $disableUnusedLocalizedStringAnalysis, $localizedStringCatalogExclude, $localizedStringKeyPatterns, $localizedStringKeyLiteralMatch, $retainRuntimeLocalizedKeys, $superfluousIgnoreComments, $retainUnusedImportedModules,
         $externalEncodableProtocols, $externalCodableProtocols, $externalTestCaseClasses, $verbose, $quiet, $color,
         $disableUpdateCheck, $strict, $indexStorePath,
-        $skipBuild, $skipSchemesValidation, $cleanBuild, $strictIndex, $cacheMaxAgeDays, $cacheMaxSizeGB, $buildArguments, $xcodeListArguments, $relativeResults, $relativeResultsBase, $changedSince, $changedLines,
+        $skipBuild, $skipSchemesValidation, $cleanBuild, $strictIndex, $cacheMaxAgeDays, $cacheMaxSizeGB, $buildArguments, $variants, $xcodeListArguments, $relativeResults, $relativeResultsBase, $changedSince, $changedLines,
         $jsonPackageManifestPath, $retainCodableProperties, $retainEncodableProperties, $retainEquatableProperties,
         $retainHashableProperties, $baseline, $writeBaseline, $pruneBaseline, $strictBaseline,
         $writeResults, $skipStdoutResults, $genericProjectConfig,

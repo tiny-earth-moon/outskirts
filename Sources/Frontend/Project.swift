@@ -47,7 +47,11 @@ final class Project {
     }
 
     func driver() throws -> ProjectDriver {
-        switch kind {
+        if configuration.variants != .default, !kind.isSPM {
+            logger.warn("The 'variants' option only applies to Swift packages, it is ignored for this project.")
+        }
+
+        return switch kind {
         case let .xcode(projectPath):
             #if canImport(XcodeSupport)
                 try XcodeProjectDriver(
@@ -67,5 +71,14 @@ final class Project {
                 configuration: configuration
             )
         }
+    }
+}
+
+private extension ProjectKind {
+    var isSPM: Bool {
+        if case .spm = self {
+            return true
+        }
+        return false
     }
 }
