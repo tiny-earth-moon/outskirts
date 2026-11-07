@@ -49,9 +49,13 @@ struct ConfigurationV2: Codable, Sendable {
     }
 
     /// The Objective-C declarations retained: `off`, `annotated`, `accessible`, or a list of both.
-    enum ObjcRetentionMode: String, Codable, Sendable {
+    enum ObjcRetentionMode: String, CaseIterable, Codable, Sendable {
         case annotated
         case accessible
+
+        init(from decoder: Decoder) throws {
+            self = try Self.decodeRawValue(from: decoder)
+        }
     }
 
     struct ObjcRetention: Codable, Sendable {
@@ -90,11 +94,15 @@ struct ConfigurationV2: Codable, Sendable {
     }
 
     /// The protocols whose conforming types keep all their properties.
-    enum PropertyRetentionProtocol: String, Codable, Sendable {
+    enum PropertyRetentionProtocol: String, CaseIterable, Codable, Sendable {
         case codable = "Codable"
         case encodable = "Encodable"
         case equatable = "Equatable"
         case hashable = "Hashable"
+
+        init(from decoder: Decoder) throws {
+            self = try Self.decodeRawValue(from: decoder)
+        }
     }
 }
 
@@ -335,6 +343,20 @@ private func probeShape<Container>(_ body: () throws -> Container) throws -> Con
     }
 }
 
-extension OutputFormat: Codable {}
-extension ColorOption: Codable {}
-extension PlatformConditionalRetention: Codable {}
+extension OutputFormat: Codable {
+    public init(from decoder: Decoder) throws {
+        self = try Self.decodeRawValue(from: decoder)
+    }
+}
+
+extension ColorOption: Codable {
+    public init(from decoder: Decoder) throws {
+        self = try Self.decodeRawValue(from: decoder)
+    }
+}
+
+extension PlatformConditionalRetention: Codable {
+    public init(from decoder: Decoder) throws {
+        self = try Self.decodeRawValue(from: decoder)
+    }
+}

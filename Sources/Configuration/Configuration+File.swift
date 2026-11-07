@@ -20,7 +20,7 @@ public extension Configuration {
     }
 
     /// Loads the configuration file. A file with `version: 2` loads through `ConfigurationV2`, where any problem is an
-    /// error. Otherwise, a value that is not valid for its setting, and a key that is not a setting, are reported to
+    /// error, all of them thrown together as a `ConfigurationFileError`. Otherwise, a value that is not valid for its setting, and a key that is not a setting, are reported to
     /// `warn` and ignored, an unreadable file or a document that is not a mapping is an error.
     func load(from path: FilePath?, warn: (String) -> Void) throws {
         guard let path = try configurationPath(withUserProvided: path) else { return }
@@ -34,7 +34,7 @@ public extension Configuration {
         }
 
         if try Self.version(of: yaml, path: path) == 2 {
-            try loadV2(yaml: encodedYAML, document: yaml, path: path)
+            try loadV2(yaml: encodedYAML, path: path)
             return
         }
 
@@ -79,18 +79,22 @@ public extension Configuration {
 
     // MARK: - Private
 
-    /// Keys of the Bazel mode, removed in 3.13.0, which are rejected instead of being reported as invalid keys.
     /// The setting key that a misspelt key most likely stands for, if any is close enough.
     private func closestSettingKey(to key: String) -> String? {
-        let normalized = key.lowercased().replacingOccurrences(of: "-", with: "_")
-        let candidates = settings.map(\.key).sorted()
+        Self.closestKey(to: key, normalized: key.lowercased().replacingOccurrences(of: "-", with: "_"), among: settings.map(\.key))
+    }
+
+    /// The candidate that a misspelt key most likely stands for: the one equal to its normalized form, else the
+    /// closest one within a few edits.
+    internal static func closestKey(to key: String, normalized: String, among candidates: [String]) -> String? {
+        let candidates = candidates.sorted()
 
         if let exact = candidates.first(where: { $0 == normalized }) {
             return exact
         }
 
         let maxDistance = min(3, max(1, key.count / 4))
-        let ranked = candidates.map { (key: $0, distance: Self.editDistance(normalized, $0)) }
+        let ranked = candidates.map { (key: $0, distance: editDistance(normalized, $0)) }
 
         return ranked.filter { $0.distance <= maxDistance }.min { $0.distance < $1.distance }?.key
     }
@@ -114,6 +118,7 @@ public extension Configuration {
         return previous[rhs.count]
     }
 
+    /// Keys of the Bazel mode, removed in 3.13.0, which are rejected instead of being reported as invalid keys.
     private static func isRemovedBazelKey(_ key: String) -> Bool {
         key == "bazel" || key.hasPrefix("bazel_")
     }

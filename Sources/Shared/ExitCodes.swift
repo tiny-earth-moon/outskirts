@@ -23,6 +23,10 @@ public enum ExitCodes: String, CaseIterable, Codable, Equatable, Sendable {
     }
 
     private static let selection = Mutex<ExitCodes>(.default)
+
+    public init(from decoder: Decoder) throws {
+        self = try Self.decodeRawValue(from: decoder)
+    }
 }
 
 /// The class of a failure, which gives its exit status under each contract.

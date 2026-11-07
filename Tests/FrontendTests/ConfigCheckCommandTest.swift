@@ -1,3 +1,4 @@
+import Configuration
 import Foundation
 @testable import TestShared
 import XCTest
@@ -53,6 +54,26 @@ final class ConfigCheckCommandTest: XCTestCase {
 
         XCTAssertEqual(output.status, 1)
         XCTAssertTrue(output.stderr.contains("error: report_exclude: unknown result kind 'unsed' for 'Sources/**'"), output.stderr)
+    }
+
+    func testVersion2FileReportsTheProblemsOfTheLoad() throws {
+        try write(".outskirts.yml", "version: 2\nretain: {pubic: true}\nreport:\n  strict: maybe\n  skip_stdout: true\n")
+
+        let output = try check([])
+
+        var loadProblems: [String] = []
+        do {
+            try Configuration().load(from: .init(directory.appendingPathComponent(".outskirts.yml").path)) { _ in }
+        } catch let error as ConfigurationFileError {
+            loadProblems = error.problems
+        }
+        let reported = output.stderr.split(separator: "\n").map(String.init).filter { $0.hasPrefix("error: ") && !$0.hasSuffix("found") }
+
+        XCTAssertEqual(output.status, 1)
+        XCTAssertEqual(loadProblems.count, 2)
+        XCTAssertEqual(reported.map(Self.locatedMessage), loadProblems.map(Self.locatedMessage), output.stderr)
+        XCTAssertTrue(output.stderr.contains(".outskirts.yml: 2 problems found"), output.stderr)
+        XCTAssertFalse(output.stderr.contains("skip-stdout-results"), output.stderr)
     }
 
     func testMissingFileExitsOne() throws {
@@ -129,6 +150,11 @@ final class ConfigCheckCommandTest: XCTestCase {
         var warnings: [String] {
             stderr.split(separator: "\n").map(String.init).filter { $0.hasPrefix("warning: ") }
         }
+    }
+
+    /// The line, column and message of a problem, without the file path, which is relative for the command.
+    private static func locatedMessage(_ problem: String) -> String {
+        problem.components(separatedBy: ".outskirts.yml:").last ?? problem
     }
 
     private func write(_ name: String, _ contents: String) throws {
