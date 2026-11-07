@@ -19,8 +19,9 @@ public extension Configuration {
         FileManager.default.createFile(atPath: path.string, contents: data)
     }
 
-    /// Loads the configuration file. A value that is not valid for its setting, and a key that is not a setting, are
-    /// reported to `warn` and ignored, an unreadable file or a document that is not a mapping is an error.
+    /// Loads the configuration file. A file with `version: 2` loads through `ConfigurationV2`, where any problem is an
+    /// error. Otherwise, a value that is not valid for its setting, and a key that is not a setting, are reported to
+    /// `warn` and ignored, an unreadable file or a document that is not a mapping is an error.
     func load(from path: FilePath?, warn: (String) -> Void) throws {
         guard let path = try configurationPath(withUserProvided: path) else { return }
 
@@ -32,7 +33,15 @@ public extension Configuration {
             throw PeripheryError.usageError("\(path.string): the configuration must be a mapping of keys to values, got \(SettingValueError.describe(document))")
         }
 
-        let entries = yaml.map { (key: "\($0.key.base)", value: $0.value, isString: $0.key.base is String) }.sorted { $0.key < $1.key }
+        if try Self.version(of: yaml, path: path) == 2 {
+            try loadV2(yaml: encodedYAML, document: yaml, path: path)
+            return
+        }
+
+        let entries = yaml
+            .filter { $0.key.base as? String != "version" }
+            .map { (key: "\($0.key.base)", value: $0.value, isString: $0.key.base is String) }
+            .sorted { $0.key < $1.key }
 
         if let key = entries.map(\.key).first(where: Self.isRemovedBazelKey) {
             throw PeripheryError.removedBazelOption("'\(key)' in \(path.string)")
