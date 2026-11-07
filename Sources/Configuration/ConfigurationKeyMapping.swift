@@ -18,9 +18,12 @@ struct ConfigurationKeyMapping: Sendable {
     static let all: [Self] = projectAndBuild + exclude + report + baseline + retain + rules + analysis
 
     /// The v2 paths that no v1 key drives.
-    static let v2OnlyPaths = ["version", "exclude.index_defaults"] + RuleIdentifier.allCases
+    static let v2OnlyPaths = ["version", "extends", "overrides", "exclude.index_defaults"] + RuleIdentifier.allCases
         .filter { $0.v1Key == nil }
         .map { "rules.\($0.rawValue)" }
+
+    /// The keys of an entry of `overrides`.
+    static let overridePaths = ["modules", "paths", "retain.public", "retain.all"] + RuleIdentifier.allCases.map { "rules.\($0.rawValue)" }
 
     // MARK: - Private
 

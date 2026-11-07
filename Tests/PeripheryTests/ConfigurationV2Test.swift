@@ -114,7 +114,7 @@ final class ConfigurationV2Test: XCTestCase {
             ("retain_public: true\nretain_codable_properties: true\n", "retain: {public: true, properties_of: [Codable]}"),
             ("enable_open_final_analysis: true\nsuperfluous_ignore_comments: false\n", "rules: {redundant-open: on, missing-final: on, superfluous-ignore: off}"),
             ("format: sarif\nrelative_results: true\ndisable_update_check: true\n", "report: {format: sarif, relative: true, update_check: false}"),
-            ("index_exclude: [\"Gen/**\"]\nexclude_tests: true\n", "exclude: {index: [\"Gen/**\"], tests: true}"),
+            ("index_exclude: [\"**/Gen/**\"]\nexclude_tests: true\n", "exclude: {index: [\"**/Gen/**\"], tests: true}"),
             ("baseline: b.json\nstrict_baseline: true\n", "baseline: {path: b.json, strict: true}"),
             ("variants: [arm64-apple-macosx15.0]\n", "variants: [arm64-apple-macosx15.0]"),
             ("retain_objc_annotated: true\n", "retain: {objc: annotated}"),
@@ -159,11 +159,11 @@ final class ConfigurationV2Test: XCTestCase {
     }
 
     func testIndexDefaultsAreKeptUnlessTurnedOff() throws {
-        let kept = try loadV2("version: 2\nexclude: {index: [\"Gen/**\"]}\n")
-        let dropped = try loadV2("version: 2\nexclude: {index: [\"Gen/**\"], index_defaults: false}\n")
+        let kept = try loadV2("version: 2\nexclude: {index: [\"**/Gen/**\"]}\n")
+        let dropped = try loadV2("version: 2\nexclude: {index: [\"**/Gen/**\"], index_defaults: false}\n")
 
-        XCTAssertEqual(Set(kept.indexExclude), Set(["Gen/**"] + Configuration().indexExclude))
-        XCTAssertEqual(dropped.indexExclude, ["Gen/**"])
+        XCTAssertEqual(Set(kept.indexExclude), Set(["**/Gen/**"] + Configuration().indexExclude))
+        XCTAssertEqual(dropped.indexExclude, ["**/Gen/**"])
 
         dropped.apply(\.$indexExclude, ["Other/**"])
         XCTAssertEqual(dropped.indexExclude, ["Other/**"])
@@ -288,6 +288,189 @@ final class ConfigurationV2Test: XCTestCase {
         }
     }
 
+    // MARK: - Extends
+
+    func testExtendsASingleFile() throws {
+        try write("version: 2\nretain: {public: true}\nreport: {format: json, strict: true}\n", named: "base.yml")
+        let configuration = try loadV2("version: 2\nextends: base.yml\nreport: {format: sarif}\n")
+
+        XCTAssertTrue(configuration.retainPublic)
+        XCTAssertTrue(configuration.strict)
+        XCTAssertEqual(configuration.outputFormat, .sarif)
+    }
+
+    func testExtendsAListWhereLaterFilesWin() throws {
+        try write("version: 2\nreport: {format: json, verbose: true}\nrules: {missing-final: on}\n", named: "first.yml")
+        try write("version: 2\nreport: {format: csv}\n", named: "second.yml")
+        let configuration = try loadV2("version: 2\nextends: [first.yml, second.yml]\nrules: {redundant-open: on}\n")
+
+        XCTAssertEqual(configuration.outputFormat, .csv)
+        XCTAssertTrue(configuration.verbose)
+        XCTAssertTrue(configuration.isEnabled(.missingFinal))
+    }
+
+    func testExtendsIsChainedWithPathsRelativeToEachFile() throws {
+        try write("version: 2\nreport: {format: json, quiet: true}\nretain: {public: true}\n", named: "shared/base/root.yml")
+        try write("version: 2\nextends: base/root.yml\nreport: {format: csv}\n", named: "shared/middle.yml")
+        let configuration = try loadV2("version: 2\nextends: shared/middle.yml\nretain: {public: false}\n")
+
+        XCTAssertEqual(configuration.outputFormat, .csv)
+        XCTAssertTrue(configuration.quiet)
+        XCTAssertFalse(configuration.retainPublic)
+    }
+
+    func testExtendsCycleIsAnError() throws {
+        try write("version: 2\nextends: ../.outskirts.yml\n", named: "shared/base.yml")
+        let file = try write("version: 2\nextends: shared/base.yml\n")
+        let problems = try problems(loading: file)
+        let root = FilePath(directory.path)
+
+        XCTAssertEqual(problems, [
+            "\(root.appending("shared/base.yml").string):2:10: 'extends' forms a cycle: \(root.appending(".outskirts.yml").string) -> \(root.appending("shared/base.yml").string) -> \(root.appending(".outskirts.yml").string)",
+        ])
+    }
+
+    func testExtendingAMissingOrVersion1FileIsAnError() throws {
+        try write("retain_public: true\n", named: "v1.yml")
+        let file = try write("version: 2\nextends:\n  - missing.yml\n  - v1.yml\n")
+
+        XCTAssertEqual(try problems(loading: file), [
+            "\(file.string):3:5: 'extends' names 'missing.yml', which does not exist",
+            "\(file.string):4:5: 'extends' names 'v1.yml', which is not a configuration file with 'version: 2'",
+        ])
+    }
+
+    func testProblemsOfAnExtendedFileNameThatFile() throws {
+        let base = try write("version: 2\nretain: {pubic: true}\n", named: "base.yml")
+        let file = try write("version: 2\nextends: base.yml\nreport: {format: xml}\n")
+
+        let problems = try problems(loading: file)
+
+        XCTAssertEqual(problems.count, 2, "\(problems)")
+        XCTAssertTrue(problems[0].hasPrefix("\(base.string):2:10: unknown key 'retain.pubic'"), problems[0])
+        XCTAssertTrue(problems[1].hasPrefix("\(file.string):3:18: "), problems[1])
+    }
+
+    func testIndexDefaultsChoiceIsInherited() throws {
+        try write("version: 2\nexclude: {index: [\"**/Gen/**\"], index_defaults: false}\n", named: "base.yml")
+
+        XCTAssertEqual(try loadV2("version: 2\nextends: base.yml\nexclude: {index: [\"**/Other/**\"]}\n").indexExclude, ["**/Other/**"])
+        XCTAssertEqual(
+            Set(try loadV2("version: 2\nextends: base.yml\nexclude: {index_defaults: true}\n").indexExclude),
+            Set(["**/Gen/**"] + Configuration().indexExclude)
+        )
+    }
+
+    // MARK: - File-relative globs
+
+    func testGlobsAreRelativeToTheDeclaringFile() throws {
+        try write("""
+        version: 2
+        exclude: {index: ["Generated/**", "**/Pods/**"], localized_string_catalogs: [Other.xcstrings]}
+        retain: {files: ["../Legacy/*.swift"]}
+        """, named: "shared/base.yml")
+        let configuration = try loadV2("""
+        version: 2
+        extends: shared/base.yml
+        exclude: {report: ["Old/**:unused", {path: "Kit/**", kinds: [unused.function]}]}
+        report: {include: ["./Sources/**", "/abs/**"]}
+        """)
+        let root = FilePath(directory.path)
+
+        XCTAssertEqual(Set(configuration.indexExclude), Set([root.appending("shared/Generated/**").string, "**/Pods/**"] + Configuration().indexExclude))
+        XCTAssertEqual(configuration.localizedStringCatalogExclude, [root.appending("shared/Other.xcstrings").string])
+        XCTAssertEqual(configuration.retainFiles, [root.appending("Legacy/*.swift").string])
+        XCTAssertEqual(configuration.reportExclude, [
+            .pattern(root.appending("Old/**:unused").string),
+            .scoped(path: root.appending("Kit/**").string, kinds: ["unused.function"]),
+        ])
+        XCTAssertEqual(configuration.reportInclude, [root.appending("Sources/**").string, "/abs/**"])
+
+        configuration.buildFilenameMatchers()
+        XCTAssertTrue(configuration.retainFilesMatchers.anyMatch(filename: root.appending("Legacy/Old.swift").string))
+        XCTAssertFalse(configuration.retainFilesMatchers.anyMatch(filename: root.appending("shared/Legacy/Old.swift").string))
+    }
+
+    func testVersion1GlobsStayRelativeToTheCurrentDirectory() throws {
+        let configuration = try loadV1("index_exclude: [\"Generated/**\"]\nretain_files: [\"Legacy/**\"]\n")
+
+        XCTAssertEqual(configuration.retainFiles, ["Legacy/**"])
+        XCTAssertTrue(configuration.indexExclude.contains("Generated/**"))
+    }
+
+    // MARK: - Overrides
+
+    func testOverridesAreResolvedPerDeclaration() throws {
+        let configuration = try loadV2("""
+        version: 2
+        overrides:
+          - modules: ["Kit*"]
+            retain: {public: true}
+            rules: {redundant-public: off}
+          - paths: ["Generated/**"]
+            retain: {all: true}
+          - modules: [KitTesting]
+            retain: {public: false}
+            rules: {redundant-public: on}
+        """)
+        let root = FilePath(directory.path)
+        let source = root.appending("Sources/File.swift")
+
+        let kit = configuration.settings(forModules: ["KitCore"], path: source)
+        XCTAssertEqual(kit.publicRetentionKey, "overrides")
+        XCTAssertFalse(kit.isEnabled(.redundantPublic))
+        XCTAssertFalse(kit.retainsAll)
+
+        let app = configuration.settings(forModules: ["App"], path: source)
+        XCTAssertFalse(app.retainsPublic)
+        XCTAssertTrue(app.isEnabled(.redundantPublic))
+
+        let testing = configuration.settings(forModules: ["KitTesting"], path: source)
+        XCTAssertFalse(testing.retainsPublic)
+        XCTAssertTrue(testing.isEnabled(.redundantPublic))
+
+        XCTAssertTrue(configuration.settings(forModules: ["App"], path: root.appending("Generated/Model.swift")).retainsAll)
+        XCTAssertFalse(configuration.settings(forModules: ["App"], path: root.appending("Sources/Generated/Model.swift")).retainsAll)
+        XCTAssertTrue(configuration.retainsPublicDeclarations)
+    }
+
+    func testOverridesOfExtendedFilesComeFirst() throws {
+        try write("version: 2\noverrides:\n  - modules: [Kit]\n    retain: {public: true}\n", named: "base.yml")
+        let configuration = try loadV2("version: 2\nextends: base.yml\noverrides:\n  - modules: [Kit]\n    retain: {public: false}\n")
+
+        XCTAssertEqual(configuration.overrides.count, 2)
+        XCTAssertFalse(configuration.settings(forModules: ["Kit"], path: "/Kit.swift").retainsPublic)
+    }
+
+    func testOverrideProblemsAreErrorsWithTheirLine() throws {
+        let file = try write("""
+        version: 2
+        rules: {missing-final: off}
+        overrides:
+          - modules: [Kit]
+            retain: {files: ["A/**"]}
+          - retain: {public: true}
+          - paths: ["B/**"]
+            rules: {unused: off, missing-final: on}
+          - modules: 3
+        """)
+
+        let problems = try problems(loading: file)
+
+        XCTAssertEqual(problems.count, 6, "\(problems)")
+        XCTAssertTrue(problems[0].hasPrefix("\(file.string):5:14: unknown key 'overrides[0].retain.files'"), problems[0])
+        XCTAssertEqual(problems[1], "\(file.string):6:5: 'overrides[1]' must match 'modules' or 'paths'")
+        XCTAssertTrue(problems[2].hasPrefix("\(file.string):8:21: 'overrides[2].rules.unused' cannot be set in an override"), problems[2])
+        XCTAssertTrue(problems[3].hasPrefix("\(file.string):8:41: 'overrides[2].rules.missing-final' cannot turn on a rule that is off"), problems[3])
+        // The entry is still checked without its invalid value.
+        XCTAssertEqual(problems[4], "\(file.string):9:5: 'overrides[3]' must match 'modules' or 'paths'")
+        XCTAssertTrue(problems[5].hasPrefix("\(file.string):9:14: "), problems[5])
+    }
+
+    func testVersion1FileHasNoOverrides() throws {
+        XCTAssertTrue(try loadV1("retain_public: true\n").overrides.isEmpty)
+    }
+
     // MARK: - Schema
 
     func testSchemaDescribesEveryV2Path() throws {
@@ -306,7 +489,17 @@ final class ConfigurationV2Test: XCTestCase {
     func testSchemaValidatesTheV2Files() throws {
         let validator = JSONSchemaValidator(schema: try Self.schema())
 
-        for yaml in [Self.fullV2, "version: 2\n", "version: 2\nrules: {unused: on}\nretain: {objc: off}\n"] {
+        let overrides = """
+        version: 2
+        extends: [base.yml, shared/other.yml]
+        overrides:
+          - modules: ["Kit*"]
+            paths: ["Sources/**"]
+            retain: {public: true, all: false}
+            rules: {redundant-public: off, missing-final: on}
+        """
+
+        for yaml in [Self.fullV2, "version: 2\n", "version: 2\nrules: {unused: on}\nretain: {objc: off}\n", overrides] {
             // Through YAML rather than JSONSerialization: on Linux the latter turns booleans into `NSNumber` 0 and 1.
             let encoded = try YAMLEncoder().encode(try ConfigurationV2(yaml: yaml))
             var file = try XCTUnwrap(try Yams.load(yaml: encoded) as? [String: Any])
@@ -321,6 +514,10 @@ final class ConfigurationV2Test: XCTestCase {
         XCTAssertFalse(validator.validate(["version": 2, "retain": ["pubic": true]]).isEmpty)
         XCTAssertFalse(validator.validate(["version": 2, "rules": ["unused-imports": "off"]]).isEmpty)
         XCTAssertFalse(validator.validate(["version": 1]).isEmpty)
+        XCTAssertFalse(validator.validate(["version": 2, "overrides": [["modules": ["Kit"], "retain": ["files": ["A/**"]]]]]).isEmpty)
+        XCTAssertFalse(validator.validate(["version": 2, "overrides": [["modules": ["Kit"], "rules": ["unused": "off"]]]]).isEmpty)
+        XCTAssertFalse(validator.validate(["version": 2, "overrides": [["rules": ["redundant-public": "off"]]]]).isEmpty)
+        XCTAssertFalse(validator.validate(["version": 2, "extends": [3]]).isEmpty)
     }
 
     // MARK: - Private
@@ -341,8 +538,10 @@ final class ConfigurationV2Test: XCTestCase {
         })
     }
 
-    private func write(_ yaml: String) throws -> FilePath {
-        let file = directory.appendingPathComponent(".outskirts.yml")
+    @discardableResult
+    private func write(_ yaml: String, named name: String = ".outskirts.yml") throws -> FilePath {
+        let file = directory.appendingPathComponent(name)
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try yaml.write(to: file, atomically: true, encoding: .utf8)
         return FilePath(file.path)
     }
@@ -373,7 +572,8 @@ final class ConfigurationV2Test: XCTestCase {
         return configuration
     }
 
-    /// Every v1 key but the `disable_platform_conditional_retention` alias, with a value other than its default.
+    /// Every v1 key but the `disable_platform_conditional_retention` alias, with a value other than its default. The
+    /// globs start with `**/`, which both formats read alike; other globs of a v2 file are relative to the file.
     private static let fullV1 = """
     project: App.xcodeproj
     schemes: [App]
@@ -389,13 +589,13 @@ final class ConfigurationV2Test: XCTestCase {
     cache_max_age_days: 3
     cache_max_size_gb: 5
     variants: auto
-    index_exclude: ["Generated/**"]
-    report_exclude: ["Legacy/**", {path: "Kit/**", kinds: [unused.function]}]
+    index_exclude: ["**/Generated/**"]
+    report_exclude: ["**/Legacy/**", {path: "**/Kit/**", kinds: [unused.function]}]
     exclude_targets: [Tools]
     exclude_tests: true
-    localized_string_catalog_exclude: [Other.xcstrings]
+    localized_string_catalog_exclude: ["**/Other.xcstrings"]
     format: json
-    report_include: ["Sources/**"]
+    report_include: ["**/Sources/**"]
     relative_results: true
     relative_results_base: Sources
     changed_since: main
@@ -415,7 +615,7 @@ final class ConfigurationV2Test: XCTestCase {
     retain_public: true
     retain_public_modules: [Kit]
     no_retain_spi: [Internal]
-    retain_files: ["Legacy/**"]
+    retain_files: ["**/Legacy/**"]
     retain_attributes: [IBSegueAction]
     retain_objc_annotated: true
     retain_objc_accessible: true
@@ -475,7 +675,7 @@ final class ConfigurationV2Test: XCTestCase {
       public: true
       public_modules: [Kit]
       public_excluded_spis: [Internal]
-      files: ["Legacy/**"]
+      files: ["**/Legacy/**"]
       attributes: [IBSegueAction]
       objc: [annotated, accessible]
       js_accessible: true
@@ -494,11 +694,11 @@ final class ConfigurationV2Test: XCTestCase {
       localized_string_literals: true
       runtime_localized_keys: true
     exclude:
-      index: ["Generated/**"]
-      report: ["Legacy/**", {path: "Kit/**", kinds: [unused.function]}]
+      index: ["**/Generated/**"]
+      report: ["**/Legacy/**", {path: "**/Kit/**", kinds: [unused.function]}]
       targets: [Tools]
       tests: true
-      localized_string_catalogs: [Other.xcstrings]
+      localized_string_catalogs: ["**/Other.xcstrings"]
     analysis:
       redundant_public_members: true
       unused_system_imports: true
@@ -522,7 +722,7 @@ final class ConfigurationV2Test: XCTestCase {
       cache_max_size_gb: 5
     report:
       format: json
-      include: ["Sources/**"]
+      include: ["**/Sources/**"]
       relative: true
       relative_to: Sources
       changed_since: main
