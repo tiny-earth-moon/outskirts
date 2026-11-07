@@ -157,6 +157,52 @@ public final class Xcodebuild {
         return Set(schemes)
     }
 
+    /// The `SUPPORTED_PLATFORMS` of the targets the schemes build, from `xcodebuild -showBuildSettings`, in the order read.
+    public func supportedPlatforms(project: XcodeProjectlike, schemes: [String], additionalArguments: [String]) throws -> [String] {
+        var platforms: [String] = []
+        for scheme in schemes.sorted() {
+            let xcodebuild = try [
+                "xcodebuild",
+                "-\(project.type)", project.path.lexicallyNormalized().string,
+                "-scheme", scheme,
+                "-showBuildSettings",
+                "-json",
+                "-IDECustomDerivedDataLocation=\(derivedDataPath(projectIdentifier: project.path.lexicallyNormalized().string, schemes: []).string)",
+            ] + additionalArguments
+
+            for platform in try Self.supportedPlatforms(fromBuildSettings: shell.exec(xcodebuild)) where !platforms.contains(platform) {
+                platforms.append(platform)
+            }
+        }
+        return platforms
+    }
+
+    /// The `SUPPORTED_PLATFORMS` of the JSON printed by `xcodebuild -showBuildSettings -json`, warnings around it ignored.
+    static func supportedPlatforms(fromBuildSettings output: String) throws -> [String] {
+        guard let start = output.firstIndex(of: "["), let end = output.lastIndex(of: "]"), start < end else {
+            throw PeripheryError.jsonDeserializationError(error: CocoaError(.propertyListReadCorrupt), json: output)
+        }
+
+        let json = String(output[start ... end])
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: Data(json.utf8))
+        } catch {
+            throw PeripheryError.jsonDeserializationError(error: error, json: json)
+        }
+
+        let targets = (object as? [[String: Any]]) ?? []
+        var platforms: [String] = []
+        for target in targets {
+            let settings = target["buildSettings"] as? [String: Any]
+            let supported = (settings?["SUPPORTED_PLATFORMS"] as? String) ?? ""
+            for platform in supported.split(separator: " ").map(String.init) where !platforms.contains(platform) {
+                platforms.append(platform)
+            }
+        }
+        return platforms
+    }
+
     // MARK: - Private
 
     private func deserialize(_ jsonString: String) throws -> [String: Any]? {

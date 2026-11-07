@@ -107,6 +107,16 @@ struct SPMVariantResolver {
         return nil
     }
 
+    /// The path of an installed SDK from `xcrun --sdk <name> --show-sdk-path`, nil when it is not installed.
+    static func installedSDKPath(named name: String, shell: Shell) throws -> String? {
+        do {
+            let path = try shell.exec(["xcrun", "--sdk", name, "--show-sdk-path"]).trimmingCharacters(in: .whitespacesAndNewlines)
+            return path.isEmpty ? nil : path
+        } catch PeripheryError.shellCommandFailed {
+            return nil
+        }
+    }
+
     // MARK: - Private
 
     /// The build of a variant, nil when its SDK is not installed.
@@ -137,13 +147,8 @@ struct SPMVariantResolver {
         guard isMacOS else { return variant.sdk }
         guard let name = variant.sdk ?? Self.sdkName(forTriple: variant.triple) else { return nil }
 
-        do {
-            let path = try shell.exec(["xcrun", "--sdk", name, "--show-sdk-path"]).trimmingCharacters(in: .whitespacesAndNewlines)
-            if !path.isEmpty {
-                return path
-            }
-        } catch PeripheryError.shellCommandFailed {
-            // Reported below.
+        if let path = try Self.installedSDKPath(named: name, shell: shell) {
+            return path
         }
 
         warn("Skipping the variant '\(variant.spec)': the SDK '\(name)' is not installed. Names written in the #if clauses of its platform stay retained.")
@@ -175,7 +180,7 @@ struct SPMVariantResolver {
         #endif
     }
 
-    private static var hostArchitectureName: String {
+    static var hostArchitectureName: String {
         #if arch(arm64)
             "arm64"
         #else

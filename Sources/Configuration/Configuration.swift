@@ -38,7 +38,7 @@ public final class Configuration {
     @Setting(key: "build_arguments", description: "Arguments passed to the underlying build tool (swift build or xcodebuild).", defaultValue: [])
     public var buildArguments: [String]
 
-    @Setting(key: "variants", description: "Builds of a Swift package to scan together: 'default' is the single build of build_arguments; 'auto' builds every platform of the package's 'platforms' whose SDK is installed (the host when none is declared, or on Linux); or a list of '<triple>[,sdk=<sdk>][,configuration=<configuration>]' or {triple, sdk, configuration}. Other than 'default', it implies 'platform_conditional_retention: auto' unless that is given.", defaultValue: .default, convert: SettingConverter.buildVariants)
+    @Setting(key: "variants", description: "Builds of a Swift package or of the Xcode schemes to scan together: 'default' is the single build of build_arguments; 'auto' builds every platform of the package's 'platforms', or of the SUPPORTED_PLATFORMS of the schemes' targets, whose SDK is installed (the host when none is declared, or on Linux); or a list of '<triple>[,sdk=<sdk>][,configuration=<configuration>]' or {triple, sdk, configuration}. Other than 'default', it implies 'platform_conditional_retention: auto' unless that is given.", defaultValue: .default, convert: SettingConverter.buildVariants)
     public var variants: BuildVariants
 
     @Setting(key: "xcode_list_arguments", description: "Extra arguments for the 'xcodebuild -list' call that lists schemes (guided setup).", defaultValue: [])

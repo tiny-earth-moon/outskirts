@@ -47,8 +47,8 @@ final class Project {
     }
 
     func driver() throws -> ProjectDriver {
-        if configuration.variants != .default, !kind.isSPM {
-            logger.warn("The 'variants' option only applies to Swift packages, it is ignored for this project.")
+        if configuration.variants != .default, kind.isGeneric {
+            logger.warn("The 'variants' option only applies to Swift packages and Xcode projects, it is ignored for this project.")
         }
 
         return switch kind {
@@ -75,8 +75,8 @@ final class Project {
 }
 
 private extension ProjectKind {
-    var isSPM: Bool {
-        if case .spm = self {
+    var isGeneric: Bool {
+        if case .generic = self {
             return true
         }
         return false
