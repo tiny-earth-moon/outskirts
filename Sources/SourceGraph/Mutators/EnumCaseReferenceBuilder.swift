@@ -55,6 +55,8 @@ final class EnumCaseReferenceBuilder: SourceGraphMutator {
         }
     }
 
+    private let caseIterableRequirementUsrPrefix = "s:s12CaseIterableP8allCases"
+
     /// The synthesized `allCases` getter has no declaration in the index, only references to
     /// a USR made of the enum USR followed by the mangled member name. The mangled name is not
     /// stable (it may use word substitutions), so references are matched by name and USR prefix.
@@ -86,10 +88,16 @@ final class EnumCaseReferenceBuilder: SourceGraphMutator {
                 return (enumDeclaration, usr.count)
             }
 
-            guard let owner = matches.max(by: { $0.1 < $1.1 })?.0 else { continue }
-
-            for enumCase in enumCases(of: owner) {
-                addReference(to: enumCase, from: reference.parent)
+            if let owner = matches.max(by: { $0.1 < $1.1 })?.0 {
+                for enumCase in enumCases(of: owner) {
+                    addReference(to: enumCase, from: reference.parent)
+                }
+            } else if reference.usr.hasPrefix(caseIterableRequirementUsrPrefix) {
+                // A use of the protocol requirement, as in `T.allCases` with `T: CaseIterable`, may
+                // reach the cases of any `CaseIterable` enum.
+                for enumCase in caseIterableEnums.flatMap(enumCases(of:)) {
+                    addReference(to: enumCase, from: reference.parent)
+                }
             }
         }
     }
