@@ -25,20 +25,50 @@ struct UncoveredConditionalNames {
     /// Whether some clause holds code, which can call a subscript, `callAsFunction`, an operator, a pattern match
     /// (`~=`), a string interpolation or a dynamic member without writing its name.
     let hasCode: Bool
+    /// The files with code in such a clause, which may use an import that looks unused.
+    let filesWithCode: Set<FilePath>
 
-    init(names: Set<String>, typeNames: Set<String> = [], hasCode: Bool = false) {
+    init(names: Set<String>, typeNames: Set<String> = [], hasCode: Bool = false, filesWithCode: Set<FilePath> = []) {
         self.names = names
         self.typeNames = typeNames
         self.hasCode = hasCode
+        self.filesWithCode = filesWithCode
     }
 
     init(graph: SourceGraph) throws {
         var collected = UncoveredConditionalNames(names: [])
         for file in graph.indexedSourceFiles {
             let source = try String(contentsOfFile: file.path.string, encoding: .utf8)
-            collected = collected.merging(Self.read(source, variants: file.variants))
+            let read = Self.read(source, variants: file.variants)
+            collected = collected.merging(read)
+            if read.hasCode {
+                collected = collected.merging(UncoveredConditionalNames(names: [], filesWithCode: [file.path]))
+            }
         }
-        self.init(names: collected.names, typeNames: Self.withSupertypes(collected.typeNames, in: graph), hasCode: collected.hasCode)
+        self.init(
+            names: collected.names,
+            typeNames: Self.withSupertypes(collected.typeNames, in: graph),
+            hasCode: collected.hasCode,
+            filesWithCode: collected.filesWithCode
+        )
+    }
+
+    /// Why a rule that takes away an access level, the ability to subclass or override, or an import may break code
+    /// in the clauses, or nil.
+    func skipReason(for declaration: Declaration, rule: FixRule) -> SkipReason? {
+        if rule == .unusedImport {
+            return filesWithCode.contains(declaration.location.file.path) ? .uncoveredConditionalCode : nil
+        }
+        if writtenName(of: declaration) != nil {
+            return .uncoveredConditionalName
+        }
+        if reachingType(of: declaration) != nil {
+            return .uncoveredConditionalType
+        }
+        if ([declaration] + declaration.descendentDeclarations).contains(where: mayUseImplicitly) {
+            return .implicitMemberWithUncoveredCode
+        }
+        return nil
     }
 
     /// The name of the declaration, or of one of its members, written in a clause.
@@ -108,7 +138,8 @@ struct UncoveredConditionalNames {
         UncoveredConditionalNames(
             names: names.union(other.names),
             typeNames: typeNames.union(other.typeNames),
-            hasCode: hasCode || other.hasCode
+            hasCode: hasCode || other.hasCode,
+            filesWithCode: filesWithCode.union(other.filesWithCode)
         )
     }
 

@@ -1,5 +1,6 @@
 @testable import Fix
 import SourceGraph
+import SystemPackage
 @testable import TestShared
 import XCTest
 
@@ -80,6 +81,19 @@ final class UncoveredConditionalNamesTest: FixtureSourceGraphTestCase {
         XCTAssertNil(uncovered.writtenName(of: notReached))
         XCTAssertNil(uncovered.reachingType(of: notReached))
         XCTAssertFalse(uncovered.mayUseImplicitly(notReached))
+    }
+
+    func testRestrictiveTargetsReachedByTheClausesAreSkipped() throws {
+        let file = SourceFile(path: "/Sources/Lib/Release.swift", modules: ["Lib"])
+        let uncovered = UncoveredConditionalNames(names: ["releaseOnly"], filesWithCode: [file.path])
+        let location = Location(file: file, line: 1, column: 8)
+        let otherLocation = Location(file: SourceFile(path: "/Sources/Lib/Other.swift", modules: ["Lib"]), line: 1, column: 8)
+
+        // A call in the clause may need an import that the index shows unused.
+        XCTAssertEqual(uncovered.skipReason(for: Declaration(name: "Helpers", kind: .module, usrs: ["Helpers"], location: location), rule: .unusedImport), .uncoveredConditionalCode)
+        XCTAssertNil(uncovered.skipReason(for: Declaration(name: "Helpers", kind: .module, usrs: ["Helpers-other"], location: otherLocation), rule: .unusedImport))
+        XCTAssertEqual(uncovered.skipReason(for: Declaration(name: "releaseOnly()", kind: .functionFree, usrs: ["s:releaseOnly"], location: otherLocation), rule: .redundantPublic), .uncoveredConditionalName)
+        XCTAssertNil(uncovered.skipReason(for: Declaration(name: "kept()", kind: .functionFree, usrs: ["s:kept"], location: otherLocation), rule: .redundantPublic))
     }
 
     // MARK: - Private

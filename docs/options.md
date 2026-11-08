@@ -86,7 +86,7 @@ Schemes to build; every target they build is scanned.
 
 Key `schemes` · list of strings · default empty.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Fixing results: Options](fixing-results.md#options), [Troubleshooting: A declaration used only by a target that was not built](troubleshooting.md#a-declaration-used-only-by-a-target-that-was-not-built).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Fixing results: Partial scans](fixing-results.md#partial-scans), [Fixing results: Options](fixing-results.md#options), [Troubleshooting: A declaration used only by a target that was not built](troubleshooting.md#a-declaration-used-only-by-a-target-that-was-not-built).
 
 ### `-- <args>`
 
@@ -126,7 +126,7 @@ Skip the project build step.
 
 Key `skip_build` · flag, `--no-skip-build` to switch off · default `false`.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Fixing results: Options](fixing-results.md#options), [Fixing results: Safety](fixing-results.md#safety).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Fixing results: Partial scans](fixing-results.md#partial-scans), [Fixing results: Options](fixing-results.md#options).
 
 ### `--skip-schemes-validation`
 
@@ -142,7 +142,7 @@ Index store paths, relative to the project root; implies skip_build.
 
 Key `index_store_path` · list of strings · default empty.
 
-See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Fixing results: Options](fixing-results.md#options).
+See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Fixing results: Partial scans](fixing-results.md#partial-scans).
 
 ### `--quiet-index-store`
 
@@ -178,7 +178,7 @@ Project configuration file for other build systems.
 
 Key `generic_project_config` · string · default none.
 
-See [Configuration: Paths](configuration.md#paths), [Fixing results: Options](fixing-results.md#options), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Configuration: Paths](configuration.md#paths), [Fixing results: Partial scans](fixing-results.md#partial-scans), [Fixing results: Options](fixing-results.md#options), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--cache-max-age-days`
 
@@ -204,7 +204,7 @@ Targets to exclude from indexing.
 
 Key `exclude_targets` · list of strings · default empty.
 
-See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Fixing results: Partial scans](fixing-results.md#partial-scans).
 
 ### `--exclude-tests`
 
@@ -212,7 +212,7 @@ Exclude test targets from indexing.
 
 Key `exclude_tests` · flag, `--no-exclude-tests` to switch off · default `false`.
 
-See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Fixing results: Partial scans](fixing-results.md#partial-scans).
 
 ### `--index-exclude`
 
@@ -252,7 +252,7 @@ Report only the results in files that changed since this git ref: committed sinc
 
 Key `changed_since` · string · default none.
 
-See [Baselines: Baselines and pull requests](baselines.md#baselines-and-pull-requests), [Fixing results](fixing-results.md), [Output formats: Summary](output-formats.md#summary), [Roadmap: Published](roadmap.md#published).
+See [Baselines: Baselines and pull requests](baselines.md#baselines-and-pull-requests), [Fixing results](fixing-results.md), [Fixing results: Partial scans](fixing-results.md#partial-scans), [Output formats: Summary](output-formats.md#summary).
 
 ### `--changed-lines`
 

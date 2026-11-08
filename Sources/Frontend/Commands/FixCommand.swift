@@ -12,7 +12,7 @@ struct FixCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "fix",
         abstract: "Scan, then apply the syntax-only fixes: print a unified diff, or write the files with --apply",
-        discussion: "Takes every option of the scan command. Rules: \(FixRule.allCases.filter { !$0.isAggressive }.map(\.rawValue).joined(separator: ", ")); with --aggressive: \(FixRule.allCases.filter(\.isAggressive).map(\.rawValue).joined(separator: ", ")). Rules whose analysis is opt-in only apply when the analysis is enabled."
+        discussion: "Takes every option of the scan command. Rules: \(FixRule.allCases.filter { !$0.isAggressive && !$0.isOptIn }.map(\.rawValue).joined(separator: ", ")); with --aggressive: \(FixRule.allCases.filter(\.isAggressive).map(\.rawValue).joined(separator: ", ")); only when named with --rule: \(FixRule.allCases.filter(\.isOptIn).map(\.rawValue).joined(separator: ", ")), refused on the modules of a library product unless retain_public is set. Rules whose analysis is opt-in only apply when the analysis is enabled."
     )
 
     @Flag(help: "Write the fixes to the files atomically instead of printing a unified diff")
@@ -33,6 +33,9 @@ struct FixCommand: ParsableCommand {
     @Flag(help: "Also fix files that have uncommitted changes, or that are not in a git repository")
     var allowDirty: Bool = false
 
+    @Flag(help: "Apply \(FixRule.allCases.filter(\.requiresCompleteScan).map(\.rawValue).joined(separator: ", ")) after a scan that did not cover all the code: 'variants: default', a variant that was not built, an Xcode project (only the listed schemes in Debug), or index_exclude, exclude_tests or exclude_targets")
+    var allowPartialScan: Bool = false
+
     @OptionGroup
     var scan: ScanCommand
 
@@ -52,6 +55,9 @@ struct FixCommand: ParsableCommand {
         if !aggressive, let rule = rules.first(where: \.isAggressive) {
             throw ValidationError("'\(rule.rawValue)' is a tier-2 rule, it requires '--aggressive'")
         }
+        if allowPartialScan, !rules.isEmpty, completeScanRule == nil {
+            throw ValidationError("'--allow-partial-scan' only applies to \(FixRule.allCases.filter(\.requiresCompleteScan).map { "'\($0.rawValue)'" }.joined(separator: ", "))")
+        }
     }
 
     func run() throws {
@@ -61,8 +67,9 @@ struct FixCommand: ParsableCommand {
         if verify {
             try validateVerifiableBuild(configuration: configuration, project: prepared.project)
         }
-        if let rule = completeScanRule, let refusal = Self.partialScanRefusal(for: rule, of: prepared.project.kind, configuration: configuration) {
-            throw PeripheryError.usageError(refusal)
+        var partialScan = allowPartialScan ? nil : PartialScan(of: prepared.project.kind, configuration: configuration)
+        if let rule = completeScanRule, let partialScan {
+            throw PeripheryError.usageError(partialScan.refusal(for: rule))
         }
 
         let scanStartedAt = Date()
@@ -72,15 +79,27 @@ struct FixCommand: ParsableCommand {
             .filter(output.results, with: prepared.baseline)
         let reported = try ChangedSinceFilter(configuration: configuration, shell: prepared.shell, logger: logger)
             .filter(filtered)
-        if let rule = completeScanRule {
-            try Self.validateVariantCoverage(of: output.driver, for: rule)
+        if !allowPartialScan, partialScan == nil {
+            partialScan = PartialScan(variantsOf: output.driver)
+        }
+        if let rule = completeScanRule, let partialScan {
+            throw PeripheryError.usageError(partialScan.refusal(for: rule))
         }
 
-        let targets = selectTargets(from: reported, configuration: configuration)
+        var guarded = selectTargets(from: reported, configuration: configuration)
+        try guarded.keepDependencyPackages(ownModules: output.driver.ownModules())
+        if !configuration.retainPublic {
+            try guarded.keepLibraryProductAPI(modules: output.driver.libraryProductModules())
+        }
+        if let partialScan {
+            guarded.keepRulesRequiringACompleteScan(because: partialScan.reason)
+        }
+        try guarded.keepUncoveredConditionalUses(in: output.graph)
         let workingTree: WorkingTreeState = try allowDirty ? .ignored : GitWorkingTree.state(at: configuration.projectRoot)
         let indexDates = IndexDates(scanStartedAt: scanStartedAt, unitDates: output.unitDates)
         let planner = FixPlanner(workingTree: workingTree, indexDates: indexDates, isIndexExcluded: configuration.isIndexExcluded)
-        let plan = planner.plan(targets)
+        var plan = planner.plan(guarded.targets)
+        plan.addSkipped(guarded)
 
         if apply {
             try FixWriter.apply(plan)
@@ -107,41 +126,13 @@ struct FixCommand: ParsableCommand {
 
     /// Why the scan of the project may leave out code that the rule needs to see, or nil.
     static func partialScanRefusal(for rule: FixRule, of projectKind: ProjectKind, configuration: Configuration) -> String? {
-        let option = "'--rule \(rule.rawValue)'"
-        if configuration.variants == .default {
-            return "\(option) is only safe once every variant that ships is scanned: code used only in another platform's '#if' clauses would be missed. Set 'variants' to 'auto' or to a list of variants."
-        }
-        if case .xcode = projectKind {
-            return "\(option) is only safe when every build that compiles the code is scanned, but an Xcode project is only built for the listed schemes in the Debug configuration: targets outside the schemes, other configurations and per-configuration settings such as EXCLUDED_SOURCE_FILE_NAMES are not scanned."
-        }
-        if let narrowing = narrowingOption(of: configuration) {
-            return "\(option) is only safe when every file that may use the code it changes is scanned, but '\(narrowing)' leaves code out of the scan: its references would be lost. Remove '\(narrowing)'."
-        }
-        return nil
-    }
-
-    /// The first option that leaves code out of the index, whose references would be lost. `report_exclude` and
-    /// `report_include` only narrow the results, so the references stay.
-    private static func narrowingOption(of configuration: Configuration) -> String? {
-        if !Set(configuration.indexExclude).subtracting(configuration.$indexExclude.defaultValue).isEmpty {
-            return "index_exclude"
-        }
-        if configuration.excludeTests {
-            return "exclude_tests"
-        }
-        if !configuration.excludeTargets.isEmpty {
-            return "exclude_targets"
-        }
-        return nil
+        PartialScan(of: projectKind, configuration: configuration)?.refusal(for: rule)
     }
 
     /// The rule is only safe when the index holds every variant the configuration declares, built by this run.
     static func validateVariantCoverage(of driver: ProjectDriver, for rule: FixRule) throws {
-        if !driver.skippedVariants.isEmpty {
-            throw PeripheryError.usageError("'--rule \(rule.rawValue)' needs a scan of every variant, but some were not built:\n\(driver.skippedVariants.joined(separator: "\n"))\nInstall the missing SDKs.")
-        }
-        if driver.builtVariants.isEmpty {
-            throw PeripheryError.usageError("'--rule \(rule.rawValue)' needs a scan of every variant, but this scan did not build its variants ('--skip-build', '--index-store-path' or a generic project). Let outskirts build the variants.")
+        if let partialScan = PartialScan(variantsOf: driver) {
+            throw PeripheryError.usageError(partialScan.refusal(for: rule))
         }
     }
 
@@ -169,14 +160,99 @@ struct FixCommand: ParsableCommand {
         logger.info("The project builds with the fixes.")
     }
 
-    private func selectTargets(from results: [ScanResult], configuration: Configuration) -> [FixTarget] {
-        let selectedRules = rules.isEmpty ? Set(FixRule.allCases.filter { aggressive || !$0.isAggressive }) : Set(rules)
+    private func selectTargets(from results: [ScanResult], configuration: Configuration) -> GuardedTargets {
+        let selectedRules = rules.isEmpty ? Set(FixRule.allCases.filter { (aggressive || !$0.isAggressive) && !$0.isOptIn }) : Set(rules)
         let includeMatchers = configuration.buildFilenameMatchers(with: includes)
 
-        return results.compactMap(FixTarget.init(result:)).filter { target in
-            selectedRules.contains(target.rule)
-                && target.rule.isEnabled(in: configuration)
-                && (includeMatchers.isEmpty || includeMatchers.anyMatch(filename: target.file.string))
+        return GuardedTargets(results.compactMap { result in
+            guard let target = FixTarget(result: result),
+                  selectedRules.contains(target.rule),
+                  target.rule.isEnabled(in: configuration),
+                  includeMatchers.isEmpty || includeMatchers.anyMatch(filename: target.file.string)
+            else { return nil }
+
+            return (target, result.resultDeclaration)
+        })
+    }
+}
+
+extension FixCommand {
+    /// Why a scan may leave out code that a rule requiring a complete scan needs to see.
+    enum PartialScan {
+        case defaultVariants
+        case xcodeProject
+        /// An option that leaves code out of the index, whose references would be lost.
+        case narrowing(String)
+        case skippedVariants([String])
+        case variantsNotBuilt
+
+        /// Why the scan may be partial before it runs, from the project and the configuration, or nil.
+        init?(of projectKind: ProjectKind, configuration: Configuration) {
+            if configuration.variants == .default {
+                self = .defaultVariants
+            } else if case .xcode = projectKind {
+                self = .xcodeProject
+            } else if let narrowing = Self.narrowingOption(of: configuration) {
+                self = .narrowing(narrowing)
+            } else {
+                return nil
+            }
+        }
+
+        /// Why the scan was partial once it ran: the index must hold every variant the configuration declares, built
+        /// by this run.
+        init?(variantsOf driver: ProjectDriver) {
+            if !driver.skippedVariants.isEmpty {
+                self = .skippedVariants(driver.skippedVariants)
+            } else if driver.builtVariants.isEmpty {
+                self = .variantsNotBuilt
+            } else {
+                return nil
+            }
+        }
+
+        /// The usage error of a rule named with `--rule`.
+        func refusal(for rule: FixRule) -> String {
+            let option = "'--rule \(rule.rawValue)'"
+            let message = switch self {
+            case .defaultVariants:
+                "\(option) is only safe once every variant that ships is scanned: code used only in another platform's '#if' clauses would be missed. Set 'variants' to 'auto' or to a list of variants."
+            case .xcodeProject:
+                "\(option) is only safe when every build that compiles the code is scanned, but an Xcode project is only built for the listed schemes in the Debug configuration: targets outside the schemes, other configurations and per-configuration settings such as EXCLUDED_SOURCE_FILE_NAMES are not scanned."
+            case let .narrowing(narrowing):
+                "\(option) is only safe when every file that may use the code it changes is scanned, but '\(narrowing)' leaves code out of the scan: its references would be lost. Remove '\(narrowing)'."
+            case let .skippedVariants(skipped):
+                "\(option) needs a scan of every variant, but some were not built:\n\(skipped.joined(separator: "\n"))\nInstall the missing SDKs."
+            case .variantsNotBuilt:
+                "\(option) needs a scan of every variant, but this scan did not build its variants ('--skip-build', '--index-store-path' or a generic project). Let outskirts build the variants."
+            }
+            return message + " Pass '--allow-partial-scan' to accept this."
+        }
+
+        /// The short reason of the targets skipped when the rule was not named with `--rule`.
+        var reason: String {
+            switch self {
+            case .defaultVariants: "'variants' is 'default'"
+            case .xcodeProject: "Xcode project, only the listed schemes in Debug are built"
+            case let .narrowing(narrowing): "'\(narrowing)' leaves code out of the scan"
+            case .skippedVariants: "some variants were not built"
+            case .variantsNotBuilt: "the variants were not built by this run"
+            }
+        }
+
+        /// The first option that leaves code out of the index, whose references would be lost. `report_exclude` and
+        /// `report_include` only narrow the results, so the references stay.
+        private static func narrowingOption(of configuration: Configuration) -> String? {
+            if !Set(configuration.indexExclude).subtracting(configuration.$indexExclude.defaultValue).isEmpty {
+                return "index_exclude"
+            }
+            if configuration.excludeTests {
+                return "exclude_tests"
+            }
+            if !configuration.excludeTargets.isEmpty {
+                return "exclude_targets"
+            }
+            return nil
         }
     }
 }
