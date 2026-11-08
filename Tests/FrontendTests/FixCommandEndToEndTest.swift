@@ -50,7 +50,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         func internalValue() -> Int { 2 }
     }
 
-    func libraryOnly() -> Int { 3 }
+    public func libraryOnly() -> Int { 3 }
 
     """
 
@@ -92,7 +92,9 @@ final class FixCommandEndToEndTest: XCTestCase {
         let dryRun = try run(["fix"])
         XCTAssertEqual(dryRun.status, 0, dryRun.stderr)
         XCTAssertTrue(dryRun.stdout.hasPrefix("--- a/Sources/Lib/Lib.swift\n+++ b/Sources/Lib/Lib.swift\n"), dryRun.stdout)
-        XCTAssertTrue(dryRun.stderr.contains("Would apply 7 fixes in 1 file, skipped 0."), dryRun.stderr)
+        XCTAssertTrue(dryRun.stderr.contains("Would apply 6 fixes in 1 file, skipped 1."), dryRun.stderr)
+        // redundant-public needs a scan of every variant.
+        XCTAssertTrue(dryRun.stderr.contains("  skipped redundant-public 'libraryOnly()' at Sources/Lib/Lib.swift:18:13: partial scan ('variants' is 'default'), use --allow-partial-scan"), dryRun.stderr)
         XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.library)
 
         let applied = try run(["fix", "--apply"])
@@ -104,7 +106,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         let rescan = try run(["fix"])
         XCTAssertEqual(rescan.status, 0, "the fixed package builds:\n\(rescan.stderr)")
         XCTAssertEqual(rescan.stdout, "")
-        XCTAssertTrue(rescan.stderr.contains("Would apply 0 fixes in 0 files, skipped 0."), rescan.stderr)
+        XCTAssertTrue(rescan.stderr.contains("Would apply 0 fixes in 0 files, skipped 1."), rescan.stderr)
     }
 
     func testFileEditedAfterItsIndexWasWrittenIsRefused() throws {
@@ -176,6 +178,53 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertTrue(output.stderr.contains("  skipped redundant-open 'FlagBase' at Sources/Lib/Bases.swift:6:12: name written in an #if clause that no scanned build compiled"), output.stderr)
     }
 
+    func testRedundantPublicIsRefusedWhenExcludeTargetsLeavesItsClientOut() throws {
+        try write("import Lib\n\nprint(Widget().render(width: 1, 2), libraryOnly())\n", to: "Sources/App/main.swift")
+        try commitAll()
+
+        let named = try run(["fix", "--rule", "redundant-public", "--variants", "auto", "--exclude-targets", "App"])
+        XCTAssertNotEqual(named.status, 0)
+        XCTAssertTrue(named.stderr.contains("'--rule redundant-public' is only safe when every file that may use the code it changes is scanned, but 'exclude_targets' leaves code out of the scan"), named.stderr)
+        XCTAssertTrue(named.stderr.contains("Pass '--allow-partial-scan' to accept this."), named.stderr)
+
+        let byDefault = try run(["fix", "--variants", "auto", "--exclude-targets", "App"])
+        XCTAssertEqual(byDefault.status, 0, byDefault.stderr)
+        XCTAssertFalse(byDefault.stdout.contains("-public"), byDefault.stdout)
+        XCTAssertTrue(byDefault.stderr.contains("partial scan ('exclude_targets' leaves code out of the scan), use --allow-partial-scan"), byDefault.stderr)
+    }
+
+    // MARK: - Partial scans
+
+    func testMissingFinalIsRefusedWithExcludeTests() throws {
+        try writeMockedBox()
+
+        let named = try run(["fix", "--aggressive", "--rule", "missing-final", "--enable-open-final-analysis", "--variants", "auto", "--exclude-tests", "--apply"])
+        XCTAssertNotEqual(named.status, 0)
+        XCTAssertTrue(named.stderr.contains("but 'exclude_tests' leaves code out of the scan"), named.stderr)
+
+        let byDefault = try run(["fix", "--aggressive", "--enable-open-final-analysis", "--variants", "auto", "--exclude-tests", "--apply"])
+        XCTAssertEqual(byDefault.status, 0, byDefault.stderr)
+        // The mock of the tests subclasses it, but the tests are not scanned.
+        XCTAssertTrue(byDefault.stderr.contains("  skipped missing-final 'Box' at Sources/Lib/Box.swift:1:7: partial scan ('exclude_tests' leaves code out of the scan), use --allow-partial-scan"), byDefault.stderr)
+        XCTAssertEqual(try read("Sources/Lib/Box.swift"), Self.box)
+
+        let flagWithoutRule = try run(["fix", "--rule", "unused-import", "--allow-partial-scan"])
+        XCTAssertNotEqual(flagWithoutRule.status, 0)
+        XCTAssertTrue(flagWithoutRule.stderr.contains("'--allow-partial-scan' only applies to 'redundant-public', 'redundant-open', 'missing-final'"), flagWithoutRule.stderr)
+    }
+
+    func testMissingFinalIsRefusedWithIndexExclude() throws {
+        try writeMockedBox()
+
+        let named = try run(["fix", "--aggressive", "--rule", "missing-final", "--enable-open-final-analysis", "--variants", "auto", "--index-exclude", "Tests/**"])
+        XCTAssertNotEqual(named.status, 0)
+        XCTAssertTrue(named.stderr.contains("but 'index_exclude' leaves code out of the scan"), named.stderr)
+
+        let scanned = try run(["fix", "--aggressive", "--rule", "missing-final", "--enable-open-final-analysis", "--variants", "auto"])
+        XCTAssertEqual(scanned.status, 0, scanned.stderr)
+        XCTAssertFalse(scanned.stdout.contains("final class Box"), scanned.stdout)
+    }
+
     // MARK: - Verify
 
     func testVerifyKeepsTheFixesWhenTheProjectBuilds() throws {
@@ -192,7 +241,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         try commitAll()
         let originalBytes = try Data(contentsOf: package.appendingPathComponent("Sources/Lib/Lib.swift"))
 
-        let output = try run(["fix", "--apply", "--verify", "--index-exclude", "Sources/App/Excluded.swift"])
+        let output = try run(["fix", "--rule", "redundant-public", "--allow-partial-scan", "--apply", "--verify", "--index-exclude", "Sources/App/Excluded.swift"])
 
         XCTAssertNotEqual(output.status, 0, output.stderr)
         XCTAssertTrue(output.stderr.contains("The build failed after the fixes were applied"), output.stderr)
@@ -224,7 +273,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         try write("import Lib\n\nprint(Widget().render(width: 1, 2) + Box().value, Done())\n", to: "Sources/App/main.swift")
         try commitAll()
 
-        let aggressive = try run(["fix", "--aggressive", "--rule", "missing-final", "--enable-open-final-analysis"])
+        let aggressive = try run(["fix", "--aggressive", "--rule", "missing-final", "--enable-open-final-analysis", "--variants", "auto"])
         XCTAssertEqual(aggressive.status, 0, aggressive.stderr)
         XCTAssertTrue(aggressive.stdout.contains("-class Box {\n+final class Box {"), aggressive.stdout)
         XCTAssertFalse(aggressive.stdout.contains("+final final class Done"), aggressive.stdout)
@@ -244,6 +293,25 @@ final class FixCommandEndToEndTest: XCTestCase {
     }
 
     // MARK: - Private
+
+    private static let box = "class Box {\n    let value = 1\n}\n\npublic func boxValue() -> Int { Box().value }\n"
+
+    /// A class of the library that only a mock of the tests subclasses.
+    private func writeMockedBox() throws {
+        try write("""
+        // swift-tools-version:5.9
+        import PackageDescription
+        let package = Package(name: "Fixture", targets: [
+            .target(name: "Helpers"),
+            .target(name: "Lib", dependencies: ["Helpers"]),
+            .executableTarget(name: "App", dependencies: ["Lib"]),
+            .testTarget(name: "LibTests", dependencies: ["Lib"]),
+        ])
+        """, to: "Package.swift")
+        try write(Self.box, to: "Sources/Lib/Box.swift")
+        try write("@testable import Lib\n\nfinal class BoxMock: Box {}\n", to: "Tests/LibTests/BoxMock.swift")
+        try commitAll()
+    }
 
     private struct Output {
         let status: Int32

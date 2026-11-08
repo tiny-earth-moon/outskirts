@@ -21,11 +21,18 @@ public struct GuardedTargets {
 
     /// Keeps the targets of the restrictive rules that code in an `#if` clause no scanned build compiled may use.
     public mutating func keepUncoveredConditionalUses(in graph: SourceGraph) throws {
-        guard candidates.contains(where: { $0.target.rule.isRestrictive }) else { return }
+        guard candidates.contains(where: \.target.rule.isRestrictive) else { return }
 
         let uncovered = try UncoveredConditionalNames(graph: graph)
         keep { target, declaration in
             target.rule.isRestrictive ? uncovered.skipReason(for: declaration, rule: target.rule) : nil
+        }
+    }
+
+    /// Keeps the targets of the rules that need a scan of all the code, after a scan that left some out.
+    public mutating func keepRulesRequiringACompleteScan(because reason: String) {
+        keep { target, _ in
+            target.rule.requiresCompleteScan ? .partialScan(reason) : nil
         }
     }
 

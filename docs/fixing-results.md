@@ -46,6 +46,16 @@ Tier-2 rules change behavior, so they only apply with `--aggressive`, and `--rul
 
 A class made `final` can no longer be subclassed, including by a module the scan did not see, so use `--aggressive` with `--verify` and review the diff. Members reported as missing `final` in a class that is not reported are left to edit by hand.
 
+### Partial scans
+
+`redundant-public`, `redundant-open` and `missing-final` change what other files may do: see the API, override, subclass. A file the scan did not see may do it, so these rules need a scan of all the code:
+
+- every variant that ships: [`variants`](configuration.md) set to `auto` or to a list of variants, each built by this run, so not with `--skip-build`, `--index-store-path` or `--generic-project-config`, nor when a variant could not be built (its SDK is not installed);
+- not an Xcode project, which is only built for the schemes of `--schemes` in the Debug configuration: targets outside these schemes, other configurations and per-configuration build settings such as `EXCLUDED_SOURCE_FILE_NAMES` compile code the scan never sees;
+- no option that leaves code out of the index: `index_exclude` beyond its default globs, `exclude_tests` (a test mock that subclasses a class) or `exclude_targets`. `report_exclude`, `report_include`, the baseline and `--changed-since` only narrow the results: the files they hide are still scanned, so their references still count.
+
+After a partial scan, a rule named with `--rule` is refused with the reason, and a rule applied by default is skipped with the reason `partial scan`. `--allow-partial-scan` lifts both; the fixes can then break the code the scan did not see. `unused-import` is decided from its own file, so it needs no complete scan.
+
 ## Options
 
 - **`--apply`**: write the fixes. Each file is written atomically, and only if it still holds the content the edits were made on. Every file is written or none: each one is checked before the first write, and when a write fails, the files already written get their original content back.
@@ -54,6 +64,7 @@ A class made `final` can no longer be subclassed, including by a module the scan
 - **`--rule <rule>`**: only apply this rule; repeat the option to apply several.
 - **`--include <glob>`**: only fix the files that match the glob, relative to `--project-root`; repeat the option to give several.
 - **`--allow-dirty`**: also fix files with uncommitted changes, and projects outside a git repository.
+- **`--allow-partial-scan`**: apply `redundant-public`, `redundant-open` and `missing-final` after a scan that did not cover all the code (see [Partial scans](#partial-scans)).
 
 ## Safety
 

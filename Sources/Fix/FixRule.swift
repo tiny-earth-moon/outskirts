@@ -29,9 +29,10 @@ public enum FixRule: String, CaseIterable, Sendable {
     }
 
     /// Whether the rule is only safe after a scan that covers all the code: every variant, built by this run, and no
-    /// option that leaves code out of the index. No rule needs it yet; the guards of `fix` apply to the rules that do.
+    /// option that leaves code out of the index. A rule that changes what other files may do needs it; an unused
+    /// import is decided from its own file, whose uncompiled clauses the guards of `fix` read.
     public var requiresCompleteScan: Bool {
-        false
+        isRestrictive && self != .unusedImport
     }
 
     /// Whether the analysis that produces the results of this rule is enabled. Opt-in analyses are only fixed when
