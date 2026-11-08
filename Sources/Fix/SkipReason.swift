@@ -33,6 +33,7 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case severalCases
     case referencedByKeptCode
     case requirementImplementedElsewhere
+    case mayDriveAssociatedTypeInference
     case relatedToKeptCode
     case extensionKept
     case extendedTypeKept
@@ -85,6 +86,7 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .severalCases: "declaration with several cases"
         case .referencedByKeptCode: "referenced by code that is kept"
         case .requirementImplementedElsewhere: "protocol requirement implemented by kept code"
+        case .mayDriveAssociatedTypeInference: "requirement or witness of a protocol with an associated type, may drive associated type inference"
         case .relatedToKeptCode: "overridden by kept code, or implements a kept requirement"
         case .extensionKept: "an extension of the type is kept"
         case .extendedTypeKept: "the extended type is kept"

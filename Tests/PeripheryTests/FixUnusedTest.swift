@@ -117,6 +117,20 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         XCTAssertEqual(outcome.fixed, outcome.original)
     }
 
+    func testKeepsARequirementThatInfersADefaultedAssociatedType() throws {
+        let outcome = try removeUnused()
+
+        XCTAssertEqual(outcome.decisions, ["3 defaults()": SkipReason.mayDriveAssociatedTypeInference.description, "7 defaults()": SkipReason.referencedByKeptCode.description])
+        XCTAssertEqual(outcome.fixed, outcome.original)
+    }
+
+    func testKeepsARequirementThatInfersAnAssociatedType() throws {
+        let outcome = try removeUnused()
+
+        XCTAssertEqual(outcome.decisions, ["3 defaults()": SkipReason.mayDriveAssociatedTypeInference.description, "7 defaults()": SkipReason.referencedByKeptCode.description])
+        XCTAssertEqual(outcome.fixed, outcome.original)
+    }
+
     func testKeepsCasesOfCaseIterableAndCodableEnums() throws {
         let outcome = try removeUnused()
 

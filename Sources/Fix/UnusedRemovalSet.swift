@@ -169,6 +169,10 @@ public struct UnusedRemovalSet {
     }
 
     private func blockingReason(of declaration: Declaration) -> SkipReason? {
+        if drivesAssociatedTypeInference(declaration) {
+            return .mayDriveAssociatedTypeInference
+        }
+
         let scope = [declaration] + declaration.descendentDeclarations
 
         for member in scope {
@@ -196,6 +200,20 @@ public struct UnusedRemovalSet {
             }
         }
         return nil
+    }
+
+    /// Whether the declaration is a requirement, or the witness of a requirement, of a protocol that declares an
+    /// associated type: the compiler may infer the associated type from it, so removing it can change or break the
+    /// conformance.
+    private func drivesAssociatedTypeInference(_ declaration: Declaration) -> Bool {
+        guard !Self.typeKinds.contains(declaration.kind), declaration.kind != .associatedtype else { return false }
+
+        let requirements = [declaration] + declaration.related.compactMap { graph.declaration(withUsr: $0.usr) }
+        return requirements.contains { requirement in
+            guard let owner = requirement.parent, owner.kind == .protocol else { return false }
+
+            return owner.declarations.contains { $0.kind == .associatedtype }
+        }
     }
 
     /// Whether the declaration is in the set, or inside a declaration that is.

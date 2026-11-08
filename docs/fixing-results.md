@@ -83,6 +83,7 @@ A declaration is removed when all of these hold:
 - It is not in a local dependency package (see above).
 - Nothing kept references it or one of its members: a declaration that only removed code references goes in the same run.
 - No kept declaration overrides it or implements it, and it does not implement a kept protocol requirement.
+- It is not a requirement of a protocol that declares an associated type, nor the implementation of one: the compiler may infer the associated type from it, so removing it could change the type silently or break the conformance.
 - Every extension of the type, and of the types nested in it, is in the results and is removed with it, in the same edit set.
 
 Members of a removed type go with it. Each declaration is removed with its doc comment, the comment commands right above it (an `ignore:parameters` comment left behind would apply to the next declaration; `ignore:all` stays), its attributes and one trailing newline. A declaration that shares its line with others (`case a, b`, `var a = 1, b = 2`) is kept. When a removal is skipped, for example because its file has uncommitted changes, the declarations that depend on it are kept as well.
@@ -100,6 +101,7 @@ Removing a declaration can make others unused: scan again to remove them.
 Some uses are invisible to every scan, so the declarations they reach can be reported as unused and removed:
 
 - Reflection: a type created with `NSClassFromString`, a property read through `Mirror` or key-value coding (`value(forKey:)`, `#keyPath`), or a symbol looked up with `dlsym`. The build still succeeds, so only the tests or the running app show the break.
+- Code outside the scanned project, such as a package that is not part of the scan and reaches the declarations through `@testable import`: its uses are not indexed, so its build breaks.
 - A freestanding macro whose expansion drops its arguments: the index only holds the expansion, but the compiler still type-checks the arguments, so the build fails.
 - Removing a case of an enum switched over with `default` can make the `default` unreachable, which is a warning.
 
