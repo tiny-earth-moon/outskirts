@@ -588,7 +588,7 @@ See [Framework conventions and retention: Retaining by attribute](framework-conv
 
 Output format of the results.
 
-Key `format` · one of `xcode`, `csv`, `json`, `checkstyle`, `codeclimate`, `github-actions`, `github-markdown`, `gitlab-codequality`, `sarif`, `agent` · default `xcode`.
+Key `format` · one of `xcode`, `csv`, `json`, `json-v2`, `checkstyle`, `codeclimate`, `github-actions`, `github-markdown`, `gitlab-codequality`, `sarif`, `agent` · default `xcode`.
 
 See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Results and messages](getting-started.md#results-and-messages), [Configuration: Command line and file](configuration.md#command-line-and-file), [Output formats](output-formats.md).
 
@@ -598,7 +598,7 @@ Report paths relative to the project root, or to relative_results_base.
 
 Key `relative_results` · flag, `--no-relative-results` to switch off · default `false`.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Output formats](output-formats.md), [Output formats: Paths](output-formats.md#paths), [Continuous integration: Reusing the build](ci.md#reusing-the-build).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Output formats](output-formats.md), [Output formats: Paths](output-formats.md#paths), [Output formats: json-v2](output-formats.md#json-v2).
 
 ### `--relative-to`
 
@@ -606,7 +606,7 @@ Directory the result paths are relative to when relative_results is in effect.
 
 Key `relative_results_base` · string · default none.
 
-See [Configuration: Paths](configuration.md#paths), [Output formats: Paths](output-formats.md#paths), [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Continuous integration: GitLab CI](ci.md#gitlab-ci).
+See [Configuration: Paths](configuration.md#paths), [Output formats: Paths](output-formats.md#paths), [Output formats: json-v2](output-formats.md#json-v2), [Continuous integration: Reusing the build](ci.md#reusing-the-build).
 
 ### `--write-results`
 
