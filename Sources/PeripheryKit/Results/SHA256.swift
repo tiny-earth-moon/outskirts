@@ -14,6 +14,10 @@ enum SHA256 {
     ]
 
     static func hexDigest(of data: Data) -> String {
+        digest(of: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func digest(of data: Data) -> [UInt8] {
         var state: [UInt32] = [
             0x6A09_E667, 0xBB67_AE85, 0x3C6E_F372, 0xA54F_F53A, 0x510E_527F, 0x9B05_688C, 0x1F83_D9AB, 0x5BE0_CD19,
         ]
@@ -59,7 +63,7 @@ enum SHA256 {
             }
         }
 
-        return state.map { String(format: "%08x", $0) }.joined()
+        return state.flatMap { word in stride(from: 24, through: 0, by: -8).map { UInt8(truncatingIfNeeded: word >> UInt32($0)) } }
     }
 
     private static func rotateRight(_ value: UInt32, _ count: UInt32) -> UInt32 {
