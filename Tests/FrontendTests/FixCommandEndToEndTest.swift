@@ -293,7 +293,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         let output = try run(["fix", "--apply", "--verify"])
 
         XCTAssertEqual(output.status, 0, output.stderr)
-        XCTAssertTrue(output.stderr.contains("The project builds with the fixes."), output.stderr)
+        XCTAssertTrue(output.stderr.contains("The project builds with the fixes. Rebuilt: the debug configuration, for the default platform. Other configurations (such as release)"), output.stderr)
         XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.fixedLibrary)
     }
 

@@ -115,7 +115,7 @@ struct FixCommand: ParsableCommand {
         logger.info(plan.summary(relativeTo: configuration.projectRoot, applying: apply))
 
         if verify, !plan.changes.isEmpty {
-            try Self.verifyBuild(of: pendingFixes, driver: output.driver, configuration: configuration, logger: logger)
+            try Self.verifyBuild(of: pendingFixes, driver: output.driver, projectKind: prepared.project.kind, configuration: configuration, logger: logger)
         }
         pendingFixes.keep()
     }
@@ -150,7 +150,7 @@ struct FixCommand: ParsableCommand {
     }
 
     /// Rebuilds the project; when the build fails, writes back every original buffer of the plan and fails.
-    static func verifyBuild(of pendingFixes: PendingFixes, driver: ProjectDriver, configuration: Configuration, logger: Logger) throws {
+    static func verifyBuild(of pendingFixes: PendingFixes, driver: ProjectDriver, projectKind: ProjectKind, configuration: Configuration, logger: Logger) throws {
         // The scan already cleaned the build if asked to: only the fixed files need to be rebuilt.
         configuration.cleanBuild = false
         do {
@@ -162,7 +162,40 @@ struct FixCommand: ParsableCommand {
             logger.error("The build failed after the fixes were applied:\n\(error.localizedDescription)")
             throw PeripheryError.buildFailed(message: restoration.summary)
         }
-        logger.info("The project builds with the fixes.")
+        logger.info("The project builds with the fixes. \(rebuiltBuilds(of: projectKind, configuration: configuration, builtVariants: driver.builtVariants))")
+    }
+
+    /// What `--verify` rebuilt, which is only what the scan built, and what it leaves to build.
+    static func rebuiltBuilds(of projectKind: ProjectKind, configuration: Configuration, builtVariants: [String]) -> String {
+        let buildConfiguration = if let given = buildConfiguration(in: configuration.buildArguments) {
+            "the \(given) configuration"
+        } else if case .xcode = projectKind {
+            "the configuration of the Test action of \(configuration.schemes.map { "'\($0)'" }.joined(separator: ", ")) (Debug by default)"
+        } else {
+            "the debug configuration"
+        }
+        let builds = if builtVariants.isEmpty {
+            "\(buildConfiguration), for the default platform"
+        } else {
+            "the variants \(builtVariants.joined(separator: "; ")), in \(buildConfiguration) unless the variant names its own"
+        }
+        let arguments = configuration.buildArguments.isEmpty ? "" : ", with the build arguments of the scan"
+        return "Rebuilt: \(builds)\(arguments). Other configurations (such as release), platforms and compilation conditions were not rebuilt: build them before shipping the fixes."
+    }
+
+    /// The configuration that `-c`, `--configuration` (SwiftPM) or `-configuration` (xcodebuild) selects; the last wins.
+    private static func buildConfiguration(in arguments: [String]) -> String? {
+        var configuration: String?
+        for (index, argument) in arguments.enumerated() {
+            for option in ["-c", "--configuration", "-configuration"] {
+                if argument == option, arguments.indices.contains(index + 1) {
+                    configuration = arguments[index + 1]
+                } else if argument.hasPrefix(option + "=") {
+                    configuration = String(argument.dropFirst(option.count + 1))
+                }
+            }
+        }
+        return configuration
     }
 
     private func selectTargets(from results: [ScanResult], configuration: Configuration) -> GuardedTargets {

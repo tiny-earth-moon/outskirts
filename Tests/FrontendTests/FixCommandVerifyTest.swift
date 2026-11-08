@@ -31,7 +31,7 @@ final class FixCommandVerifyTest: XCTestCase {
             pendingFixes.cancel()
             throw PeripheryError.shellCommandKilled(cmd: ["swift", "build"], signal: SIGINT, output: "")
         }
-        XCTAssertThrowsError(try FixCommand.verifyBuild(of: pendingFixes, driver: driver, configuration: Configuration(), logger: logger)) { error in
+        XCTAssertThrowsError(try FixCommand.verifyBuild(of: pendingFixes, driver: driver, projectKind: .spm, configuration: Configuration(), logger: logger)) { error in
             guard case PeripheryError.shellCommandKilled = error else {
                 return XCTFail("Expected the error of the cancelled build, received \(error)")
             }
@@ -46,7 +46,7 @@ final class FixCommandVerifyTest: XCTestCase {
         let pendingFixes = PendingFixes(projectRoot: directory, logger: logger)
         try pendingFixes.apply(plan)
 
-        try FixCommand.verifyBuild(of: pendingFixes, driver: Driver {}, configuration: Configuration(), logger: logger)
+        try FixCommand.verifyBuild(of: pendingFixes, driver: Driver {}, projectKind: .spm, configuration: Configuration(), logger: logger)
         pendingFixes.keep()
         pendingFixes.cancel()
 
@@ -61,6 +61,32 @@ final class FixCommandVerifyTest: XCTestCase {
         let restoration = try XCTUnwrap(pendingFixes.restore())
 
         XCTAssertEqual(restoration.cancellationSummary, "Cancelled before the fixes were kept, restored 2 of 2 files:\n  restored A.swift\n  restored B.swift")
+    }
+
+    // MARK: - Rebuilt builds
+
+    func testVerifyMessageListsTheRebuiltConfigurationsAndVariants() {
+        XCTAssertEqual(
+            FixCommand.rebuiltBuilds(of: .spm, configuration: Configuration(), builtVariants: []),
+            "Rebuilt: the debug configuration, for the default platform. Other configurations (such as release), platforms and compilation conditions were not rebuilt: build them before shipping the fixes."
+        )
+
+        let release = Configuration()
+        release.buildArguments = ["-Xswiftc", "-DFEATURE", "--configuration", "release"]
+        XCTAssertTrue(
+            FixCommand.rebuiltBuilds(of: .spm, configuration: release, builtVariants: ["arm64-apple-macosx15.0", "x86_64-unknown-linux-gnu,configuration=debug"])
+                .hasPrefix("Rebuilt: the variants arm64-apple-macosx15.0; x86_64-unknown-linux-gnu,configuration=debug, in the release configuration unless the variant names its own, with the build arguments of the scan. Other configurations")
+        )
+
+        let xcode = Configuration()
+        xcode.schemes = ["App", "Widget"]
+        XCTAssertTrue(
+            FixCommand.rebuiltBuilds(of: .xcode(projectPath: "App.xcodeproj"), configuration: xcode, builtVariants: [])
+                .hasPrefix("Rebuilt: the configuration of the Test action of 'App', 'Widget' (Debug by default), for the default platform.")
+        )
+
+        xcode.buildArguments = ["-configuration", "Staging"]
+        XCTAssertTrue(FixCommand.rebuiltBuilds(of: .xcode(projectPath: "App.xcodeproj"), configuration: xcode, builtVariants: []).hasPrefix("Rebuilt: the Staging configuration,"))
     }
 
     // MARK: - Private
