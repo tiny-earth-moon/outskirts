@@ -15,6 +15,8 @@ public final class SPMProjectDriver {
     private var packageDescription: PackageDescription?
     /// The builds of the `variants` setting, resolved once.
     private var resolvedVariants: [SPMBuildVariant]?
+    /// The scratch paths of this scan, locked so that concurrent scans never evict them.
+    private let cacheLease = CacheLease()
 
     public convenience init(configuration: Configuration, shell: Shell, logger: Logger) throws {
         if !configuration.schemes.isEmpty {
@@ -105,6 +107,9 @@ extension SPMProjectDriver: ProjectDriver {
                 if configuration.cleanBuild {
                     try pkg.clean(additionalArguments: variant.scratchPath.map { ["--scratch-path", $0.string] } ?? [])
                 }
+                if let scratchPath = variant.scratchPath {
+                    holdCache(scratchPath, creating: true)
+                }
 
                 if configuration.outputFormat.supportsAuxiliaryOutput {
                     let asterisk = logger.colorize("*", .boldGreen)
@@ -170,6 +175,9 @@ extension SPMProjectDriver: ProjectDriver {
 
     private func variantIndexStorePaths() throws -> Set<FilePath> {
         let variants = try variants()
+        for scratchPath in variants.compactMap(\.scratchPath) {
+            holdCache(scratchPath, creating: false)
+        }
         let stores = try variants.mapSet { try pkg.indexStorePath(additionalArguments: configuration.buildArguments + $0.arguments) }
         let scratchPaths = variants.compactMap(\.scratchPath)
 
@@ -183,6 +191,15 @@ extension SPMProjectDriver: ProjectDriver {
         }
 
         return stores
+    }
+
+    /// Holds a scratch path. A failure is a warning: the cache housekeeping never fails the scan.
+    private func holdCache(_ scratchPath: FilePath, creating: Bool) {
+        do {
+            try cacheLease.hold(URL(fileURLWithPath: scratchPath.string), creating: creating)
+        } catch {
+            logger.warn("Could not lock the build cache folder of this scan: \(error.localizedDescription)")
+        }
     }
 
     func expectedSourceFiles(from description: PackageDescription, excluding excludedTargets: Set<String>) -> [String: Set<FilePath>] {

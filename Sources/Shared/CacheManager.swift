@@ -19,6 +19,12 @@ struct CacheClearError: Error, LocalizedError {
     }
 }
 
+struct CacheEntryInUseError: Error, LocalizedError {
+    var errorDescription: String? {
+        "in use by a running scan"
+    }
+}
+
 public struct EvictedCacheEntry: Equatable {
     public let name: String
     public let size: Int64
@@ -55,7 +61,7 @@ public enum CacheManager {
     }
 
     /// Removes every entry of the cache directory, then the directory itself. Entries that have already
-    /// vanished are ignored. Symbolic links are removed, never followed.
+    /// vanished are ignored, the build folders a running scan holds are reported. Symbolic links are removed, never followed.
     static func clear(cacheDirectory: URL, fileManager: FileManager = .default) throws {
         let entries: [URL]
         do {
@@ -74,7 +80,9 @@ public enum CacheManager {
         var failures: [CacheEntryError] = []
         for entry in entries {
             do {
-                try fileManager.removeItem(at: entry)
+                if try !removeUnlessInUse(entry, fileManager: fileManager) {
+                    failures.append(CacheEntryError(path: entry.path, underlying: CacheEntryInUseError()))
+                }
             } catch {
                 if !isMissing(error) {
                     failures.append(CacheEntryError(path: entry.path, underlying: error))
@@ -175,7 +183,8 @@ public enum CacheManager {
         )
     }
 
-    /// Removes the `DerivedData-*` and `PackageBuild-*` folders of the cache, except `keeping`, that are stale. A folder is stale when
+    /// Removes the `DerivedData-*` and `PackageBuild-*` folders of the cache, except `keeping` and the folders a running
+    /// scan holds (see `CacheLease`), that are stale. A folder is stale when
     /// the project recorded in its sidecar no longer exists, or when its modification date is older than
     /// `maxAgeDays` (0 disables this age rule). Then, when `maxSizeBytes` is above 0, the least recently
     /// used folders are removed until the folders left fit in `maxSizeBytes` bytes (the size of `keeping` counts).
@@ -211,7 +220,8 @@ public enum CacheManager {
 
         func remove(_ entry: URL, size: Int64) -> Bool {
             do {
-                try fileManager.removeItem(at: entry)
+                guard try removeUnlessInUse(entry, fileManager: fileManager) else { return false }
+
                 evicted.append(EvictedCacheEntry(name: entry.lastPathComponent, size: size))
                 return true
             } catch {
@@ -239,9 +249,11 @@ public enum CacheManager {
             }
 
             let size = directorySize(entry, fileManager: fileManager)
-            if isStale {
-                _ = remove(entry, size: size)
-            } else if isKept {
+            if isStale, remove(entry, size: size) {
+                continue
+            }
+            if isStale || isKept {
+                // A stale folder left in place, in use or not removable, still takes room.
                 keptSize += size
             } else {
                 remaining.append((entry, modified ?? .distantPast, size))
@@ -263,6 +275,20 @@ public enum CacheManager {
 
     // MARK: - Private
 
+    /// Removes a cache entry under an exclusive lock, unless a running scan holds it. Returns false when it is in use.
+    private static func removeUnlessInUse(_ entry: URL, fileManager: FileManager) throws -> Bool {
+        let type = try fileManager.attributesOfItem(atPath: entry.path)[.type] as? FileAttributeType
+        guard type == .typeDirectory else {
+            try fileManager.removeItem(at: entry)
+            return true
+        }
+        guard let descriptor = try CacheLock.tryExclusive(in: entry) else { return false }
+
+        defer { close(descriptor) }
+        try fileManager.removeItem(at: entry)
+        return true
+    }
+
     /// Whether the folder records a project path that no longer exists. A folder without a sidecar is never an orphan.
     private static func isOrphan(_ directory: URL, fileManager: FileManager) -> Bool {
         let sidecar = directory.appendingPathComponent(projectSidecarName)
@@ -274,7 +300,8 @@ public enum CacheManager {
 
     private static func isMissing(_ error: Error) -> Bool {
         let nsError = error as NSError
-        return nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileNoSuchFileError
+        return (nsError.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(nsError.code))
+            || (nsError.domain == NSPOSIXErrorDomain && nsError.code == Int(ENOENT))
     }
 
     private static func directorySize(_ url: URL, fileManager: FileManager) -> Int64 {

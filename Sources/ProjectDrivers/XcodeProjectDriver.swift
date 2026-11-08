@@ -17,6 +17,8 @@
         private let shell: Shell
         /// The builds of the `variants` setting, resolved once.
         private var resolvedVariants: [XcodeBuildVariant]?
+        /// The DerivedData folders of this scan, locked so that concurrent scans never evict them.
+        private let cacheLease = CacheLease()
 
         public convenience init(
             projectPath: FilePath,
@@ -162,6 +164,7 @@
             if configuration.cleanBuild {
                 try xcodebuild.removeDerivedData(for: project, allSchemes: Array(schemes), buildArguments: configuration.buildArguments)
             }
+            holdCache(buildArguments: configuration.buildArguments, creating: true)
 
             for scheme in schemes {
                 if configuration.outputFormat.supportsAuxiliaryOutput {
@@ -177,6 +180,12 @@
         }
 
         public func plan(logger: ContextualLogger) throws -> IndexPlan {
+            if configuration.indexStorePath.isEmpty {
+                for buildArguments in try buildArgumentsOfEachBuild() {
+                    holdCache(buildArguments: buildArguments, creating: false)
+                }
+            }
+
             let indexStorePaths: Set<FilePath> = if !configuration.indexStorePath.isEmpty {
                 Set(configuration.indexStorePath)
             } else {
@@ -232,6 +241,15 @@
 
         // MARK: - Private
 
+        /// Holds the DerivedData folder of a build. A failure is a warning: the cache housekeeping never fails the scan.
+        private func holdCache(buildArguments: [String], creating: Bool) {
+            do {
+                try xcodebuild.holdCache(cacheLease, project: project, schemes: Array(schemes), buildArguments: buildArguments, creating: creating)
+            } catch {
+                logger.warn("Could not lock the build cache folder of this scan: \(error.localizedDescription)")
+            }
+        }
+
         /// One build of the schemes per variant, one after the other: concurrent builds would multiply the memory needed.
         private func buildVariants() throws {
             for variant in try variants() {
@@ -239,6 +257,7 @@
                 if configuration.cleanBuild {
                     try xcodebuild.removeDerivedData(for: project, allSchemes: Array(schemes), buildArguments: buildArguments)
                 }
+                holdCache(buildArguments: buildArguments, creating: true)
 
                 for scheme in schemes {
                     if configuration.outputFormat.supportsAuxiliaryOutput {
