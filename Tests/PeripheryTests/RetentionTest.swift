@@ -2007,7 +2007,8 @@ final class RetentionTest: FixtureSourceGraphTestCase {
             assertReferenced(.struct("FixtureResultBuilderArities")) {
                 self.assertReferenced(.functionMethodStatic("buildBlock()"))
                 self.assertReferenced(.functionMethodStatic("buildBlock(_:_:)"))
-                self.assertReferenced(.functionMethodStatic("buildBlock(_:)"))
+                self.assertReferenced(.functionMethodStatic("buildBlock(_:)", line: 26))
+                self.assertReferenced(.functionMethodStatic("buildBlock(_:)", line: 30))
                 self.assertReferenced(.functionMethodStatic("buildEither(first:)"))
                 self.assertNotReferenced(.functionMethodStatic("unusedHelper()"))
             }

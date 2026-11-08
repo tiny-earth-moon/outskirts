@@ -52,14 +52,7 @@ struct ParsedSource {
             if upperBound < bytes.count, bytes[upperBound] == newline {
                 upperBound += 1
             }
-            var lowerBound = lineStart
-            let followsBlankLine = lowerBound == 0 || (lowerBound >= 2 && bytes[lowerBound - 2] == newline)
-            if followsBlankLine, upperBound < bytes.count, bytes[upperBound] == newline {
-                upperBound += 1
-            } else if upperBound == bytes.count, lowerBound >= 2, bytes[lowerBound - 2] == newline {
-                lowerBound -= 1
-            }
-            return lowerBound ..< upperBound
+            return bytes.wholeLineRemoval(lineStart ..< upperBound)
         case (false, true):
             return lineStart ..< lineEnd
         case (_, false):
@@ -113,6 +106,41 @@ struct ParsedSource {
             skipHorizontalSpace()
         }
         return start
+    }
+}
+
+extension [UInt8] {
+    /// The length of the `\n` or `\r\n` line break that starts at the offset, 0 when there is none.
+    func lineBreakLength(startingAt offset: Int) -> Int {
+        if offset < count, self[offset] == UInt8(ascii: "\n") {
+            return 1
+        }
+        if offset + 1 < count, self[offset] == UInt8(ascii: "\r"), self[offset + 1] == UInt8(ascii: "\n") {
+            return 2
+        }
+        return 0
+    }
+
+    /// The length of the `\n` or `\r\n` line break that ends at the offset, 0 when there is none.
+    func lineBreakLength(endingAt offset: Int) -> Int {
+        guard offset >= 1, offset <= count, self[offset - 1] == UInt8(ascii: "\n") else { return 0 }
+
+        return offset >= 2 && self[offset - 2] == UInt8(ascii: "\r") ? 2 : 1
+    }
+
+    /// A removal of whole lines, which takes along one of the two blank lines that would end up next to each other,
+    /// or the blank line that would end the file, whatever the line breaks.
+    func wholeLineRemoval(_ range: Range<Int>) -> Range<Int> {
+        var lowerBound = range.lowerBound
+        var upperBound = range.upperBound
+        let previousBreak = lineBreakLength(endingAt: lowerBound)
+        let followsBlankLine = lowerBound == 0 || (previousBreak > 0 && lineBreakLength(endingAt: lowerBound - previousBreak) > 0)
+        if followsBlankLine, lineBreakLength(startingAt: upperBound) > 0 {
+            upperBound += lineBreakLength(startingAt: upperBound)
+        } else if upperBound == count, lowerBound > 0, followsBlankLine {
+            lowerBound -= previousBreak
+        }
+        return lowerBound ..< upperBound
     }
 }
 

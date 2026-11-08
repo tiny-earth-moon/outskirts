@@ -1,0 +1,3 @@
+func usedOnlyByGeneratedCode() {}
+
+func unusedInProject() {}
