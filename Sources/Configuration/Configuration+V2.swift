@@ -25,6 +25,8 @@ extension Configuration {
     func loadV2(yaml: String, path: FilePath) throws {
         var files: [V2File] = []
         try collectV2Files(yaml: yaml, path: path, chain: [], into: &files)
+        loadedFiles = files.map(\.path)
+        loadedVersion = 2
 
         let problems = files.flatMap { file in
             let applied = file.model.map { apply($0.anchoringGlobs(to: file.directory)) } ?? []

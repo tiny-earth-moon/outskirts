@@ -12,6 +12,9 @@ public struct ConfigurationOverride {
         .redundantAccessLevel, .emptyExtension, .superfluousIgnore,
     ]
 
+    /// The target name globs and the absolute path globs, as `config print` shows them.
+    let modules: [String]
+    let paths: [String]
     let retainPublic: Bool?
     let retainAll: Bool?
     let rules: [RuleIdentifier: Bool]
@@ -22,6 +25,8 @@ public struct ConfigurationOverride {
     private let pathMatchers: [FilenameMatcher]
 
     init(modules: [String], paths: [String], retainPublic: Bool?, retainAll: Bool?, rules: [RuleIdentifier: Bool]) {
+        self.modules = modules
+        self.paths = paths
         self.retainPublic = retainPublic
         self.retainAll = retainAll
         self.rules = rules

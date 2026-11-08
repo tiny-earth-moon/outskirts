@@ -3,7 +3,7 @@ import Foundation
 @testable import TestShared
 import XCTest
 
-/// Runs `outskirts config check` on configuration files written to a temporary directory.
+/// Runs `outskirts config check`, `migrate` and `print` on configuration files written to a temporary directory.
 final class ConfigCheckCommandTest: XCTestCase {
     private var directory: URL!
 
@@ -140,6 +140,36 @@ final class ConfigCheckCommandTest: XCTestCase {
         XCTAssertTrue(output.stderr.contains(".outskirts.yml: 3 problems found"), output.stderr)
     }
 
+    func testMigratePrintsTheV2FileAndApplyWritesIt() throws {
+        let v1 = "# Header.\n\n# Gate.\nstrict: true\ndisable_unused_import_analysis: true\n"
+        try write(".outskirts.yml", v1)
+
+        let printed = try run(["config", "migrate"], [])
+
+        XCTAssertEqual(printed.status, 0, printed.stderr)
+        XCTAssertTrue(printed.stdout.contains("version: 2\nexclude:\n"), printed.stdout)
+        XCTAssertTrue(printed.stdout.contains("rules:\n  unused-import: off\n"), printed.stdout)
+        XCTAssertTrue(printed.stdout.contains("report:\n  # Gate.\n  strict: true\n"), printed.stdout)
+        XCTAssertEqual(try String(contentsOf: directory.appendingPathComponent(".outskirts.yml"), encoding: .utf8), v1, "the file is untouched without --apply")
+
+        let applied = try run(["config", "migrate"], ["--apply"])
+
+        XCTAssertEqual(applied.status, 0, applied.stderr)
+        XCTAssertEqual(applied.stdout, "")
+        XCTAssertEqual(try String(contentsOf: directory.appendingPathComponent(".outskirts.yml"), encoding: .utf8), printed.stdout)
+        XCTAssertEqual(try check([]).status, 0)
+        XCTAssertNotEqual(try run(["config", "migrate"], []).status, 0, "a v2 file is not migrated again")
+    }
+
+    func testPrintShowsTheEffectiveConfiguration() throws {
+        try write(".outskirts.yml", "version: 2\nreport: {strict: true}\noverrides:\n  - modules: [Kit]\n    retain: {public: true}\n")
+
+        let output = try run(["config", "print"], [])
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        XCTAssertTrue(output.stdout.hasSuffix("version: 2\nreport:\n  strict: true\noverrides:\n- modules: [Kit]\n  retain: {public: true}\n"), output.stdout)
+    }
+
     // MARK: - Private
 
     private struct Output {
@@ -162,6 +192,10 @@ final class ConfigCheckCommandTest: XCTestCase {
     }
 
     private func check(_ arguments: [String]) throws -> Output {
+        try run(["config", "check"], arguments)
+    }
+
+    private func run(_ command: [String], _ arguments: [String]) throws -> Output {
         let stdoutFile = directory.appendingPathComponent("stdout.txt")
         let stderrFile = directory.appendingPathComponent("stderr.txt")
         FileManager.default.createFile(atPath: stdoutFile.path, contents: nil)
@@ -173,7 +207,7 @@ final class ConfigCheckCommandTest: XCTestCase {
 
         let process = Process()
         process.executableURL = try locatePeripheryExecutable(near: Self.self)
-        process.arguments = ["config", "check", "--project-root", directory.path] + arguments
+        process.arguments = command + ["--project-root", directory.path] + arguments
         process.standardOutput = try FileHandle(forWritingTo: stdoutFile)
         process.standardError = try FileHandle(forWritingTo: stderrFile)
         try process.run()

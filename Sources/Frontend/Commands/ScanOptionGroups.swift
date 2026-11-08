@@ -66,6 +66,12 @@ struct BuildOptions: ParsableArguments {
 }
 
 struct AnalysisOptions: ParsableArguments {
+    @Option(help: ArgumentHelp("Turn a rule on, by its id as 'outskirts list-rules' prints it; repeat to give several. It sets the option of the rule, e.g. '--enable-rule missing-final' is '--enable-open-final-analysis'", valueName: "rule"))
+    var enableRule: [RuleIdentifier] = []
+
+    @Option(help: ArgumentHelp("Turn a rule off, by its id as 'outskirts list-rules' prints it; repeat to give several. It sets the option of the rule, e.g. '--disable-rule unused-import' is '--disable-unused-import-analysis'", valueName: "rule"))
+    var disableRule: [RuleIdentifier] = []
+
     @Flag(inversion: .prefixedNo, help: "Disable retention of declarations that are unavailable on a platform, or referenced from platform conditional compilation blocks. Alias of '--platform-conditional-retention off', which it overrides")
     var disablePlatformConditionalRetention: Bool?
 

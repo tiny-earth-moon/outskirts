@@ -26,6 +26,7 @@ public extension Configuration {
         guard let path = try configurationPath(withUserProvided: path) else { return }
 
         let encodedYAML = try String(contentsOf: path.url, encoding: .utf8)
+        loadedFiles = [path]
 
         // An empty document is an empty configuration.
         guard let document = try Yams.load(yaml: encodedYAML) else { return }
