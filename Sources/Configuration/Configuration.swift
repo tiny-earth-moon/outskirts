@@ -204,6 +204,9 @@ public final class Configuration {
     @Setting(key: "strict_index", description: "Fail the scan when a source file is newer than its index data, instead of warning.", defaultValue: false)
     public var strictIndex: Bool
 
+    @Setting(key: "quiet_index_store", description: "With index_store_path, imply skip_build silently and warn about Xcode only for a store under Xcode's DerivedData.", defaultValue: false)
+    public var quietIndexStore: Bool
+
     @Setting(key: "relative_results", description: "Report paths relative to the project root, or to relative_results_base.", defaultValue: false)
     public var relativeResults: Bool
 
@@ -366,7 +369,7 @@ public final class Configuration {
         $disablePlatformConditionalRetention, $platformConditionalRetention, $disableUnusedImportAnalysis, $enableUnusedSystemImports, $disableUnusedLocalizedStringAnalysis, $localizedStringCatalogExclude, $localizedStringKeyPatterns, $localizedStringKeyLiteralMatch, $retainRuntimeLocalizedKeys, $superfluousIgnoreComments, $retainUnusedImportedModules,
         $externalEncodableProtocols, $externalCodableProtocols, $externalTestCaseClasses, $verbose, $quiet, $color,
         $disableUpdateCheck, $strict, $exitCodes, $indexStorePath,
-        $skipBuild, $skipSchemesValidation, $cleanBuild, $strictIndex, $cacheMaxAgeDays, $cacheMaxSizeGB, $buildArguments, $variants, $xcodeListArguments, $relativeResults, $relativeResultsBase, $changedSince, $changedLines,
+        $skipBuild, $skipSchemesValidation, $cleanBuild, $strictIndex, $quietIndexStore, $cacheMaxAgeDays, $cacheMaxSizeGB, $buildArguments, $variants, $xcodeListArguments, $relativeResults, $relativeResultsBase, $changedSince, $changedLines,
         $jsonPackageManifestPath, $retainCodableProperties, $retainEncodableProperties, $retainEquatableProperties,
         $retainHashableProperties, $baseline, $writeBaseline, $pruneBaseline, $strictBaseline,
         $writeResults, $skipStdoutResults, $genericProjectConfig,

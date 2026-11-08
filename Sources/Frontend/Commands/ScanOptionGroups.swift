@@ -40,6 +40,9 @@ struct BuildOptions: ParsableArguments {
     @Flag(inversion: .prefixedNo, help: "Fail the scan when a source file is newer than its index data, instead of warning")
     var strictIndex: Bool?
 
+    @Flag(inversion: .prefixedNo, help: "With '--index-store-path', imply '--skip-build' silently and warn about Xcode only for a store under Xcode's DerivedData")
+    var quietIndexStore: Bool?
+
     @Flag(inversion: .prefixedNo, help: "Skip schemes validation")
     var skipSchemesValidation: Bool?
 

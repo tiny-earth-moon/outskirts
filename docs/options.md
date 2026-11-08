@@ -144,6 +144,16 @@ Key `index_store_path` · list of strings · default empty.
 
 See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Fixing results: Options](fixing-results.md#options).
 
+### `--quiet-index-store`
+
+Since 3.22.0.
+
+With index_store_path, imply skip_build silently and warn about Xcode only for a store under Xcode's DerivedData.
+
+Key `quiet_index_store` · flag, `--no-quiet-index-store` to switch off · default `false`.
+
+See [Getting started: Xcode projects](getting-started.md#xcode-projects).
+
 ### `--strict-index`
 
 Since 3.21.0.

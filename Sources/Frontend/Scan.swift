@@ -30,13 +30,11 @@ final class Scan {
     }
 
     func perform(project: Project) throws -> Output {
+        for warning in Self.indexStoreWarnings(for: configuration) {
+            logger.warn(warning)
+        }
         if !configuration.indexStorePath.isEmpty {
-            logger.warn("When using the '--index-store-path' option please ensure that Xcode is not running. False-positives can occur if Xcode writes to the index store while outskirts is running.")
-
-            if !configuration.skipBuild {
-                logger.warn("The '--index-store-path' option implies '--skip-build', specify it to silence this warning.")
-                configuration.skipBuild = true
-            }
+            configuration.skipBuild = true
         }
 
         let driver = try setup(project)
@@ -52,6 +50,30 @@ final class Scan {
         try analyze(swiftVersion: indexStoreSwiftVersion)
         explain()
         return Output(results: buildResults(), unitDates: unitDates, driver: driver)
+    }
+
+    static let xcodeRunningWarning = "When using the '--index-store-path' option please ensure that Xcode is not running. False-positives can occur if Xcode writes to the index store while outskirts is running."
+    static let impliedSkipBuildWarning = "The '--index-store-path' option implies '--skip-build', specify it to silence this warning."
+
+    /// The warnings of a scan reading the given index stores; `quiet_index_store` keeps only the Xcode one, and only for a
+    /// store under Xcode's DerivedData root.
+    static func indexStoreWarnings(
+        for configuration: Configuration,
+        xcodeDerivedDataRoot: FilePath = FilePath(NSHomeDirectory()).appending("Library/Developer/Xcode/DerivedData")
+    ) -> [String] {
+        let paths = configuration.indexStorePath
+        guard !paths.isEmpty else { return [] }
+
+        guard configuration.quietIndexStore else {
+            return [xcodeRunningWarning] + (configuration.skipBuild ? [] : [impliedSkipBuildWarning])
+        }
+
+        let root = xcodeDerivedDataRoot.lexicallyNormalized()
+        let underDerivedData = paths.contains { path in
+            let absolute = path.isAbsolute ? path : configuration.projectRoot.appending(path.components)
+            return absolute.lexicallyNormalized().starts(with: root)
+        }
+        return underDerivedData ? [xcodeRunningWarning] : []
     }
 
     // MARK: - Private

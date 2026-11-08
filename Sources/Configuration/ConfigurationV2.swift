@@ -257,6 +257,7 @@ struct BuildSectionV2: Codable, Sendable {
     var clean: Bool?
     var indexStorePaths: [String]?
     var strictIndex: Bool?
+    var quietIndexStore: Bool?
     var cacheMaxAgeDays: Int?
     var cacheMaxSizeGB: Int?
 
@@ -266,6 +267,7 @@ struct BuildSectionV2: Codable, Sendable {
         case clean
         case indexStorePaths = "index_store_paths"
         case strictIndex = "strict_index"
+        case quietIndexStore = "quiet_index_store"
         case cacheMaxAgeDays = "cache_max_age_days"
         case cacheMaxSizeGB = "cache_max_size_gb"
     }

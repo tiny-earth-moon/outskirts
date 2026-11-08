@@ -130,6 +130,7 @@ struct ScanCommand: ParsableCommand {
         configuration.apply(\.$skipSchemesValidation, buildOptions.skipSchemesValidation)
         configuration.apply(\.$cleanBuild, buildOptions.cleanBuild)
         configuration.apply(\.$strictIndex, buildOptions.strictIndex)
+        configuration.apply(\.$quietIndexStore, buildOptions.quietIndexStore)
         configuration.apply(\.$cacheMaxAgeDays, buildOptions.cacheMaxAgeDays)
         configuration.apply(\.$cacheMaxSizeGB, buildOptions.cacheMaxSizeGb)
         configuration.apply(\.$buildArguments, given(buildArguments))

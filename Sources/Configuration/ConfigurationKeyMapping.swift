@@ -39,6 +39,7 @@ struct ConfigurationKeyMapping: Sendable {
         .init("clean_build", "build.clean") { $0.build?.clean },
         .init("index_store_path", "build.index_store_paths") { $0.build?.indexStorePaths },
         .init("strict_index", "build.strict_index") { $0.build?.strictIndex },
+        .init("quiet_index_store", "build.quiet_index_store") { $0.build?.quietIndexStore },
         .init("cache_max_age_days", "build.cache_max_age_days") { $0.build?.cacheMaxAgeDays },
         .init("cache_max_size_gb", "build.cache_max_size_gb") { $0.build?.cacheMaxSizeGB },
         .init("variants", "variants") { $0.variants?.native },

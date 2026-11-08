@@ -409,6 +409,11 @@
       "type": "boolean",
       "default": false
     },
+    "quiet_index_store": {
+      "description": "With index_store_path, imply skip_build silently and warn about Xcode only for a store under Xcode's DerivedData.",
+      "type": "boolean",
+      "default": false
+    },
     "cache_max_age_days": {
       "description": "Age in days after which unused Xcode build caches are evicted at the end of a scan; 0 disables the age rule. Caches of projects that no longer exist are always evicted.",
       "type": "integer",
