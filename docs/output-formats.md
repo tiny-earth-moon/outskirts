@@ -173,6 +173,7 @@ An opt-in, versioned document that [`schemas/output-v2.json`](https://github.com
 - `location` points at the name of the declaration; `endLine` and `endColumn` give the end of the declaration as `range.end` does in `json`, null when it is unknown.
 - A redundant protocol is one result, whose conformances are listed under `related` with the rule `redundant-conformance`, their own `id`, and the conforming type as `declaration`.
 - `fixable` says whether [`outskirts fix`](fixing-results.md) can apply the result. `variants` is empty when the result holds for every variant the scan built, which `run.variants` lists.
+- A result whose declaration [`--explain`](options.md#--explain) asked for carries an `explanation`: `summary` is the first line `--explain` prints, `details` the lines under it (references, chain links), unindented. Other results have no `explanation`.
 - `run.files` maps every file that holds a result to its SHA-256, null when it cannot be read. `run.timings` is empty for now.
 - Results are sorted by path, line, column, rule and id. `summary` counts them by rule, related results excluded.
 

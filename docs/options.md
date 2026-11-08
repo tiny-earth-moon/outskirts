@@ -38,7 +38,7 @@ Since 3.22.0.
 
 Explains why a declaration is reported, used or retained, before the results. Accepts a name (`draw()`, `draw` or `Beta.draw()`), a USR or a `file:line` location; repeat the option to explain several declarations, e.g. `--explain 'draw()' --explain Sources/Kit/Shape.swift:12`.
 
-See [Troubleshooting: Why a declaration is reported or kept](troubleshooting.md#why-a-declaration-is-reported-or-kept), [Troubleshooting: Retaining only what the missing builds may use](troubleshooting.md#retaining-only-what-the-missing-builds-may-use).
+See [Output formats: json-v2](output-formats.md#json-v2), [Troubleshooting: Why a declaration is reported or kept](troubleshooting.md#why-a-declaration-is-reported-or-kept), [Troubleshooting: Retaining only what the missing builds may use](troubleshooting.md#retaining-only-what-the-missing-builds-may-use).
 
 ### `--summary`
 
