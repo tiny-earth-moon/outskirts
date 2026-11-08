@@ -1,0 +1,14 @@
+| 4 Results |
+| :- |
+| **Unused class 'Widget'**<br>/Project/Sources/Lib/Widget.swift:3:14 |
+| **Redundant protocol 'Marker' (never used as an existential type)**<br>/Project/Sources/Demo/Marker.swift:1:10 |
+| **Redundant protocol conformance 'Marker' (replace with 'Base')**<br>/Project/Sources/Demo/Extras.swift:2:8 |
+| **Redundant protocol conformance 'Marker' (replace with 'Base')**<br>/Project/Sources/Demo/Extras.swift:4:8 |
+| **Redundant protocol conformance 'Marker' (replace with 'Base')**<br>/Project/Sources/Demo/main.swift:6:8 |
+| **Redundant protocol conformance 'Marker' (replace with 'Base')**<br>/Project/Sources/Demo/main.swift:7:8 |
+| **Redundant protocol conformance 'Marker' (replace with 'Base')**<br>/Project/Sources/Demo/main.swift:8:8 |
+| **Redundant protocol conformance 'Marker' (replace with 'Base')**<br>/Project/Sources/Demo/main.swift:9:8 |
+| **Redundant protocol conformance 'Marker' (replace with 'Base')**<br>/Project/Sources/Demo/main.swift:10:8 |
+| **Redundant protocol conformance 'Marker' (replace with 'Base')**<br>/Project/Sources/Demo/main.swift:13:8 |
+| **Redundant public accessibility for function 'helper()' (not used outside of Alpha, Zeta)**<br>/Project/Sources/Lib/Helper.swift:5:13 |
+| **Unused asset catalog color 'AccentColor' (/Project/App/Assets.xcassets/AccentColor.colorset)**<br>/DerivedSources/GeneratedAssetSymbols.swift:3:16 |

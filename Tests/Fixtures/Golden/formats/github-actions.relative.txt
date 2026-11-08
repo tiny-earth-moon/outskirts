@@ -1,0 +1,12 @@
+::warning file=Project/Sources/Lib/Widget.swift,line=3,col=14,title=unused::Unused class 'Widget'
+::warning file=Project/Sources/Demo/Marker.swift,line=1,col=10,title=redundantProtocol::Redundant protocol 'Marker' (never used as an existential type)
+::warning file=Project/Sources/Demo/Extras.swift,line=2,col=8,title=redundantProtocol::Redundant protocol conformance 'Marker' (replace with 'Base')
+::warning file=Project/Sources/Demo/Extras.swift,line=4,col=8,title=redundantProtocol::Redundant protocol conformance 'Marker' (replace with 'Base')
+::warning file=Project/Sources/Demo/main.swift,line=6,col=8,title=redundantProtocol::Redundant protocol conformance 'Marker' (replace with 'Base')
+::warning file=Project/Sources/Demo/main.swift,line=7,col=8,title=redundantProtocol::Redundant protocol conformance 'Marker' (replace with 'Base')
+::warning file=Project/Sources/Demo/main.swift,line=8,col=8,title=redundantProtocol::Redundant protocol conformance 'Marker' (replace with 'Base')
+::warning file=Project/Sources/Demo/main.swift,line=9,col=8,title=redundantProtocol::Redundant protocol conformance 'Marker' (replace with 'Base')
+::warning file=Project/Sources/Demo/main.swift,line=10,col=8,title=redundantProtocol::Redundant protocol conformance 'Marker' (replace with 'Base')
+::warning file=Project/Sources/Demo/main.swift,line=13,col=8,title=redundantProtocol::Redundant protocol conformance 'Marker' (replace with 'Base')
+::warning file=Project/Sources/Lib/Helper.swift,line=5,col=13,title=redundantPublicAccessibility::Redundant public accessibility for function 'helper()' (not used outside of Alpha, Zeta)
+::warning file=DerivedSources/GeneratedAssetSymbols.swift,line=3,col=16,title=unusedAssetCatalogColor::Unused asset catalog color 'AccentColor' (Project/App/Assets.xcassets/AccentColor.colorset)

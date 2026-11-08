@@ -1,0 +1,13 @@
+Kind,Name,Modifiers,Attributes,Accessibility,IDs,Location,Hints
+class,Widget,final|public,"MainActor|available(iOS 18, *)|available(macOS 15, *)",internal,s:3Lib6WidgetC,Project/Sources/Lib/Widget.swift:3:14,unused
+protocol,Marker,,,internal,s:4Demo6MarkerP,Project/Sources/Demo/Marker.swift:1:10,redundantProtocol
+struct,F,,,,s:4Demo1FV,Project/Sources/Demo/Extras.swift:2:8,redundantConformance(replace with: 'Base')
+struct,G,,,,s:4Demo1GV,Project/Sources/Demo/Extras.swift:4:8,redundantConformance(replace with: 'Base')
+struct,A,,,,s:4Demo1AV,Project/Sources/Demo/main.swift:6:8,redundantConformance(replace with: 'Base')
+struct,B,,,,s:4Demo1BV,Project/Sources/Demo/main.swift:7:8,redundantConformance(replace with: 'Base')
+struct,C,,,,s:4Demo1CV,Project/Sources/Demo/main.swift:8:8,redundantConformance(replace with: 'Base')
+struct,D,,,,s:4Demo1DV,Project/Sources/Demo/main.swift:9:8,redundantConformance(replace with: 'Base')
+struct,E,,,,s:4Demo1EV,Project/Sources/Demo/main.swift:10:8,redundantConformance(replace with: 'Base')
+struct,H,,,,s:4Demo1HV,Project/Sources/Demo/main.swift:13:8,redundantConformance(replace with: 'Base')
+function.free,helper(),,,public,s:3Lib6helperyyF,Project/Sources/Lib/Helper.swift:5:13,redundantPublicAccessibility
+var.static,accent,,,internal,s:accent,DerivedSources/GeneratedAssetSymbols.swift:3:16,unusedAssetCatalogColor
