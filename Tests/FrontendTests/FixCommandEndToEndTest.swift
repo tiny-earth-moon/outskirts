@@ -196,6 +196,52 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertTrue(ruleWithoutFlag.stderr.contains("'missing-final' is a tier-2 rule, it requires '--aggressive'"), ruleWithoutFlag.stderr)
     }
 
+    // MARK: - Unused
+
+    private static let deadCode = """
+    struct DeadType {
+        func deadMember() -> Int { 1 }
+    }
+
+    extension DeadType {
+        func deadExtensionMember() {}
+    }
+
+    func deadFunction() -> Int { 2 }
+
+    """
+
+    func testUnusedRuleIsRefusedAfterASingleVariantScan() throws {
+        try write(Self.deadCode, to: "Sources/Lib/Dead.swift")
+        try commitAll()
+
+        let refused = try run(["fix", "--rule", "unused", "--apply"])
+        XCTAssertNotEqual(refused.status, 0)
+        XCTAssertTrue(refused.stderr.contains("'--rule unused' removes declarations, which is only safe once every variant that ships is scanned"), refused.stderr)
+        XCTAssertEqual(try read("Sources/Lib/Dead.swift"), Self.deadCode)
+
+        let defaultRules = try run(["fix", "--variants", "auto"])
+        XCTAssertEqual(defaultRules.status, 0, defaultRules.stderr)
+        XCTAssertFalse(defaultRules.stdout.contains("DeadType"), defaultRules.stdout)
+
+        let flagWithoutRule = try run(["fix", "--allow-partial-variants"])
+        XCTAssertNotEqual(flagWithoutRule.status, 0)
+        XCTAssertTrue(flagWithoutRule.stderr.contains("'--allow-partial-variants' only applies to '--rule unused'"), flagWithoutRule.stderr)
+    }
+
+    func testUnusedRuleRemovesATypeWithItsExtensionAfterAScanOfEveryVariant() throws {
+        try write(Self.deadCode, to: "Sources/Lib/Dead.swift")
+        try commitAll()
+
+        let output = try run(["fix", "--rule", "unused", "--variants", "auto", "--retain-public", "--apply", "--verify"])
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        XCTAssertTrue(output.stderr.contains("Applied 3 fixes in 1 file, skipped 0.\n  unused: 3\n  removed unused 'DeadType' at Sources/Lib/Dead.swift:1:8 [p2_"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("The project builds with the fixes."), output.stderr)
+        XCTAssertEqual(try read("Sources/Lib/Dead.swift"), "")
+        XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.library)
+    }
+
     // MARK: - Private
 
     private struct Output {
