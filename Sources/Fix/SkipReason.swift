@@ -41,6 +41,7 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case staticInitializer
     case memberwiseInitializerUsed
     case synthesizedConformance
+    case publicDeclaration
 
     public var description: String {
         switch self {
@@ -85,6 +86,7 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .staticInitializer: "static stored property with an initializer"
         case .memberwiseInitializerUsed: "the memberwise initializer of the struct is used"
         case .synthesizedConformance: "stored property of a type with a synthesized Equatable, Hashable or Codable conformance"
+        case .publicDeclaration: "public API, use --include-public"
         }
     }
 }

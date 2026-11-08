@@ -158,6 +158,19 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         XCTAssertEqual(outcome.fixed, outcome.original)
     }
 
+    func testKeepsPublicDeclarationsUnlessIncluded() throws {
+        let kept = try removeUnused(scanRetainsPublic: false)
+        XCTAssertEqual(kept.decisions["1 fixUnusedPublicFunction()"], SkipReason.publicDeclaration.description)
+        XCTAssertEqual(kept.decisions["7 fixUnusedInternalFunction()"], "removed")
+        XCTAssertFalse(kept.decisions.contains { $0.key.contains("FixUnusedPublicMode") || $0.key.contains("fixUnusedPublicCase") ? $0.value == "removed" : false }, "\(kept.decisions)")
+
+        let included = try removeUnused(scanRetainsPublic: false, includesPublic: true)
+        XCTAssertEqual(included.decisions["1 fixUnusedPublicFunction()"], "removed")
+
+        let retained = try removeUnused(scanRetainsPublic: false, fixRetainsPublic: true, includesPublic: true)
+        XCTAssertEqual(retained.decisions["1 fixUnusedPublicFunction()"], SkipReason.publicDeclaration.description)
+    }
+
     func testLocationOverrideIsKeptBeforePlanning() throws {
         let outcome = try removeUnused(fixture: "testRemovesAFreeFunction")
         let target = try XCTUnwrap(outcome.plan.applied.first)
@@ -196,18 +209,29 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
     }
 
     /// Plans the removals without writing: the fixture files are shared by the suite.
+    /// - Parameter scanRetainsPublic: whether the scan retains the public declarations, so that they are not reported.
+    /// - Parameter fixRetainsPublic: whether the configuration of the fix retains them.
     private func removeUnused(
         fixture: String? = nil,
         retainAttributes: [String] = [],
+        scanRetainsPublic: Bool = true,
+        fixRetainsPublic: Bool = false,
+        includesPublic: Bool = false,
         including isIncluded: (ScanResult) -> Bool = { _ in true }
     ) throws -> Outcome {
         let fixtureTests = fixture.map { [$0] }
-        let results = analyze(retainPublic: true, retainAttributes: retainAttributes, fixtureTests: fixtureTests) {}
+        let results = analyze(retainPublic: scanRetainsPublic, retainAttributes: retainAttributes, fixtureTests: fixtureTests) {}
         let path = fixture.map { testFixturePath.removingLastComponent().appending("\($0).swift") } ?? testFixturePath
 
         let configuration = Configuration()
         configuration.retainAttributes = retainAttributes
-        var removal = try UnusedRemovalSet(results: results.filter(isIncluded), graph: Self.graph, configuration: configuration)
+        configuration.retainPublic = fixRetainsPublic
+        var removal = try UnusedRemovalSet(
+            results: results.filter(isIncluded),
+            graph: Self.graph,
+            configuration: configuration,
+            includesPublic: includesPublic
+        )
         let plan = makePlanner().plan([], removing: &removal)
 
         var decisions: [String: String] = [:]

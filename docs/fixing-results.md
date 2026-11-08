@@ -55,6 +55,8 @@ A declaration used only in the `#if` clauses of another platform or configuratio
 
 A file left out of the scan may use the declarations it removes, so the rule is also refused when `index_exclude` (beyond its default globs), `exclude_tests` or `exclude_targets` is set. `--allow-partial-scan` lifts this refusal; it is a separate flag from `--allow-partial-variants`, as each accepts a different risk. `report_exclude`, `report_include`, the baseline and `--changed-since` only narrow the results: the files they hide are still scanned, so their references still count.
 
+A `public` or `open` declaration, or a case or requirement of a public enum or protocol, may be used by a module outside the scan, so it is kept unless `--include-public` is given. Even then, the declarations that `retain_public`, `retain_public_modules` or an override retains are kept.
+
 A declaration is removed when all of these hold:
 
 - Its kind is a function, method, subscript, computed property, type, typealias, enum case or associated type, or it is a stored property:
@@ -64,6 +66,7 @@ A declaration is removed when all of these hold:
   - not in a struct whose memberwise initializer is used, nor in a type that may synthesize `Equatable`, `Hashable` or `Codable` from its stored properties.
 - It is not `override`, `dynamic`, `@objc` (or exposed to Objective-C), `@main`, `@_cdecl`, `@_silgen_name`, an Interface Builder or `@NSManaged` member, and it carries no attribute of `retain_attributes`. A type that contains such a member, or a member ignored by a comment command, is kept too.
 - It is not a case of a `CaseIterable` or `Codable` enum, nor a case whose removal would change the raw value of a later case. A raw type that is not `String` and cannot be read from the syntax, such as a typealias or `CInt`, counts as numeric.
+- It is not public API (see above).
 - Nothing kept references it or one of its members: a declaration that only removed code references goes in the same run.
 - No kept declaration overrides it or implements it, and it does not implement a kept protocol requirement.
 - Every extension of the type, and of the types nested in it, is in the results and is removed with it, in the same edit set.
@@ -92,6 +95,7 @@ Reflection is invisible to every scan: a type created with `NSClassFromString`, 
 - **`--allow-dirty`**: also fix files with uncommitted changes, and projects outside a git repository.
 - **`--allow-partial-variants`**: allow `--rule unused` after a scan that did not cover every variant.
 - **`--allow-partial-scan`**: allow `--rule unused` when `index_exclude`, `exclude_tests` or `exclude_targets` leaves code out of the scan.
+- **`--include-public`**: with `--rule unused`, also remove `public` and `open` declarations, unless `retain_public`, `retain_public_modules` or an override retains them.
 
 ## Safety
 

@@ -38,9 +38,20 @@ public struct UnusedRemovalSet {
     ]
 
     /// - Parameter results: the reported results; only unused declarations are considered.
-    public init(results: [ScanResult], graph: SourceGraph, configuration: Configuration) throws {
+    /// - Parameter includesPublic: whether `public` and `open` declarations may be removed, unless the configuration
+    ///   retains them.
+    public init(
+        results: [ScanResult],
+        graph: SourceGraph,
+        configuration: Configuration,
+        includesPublic: Bool = false
+    ) throws {
         self.graph = graph
-        let retentionRules = try AttributeRetentionRule.resolve(configuration)
+        let eligibility = Eligibility(
+            retentionRules: try AttributeRetentionRule.resolve(configuration),
+            configuration: configuration,
+            includesPublic: includesPublic
+        )
 
         var extendedTypes: [Declaration: Declaration] = [:]
         for (type, extensions) in graph.extensions {
@@ -64,7 +75,7 @@ public struct UnusedRemovalSet {
                 }
 
                 extensionCandidates[declaration] = (target, extended)
-            } else if let reason = ineligibility(of: declaration, retentionRules: retentionRules) {
+            } else if let reason = ineligibility(of: declaration, eligibility) {
                 skipped.append((target, reason))
             } else {
                 removed[declaration] = target.refusingStoredProperty(storedPropertyRefusal(of: declaration))
@@ -175,8 +186,10 @@ public struct UnusedRemovalSet {
         return false
     }
 
-    private func ineligibility(of declaration: Declaration, retentionRules: [AttributeRetentionRule]) -> SkipReason? {
+    private func ineligibility(of declaration: Declaration, _ eligibility: Eligibility) -> SkipReason? {
         guard Self.removableKinds.contains(declaration.kind) else { return .unremovableKind }
+
+        let retentionRules = eligibility.retentionRules
 
         if let reason = Self.exclusion(of: declaration, retentionRules: retentionRules, includingOverride: true) {
             return reason
@@ -188,6 +201,11 @@ public struct UnusedRemovalSet {
                 || graph.commandIgnoredDeclarations[$0] != nil
         }) {
             return .containsExcludedDeclaration
+        }
+        if Self.isPublicAPI(declaration),
+           !eligibility.includesPublic || eligibility.configuration.settings(for: declaration).retainsPublic
+        {
+            return .publicDeclaration
         }
 
         if declaration.kind == .enumelement, let enumDecl = declaration.parent {
@@ -203,6 +221,19 @@ public struct UnusedRemovalSet {
             }
         }
         return nil
+    }
+
+    /// Whether the declaration is `public` or `open`, or is a case or a requirement of a public enum or protocol.
+    private static func isPublicAPI(_ declaration: Declaration) -> Bool {
+        let publicLevels: Set<Accessibility> = [.public, .open]
+        if publicLevels.contains(declaration.accessibility.value) {
+            return true
+        }
+        guard let parent = declaration.parent,
+              declaration.kind == .enumelement || declaration.kind == .associatedtype || parent.kind == .protocol
+        else { return false }
+
+        return publicLevels.contains(parent.accessibility.value)
     }
 
     private static func exclusion(of declaration: Declaration, retentionRules: [AttributeRetentionRule], includingOverride: Bool) -> SkipReason? {
@@ -285,6 +316,13 @@ public struct UnusedRemovalSet {
     private static func isOrdered(_ lhs: FixTarget, before rhs: FixTarget) -> Bool {
         (lhs.file.string, lhs.line, lhs.column, lhs.name) < (rhs.file.string, rhs.line, rhs.column, rhs.name)
     }
+}
+
+/// What makes an unused declaration ineligible beside its own syntax and references.
+private struct Eligibility {
+    let retentionRules: [AttributeRetentionRule]
+    let configuration: Configuration
+    let includesPublic: Bool
 }
 
 public extension FixPlanner {

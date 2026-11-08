@@ -39,6 +39,9 @@ struct FixCommand: ParsableCommand {
     @Flag(help: "Allow '--rule unused' when index_exclude, exclude_tests or exclude_targets leaves code out of the scan")
     var allowPartialScan: Bool = false
 
+    @Flag(help: "With '--rule unused', also remove public and open declarations, unless retain_public or retain_public_modules applies")
+    var includePublic: Bool = false
+
     @OptionGroup
     var scan: ScanCommand
 
@@ -63,6 +66,9 @@ struct FixCommand: ParsableCommand {
         }
         if allowPartialScan, !removesUnused {
             throw ValidationError("'--allow-partial-scan' only applies to '--rule unused'")
+        }
+        if includePublic, !removesUnused {
+            throw ValidationError("'--include-public' only applies to '--rule unused'")
         }
     }
 
@@ -96,7 +102,12 @@ struct FixCommand: ParsableCommand {
         if removesUnused {
             try validateVariantCoverage(of: output.driver)
             let included = reported.filter { isIncluded($0.resultDeclaration.location.file.path, configuration: configuration) }
-            var removal = try UnusedRemovalSet(results: included, graph: output.graph, configuration: configuration)
+            var removal = try UnusedRemovalSet(
+                results: included,
+                graph: output.graph,
+                configuration: configuration,
+                includesPublic: includePublic
+            )
             plan = planner.plan(targets, removing: &removal)
         }
 
