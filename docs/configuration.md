@@ -230,6 +230,7 @@ outskirts config migrate --apply    # writes it over the file
 | `retain_hashable_properties` | `retain.properties_of` | `Hashable` |
 | `baseline` | `baseline.path` |  |
 | `write_baseline` | `baseline.write` |  |
+| `baseline_format` | `baseline.format` |  |
 | `prune_baseline` | `baseline.prune` |  |
 | `strict_baseline` | `baseline.strict` |  |
 | `write_results` | `report.write` |  |

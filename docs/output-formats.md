@@ -10,14 +10,18 @@ Select a format with `--format` (`format` in the configuration file). The defaul
 |--------|----------|----------------|
 | `xcode` | Xcode build log and terminal, with colors | `--relative-results` |
 | `csv` | Spreadsheets and scripts | `--relative-results` |
+| `csv-v2` | `csv` with the id and rule of each result, opt-in | `--relative-results` |
 | `json` | Scripts, e.g. `jq` | `--relative-results` |
 | `json-v2` | Scripts and tools that need stable ids, opt-in | always |
 | `checkstyle` | Tools that read Checkstyle XML | `--relative-results` |
+| `checkstyle-v2` | `checkstyle` with the id and rule of each result, opt-in | `--relative-results` |
 | `github-markdown` | Pull request comments and job summaries | `--relative-results` |
 | `github-actions` | GitHub Actions annotations | always |
 | `sarif` | GitHub code scanning | always |
 | `gitlab-codequality` | GitLab Code Quality report | always |
+| `gitlab-codequality-v2` | `gitlab-codequality` with the id and rule of each result, opt-in | always |
 | `codeclimate` | Code Climate JSON | always |
+| `codeclimate-v2` | `codeclimate` with the id and rule of each result, opt-in | always |
 | `agent` | AI coding agents | always |
 
 ## Paths
@@ -178,6 +182,16 @@ An opt-in, versioned document that [`schemas/output-v2.json`](https://github.com
 
 The location string of `json` is `.results[] | "\(.location.path):\(.location.line):\(.location.column)"` with `jq`.
 
+A baseline written with `--baseline-format v2` holds these ids, see [Baselines: Formats](baselines.md#formats).
+
+## v2 variants
+
+`csv-v2`, `checkstyle-v2`, `codeclimate-v2` and `gitlab-codequality-v2` are the formats of the same name with the `id` and `rule` of each result as [`json-v2`](#json-v2) gives them; the formats without `-v2` are unchanged. In `csv-v2` and `checkstyle-v2`, which give each conformance of a redundant protocol its own line or error, a conformance has the id of its `related` entry and the rule `redundant-conformance`.
+
+- `csv-v2`: each line starts with two columns, `ID,Rule,Kind,Name,…`.
+- `checkstyle-v2`: each `<error>` has the rule as `source` and the id as `id`.
+- `codeclimate-v2` and `gitlab-codequality-v2`: each issue has an `id` and a `rule`, and its `fingerprint` is the id, so that an issue keeps its fingerprint when lines move above it or the project is checked out elsewhere. Switching from the format without `-v2` changes every fingerprint once.
+
 ## csv
 
 One header line, `Kind,Name,Modifiers,Attributes,Accessibility,IDs,Location,Hints`, then one line per result. Fields are quoted as described by RFC 4180.
@@ -206,7 +220,7 @@ A [Code Quality](https://docs.gitlab.com/ci/testing/code_quality/) report, which
 
 ## codeclimate
 
-Code Climate JSON issues, each with a `check_name` (the result annotation), a `description`, a `fingerprint`, a `location` and a severity.
+Code Climate JSON issues, each with a `check_name` (the result annotation), a `description`, a `fingerprint` (the ids of the declaration), a `location` and a severity.
 
 ## agent
 

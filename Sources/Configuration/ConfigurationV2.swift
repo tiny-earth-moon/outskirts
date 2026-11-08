@@ -310,6 +310,7 @@ struct ReportSectionV2: Codable, Sendable {
 struct BaselineSectionV2: Codable, Sendable {
     var path: String?
     var write: String?
+    var format: BaselineFormat?
     var prune: Bool?
     var strict: Bool?
 }
@@ -389,6 +390,12 @@ private func probeShape<Container>(_ body: () throws -> Container) throws -> Con
 }
 
 extension OutputFormat: Codable {
+    public init(from decoder: Decoder) throws {
+        self = try Self.decodeRawValue(from: decoder)
+    }
+}
+
+extension BaselineFormat: Codable {
     public init(from decoder: Decoder) throws {
         self = try Self.decodeRawValue(from: decoder)
     }

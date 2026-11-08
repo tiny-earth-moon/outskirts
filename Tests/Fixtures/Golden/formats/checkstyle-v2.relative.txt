@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<checkstyle version="4.3">
+	<file name="DerivedSources/GeneratedAssetSymbols.swift">
+		<error line="3" column="16" severity="warning" source="unused-asset-color" id="p2_ss2crh4v5mezzeqyr65n4ut5vjrbs4scqdlrslqh4smol4tb4maq" message="Unused asset catalog color &apos;AccentColor&apos; (Project/App/Assets.xcassets/AccentColor.colorset)"/>
+	</file>
+	<file name="Project/Sources/Demo/Extras.swift">
+		<error line="2" column="8" severity="warning" source="redundant-conformance" id="p2_fsjddtnwsu3iqrf2px45y4xhvqosbwlchoh4rbiynnqzse4dxdca" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="4" column="8" severity="warning" source="redundant-conformance" id="p2_2hfktzxatdi5lfd27cxhtfc7q763jbupy24lf3ul4z3v4rpuwmxa" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+	</file>
+	<file name="Project/Sources/Demo/Marker.swift">
+		<error line="1" column="10" severity="warning" source="redundant-protocol" id="p2_54w7bulktspkxfvld3hcfkc7eo2nxueobvuwcampzuurdesl4imq" message="Redundant protocol &apos;Marker&apos; (never used as an existential type)"/>
+	</file>
+	<file name="Project/Sources/Demo/main.swift">
+		<error line="6" column="8" severity="warning" source="redundant-conformance" id="p2_nme4jf76rqitd2hmnj3wagbnchoblu3wwllivc4u3yffjtwucpdq" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="7" column="8" severity="warning" source="redundant-conformance" id="p2_rgrd6jhcstlkrn4nuxlv3xb24q76avhudtxpwvezjn6z5u474kyq" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="8" column="8" severity="warning" source="redundant-conformance" id="p2_eebzpjah5gjebkizvlvtwqtb2atb3t6thguxrlymmlv2zffnyviq" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="9" column="8" severity="warning" source="redundant-conformance" id="p2_abl7ngdivlgv44ppwzddlfgeigccwmbvjtyrr545cfrqc7xwbnja" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="10" column="8" severity="warning" source="redundant-conformance" id="p2_kbeqgaak35fyulk5ab6wj25ouej43iladvqgyydlt5db7mythdxq" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="13" column="8" severity="warning" source="redundant-conformance" id="p2_p4pctmp227d4oq6pxas2rg24jciozvawgg7itaomhwqdgsctg5da" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+	</file>
+	<file name="Project/Sources/Lib/Helper.swift">
+		<error line="5" column="13" severity="warning" source="redundant-public" id="p2_o3vwwwzoyx4ixn23sec76aq3edliicyvk4ip6bnke6bmdrznf6ra" message="Redundant public accessibility for function &apos;helper()&apos; (not used outside of Alpha, Zeta)"/>
+	</file>
+	<file name="Project/Sources/Lib/Widget.swift">
+		<error line="3" column="14" severity="warning" source="unused" id="p2_23ujfuotm6z5eyq2tl4mfgzmjny3molzraqc4jyrpln2cksmjemq" message="Unused class &apos;Widget&apos;"/>
+	</file>
+</checkstyle>

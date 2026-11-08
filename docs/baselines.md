@@ -9,15 +9,37 @@ A baseline records results so that later scans do not report them again: new unu
 ## Options
 
 - **`--write-baseline <path>`** (`write_baseline`): write the results of the scan to `<path>`. The entries of the baseline given to `--baseline` are kept, and the current results are added.
+- **`--baseline-format v1|v2`** (`baseline_format`): the ids `--write-baseline` records, see [Formats](#formats). Default `v1`.
 - **`--baseline <path>`** (`baseline`): hide the results recorded in `<path>`. A relative path is resolved from `--project-root`.
 - **`--prune-baseline`** (`prune_baseline`): rewrite the file given to `--baseline`, keeping only the entries that still match a result. Requires `--baseline`.
 - **`--strict-baseline`** (`strict_baseline`): exit with status 1 if the baseline holds entries that no longer match any result. Requires `--baseline`.
 
-## File format
+## Formats
 
-Baselines are written in format `v2`: sorted, pretty-printed, newline-terminated JSON that gives each entry an `id` and the `kind`, `name` and `file` (relative to the project root) of the result it was written for, so a review shows what was baselined. Only the `id` is used for matching. `v1` files (a list of ids, as written by Periphery and earlier versions) are still read, and are rewritten as `v2` by `--write-baseline` and `--prune-baseline`.
+Both formats are read, whatever `--baseline-format` says; it only chooses what `--write-baseline` writes.
 
-An id is the identifier of the declaration in the index store (its USR), which does not depend on its line number. Results without a USR of their own, such as unused imports, empty extensions and localized strings, use ids that outskirts builds for them. The position-based ids and absolute String Catalog paths written by earlier versions still match.
+### v1
+
+The default. An id is the identifier of the declaration in the index store (its USR), which does not depend on its line number, and hides every result of that declaration, whatever its rule. Results without a USR of their own, such as unused imports, empty extensions and localized strings, use ids that outskirts builds for them. The position-based ids and absolute String Catalog paths written by earlier versions still match.
+
+The file is sorted, pretty-printed, newline-terminated JSON that gives each entry an `id` and the `kind`, `name` and `file` (relative to the project root) of the result it was written for, so a review shows what was baselined. Only the `id` is used for matching. Files that list the ids only (`{"v1": {"usrs": […]}}`, as written by Periphery and earlier versions) are still read, and are rewritten with the details by `--write-baseline` and `--prune-baseline`.
+
+### v2
+
+Since 3.22.0, opt-in with `--baseline-format v2`. The file holds the ids of the [`json-v2`](output-formats.md#json-v2) format, sorted:
+
+```json
+{
+  "ids" : [
+    "p2_…"
+  ],
+  "version" : 2
+}
+```
+
+These ids include the rule: a declaration baselined as redundant public is reported again once it becomes unused, where a `v1` baseline keeps hiding it. They hold no absolute path and no line number either, so they survive an edit above the declaration and another checkout.
+
+`--write-baseline` with `--baseline-format v2` converts a `v1` baseline given to `--baseline` through the results it hides; its entries that no longer match a result are dropped. The other way round works the same. `--prune-baseline` keeps the format of the file it rewrites.
 
 ## Baseline ratchet
 
