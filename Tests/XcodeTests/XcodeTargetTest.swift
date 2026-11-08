@@ -13,7 +13,7 @@ final class XcodeTargetTest: XCTestCase {
         super.setUp()
         let logger = Logger(quiet: true, verbose: false, colorMode: .never)
         let shell = ShellImpl(logger: logger)
-        let xcodebuild = Xcodebuild(shell: shell, logger: logger)
+        let xcodebuild = Xcodebuild(shell: shell, logger: logger, cacheDirectory: TestCacheDirectory.path)
         var loadedProjectPaths: Set<FilePath> = []
         project = try! XcodeProject(
             path: UIKitProjectPath,
