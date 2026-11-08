@@ -121,7 +121,7 @@ final class FixCommandVerifyTest: XCTestCase {
         for name in ["A", "B"] {
             let file = directory.appending("\(name).swift")
             try Data("original \(name)".utf8).write(to: URL(fileURLWithPath: file.string))
-            plan.changes.append(.init(path: file, original: Array("original \(name)".utf8), fixed: Array("fixed \(name)".utf8)))
+            plan.changes.append(.init(path: file, realPath: RealPath.resolve(file.string), original: Array("original \(name)".utf8), fixed: Array("fixed \(name)".utf8)))
             files.append(file)
         }
         return (plan, files)
