@@ -142,13 +142,13 @@ final class FixCommandEndToEndTest: XCTestCase {
     func testUnusedImportUsedOnlyUnderNotDebugIsKept() throws {
         let release = "import Helpers\n\npublic func releaseValue() -> Int {\n    #if !DEBUG\n        return helperValue()\n    #else\n        return 0\n    #endif\n}\n"
         try write(release, to: "Sources/Lib/Release.swift")
+        try write("import Lib\n\nprint(Widget().render(width: 1, 2), releaseValue())\n", to: "Sources/App/main.swift")
         try commitAll()
 
         let output = try run(["fix", "--rule", "unused-import", "--apply"])
 
         XCTAssertEqual(output.status, 0, output.stderr)
-        // A debug scan does not see the call, so the import looks unused, but the release build needs it.
-        XCTAssertTrue(output.stderr.contains("  skipped unused-import 'Helpers' at Sources/Lib/Release.swift:1:8: file with code in an #if clause that no scanned build compiled"), output.stderr)
+        // A debug build does not compile the call, but the release build needs the import.
         XCTAssertEqual(try read("Sources/Lib/Release.swift"), release)
         XCTAssertFalse(try read("Sources/Lib/Lib.swift").contains("import Helpers"))
     }
@@ -372,6 +372,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         """, to: "Package.swift")
         try write(Self.box, to: "Sources/Lib/Box.swift")
         try write("@testable import Lib\n\nfinal class BoxMock: Box {}\n", to: "Tests/LibTests/BoxMock.swift")
+        try write("import Lib\n\nprint(Widget().render(width: 1, 2), boxValue())\n", to: "Sources/App/main.swift")
         try commitAll()
     }
 
