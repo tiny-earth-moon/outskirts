@@ -18,7 +18,7 @@ const CATEGORIES = [
   ["Localized strings", ["disable_unused_localized_string_analysis", "localized_string_catalog_exclude", "localized_string_key_patterns", "localized_string_key_literal_match", "retain_runtime_localized_keys"]],
   ["Retention", ["retain_public", "retain_public_modules", "no_retain_spi", "retain_assign_only_properties", "retain_assign_only_property_types", "retain_objc_accessible", "retain_objc_annotated", "retain_js_accessible", "retain_unused_protocol_func_params", "retain_unused_parameters_without_default", "retain_swift_ui_previews", "retain_unused_imported_modules", "external_encodable_protocols", "external_codable_protocols", "external_test_case_classes", "retain_codable_properties", "retain_encodable_properties", "retain_equatable_properties", "retain_hashable_properties", "retain_synthesized_uses", "retain_attributes"]],
   ["Output", ["format", "relative_results", "relative_results_base", "write_results", "skip_stdout_results", "quiet", "verbose", "color", "strict", "exit_codes", "disable_update_check"]],
-  ["Baselines", ["baseline", "write_baseline", "baseline_format", "prune_baseline", "strict_baseline"]],
+  ["Baselines", ["baseline", "write_baseline", "prune_baseline", "strict_baseline"]],
 ];
 
 /**
@@ -40,7 +40,7 @@ const COMMAND_LINE_ONLY = [
  * The version that added each configuration key absent from options-baseline.txt (the keys of the 3.20.0 schema).
  * Every new key needs an entry: the next version, after the one in `Sources/Shared/Version.swift`.
  */
-const SINCE = { retain_public_modules: "3.21.0", strict_index: "3.21.0", enable_unconstructed_enum_case_analysis: "3.22.0", platform_conditional_retention: "3.22.0", variants: "3.22.0", exit_codes: "3.22.0", baseline_format: "3.22.0", quiet_index_store: "3.22.0" };
+const SINCE = { retain_public_modules: "3.21.0", strict_index: "3.21.0", enable_unconstructed_enum_case_analysis: "3.22.0", platform_conditional_retention: "3.22.0", variants: "3.22.0", exit_codes: "3.22.0", quiet_index_store: "3.22.0" };
 
 /** Keys whose command line form is not `--` followed by the key in kebab case; `null` for configuration file only. */
 const FLAGS = { build_arguments: "-- <args>", relative_results_base: "--relative-to", xcode_list_arguments: null };

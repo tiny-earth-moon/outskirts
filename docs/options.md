@@ -718,17 +718,7 @@ Write the results to a baseline file, keeping the entries of baseline.
 
 Key `write_baseline` · string · default none.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Configuration: Paths](configuration.md#paths), [Baselines: Options](baselines.md#options), [Baselines: Formats](baselines.md#formats).
-
-### `--baseline-format`
-
-Since 3.22.0.
-
-Ids written by write_baseline: v1 the USRs of the declarations, v2 the ids of the output v2, which include the rule, so that a declaration baselined for one rule is still reported for another.
-
-Key `baseline_format` · one of `v1`, `v2` · default `v1`.
-
-See [Baselines: Options](baselines.md#options), [Baselines: Formats](baselines.md#formats), [Baselines: v2](baselines.md#v2), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Configuration: Paths](configuration.md#paths), [Configuration: Format 2](configuration.md#format-2), [Baselines: Options](baselines.md#options).
 
 ### `--prune-baseline`
 

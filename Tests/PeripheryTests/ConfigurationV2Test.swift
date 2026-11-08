@@ -152,6 +152,15 @@ final class ConfigurationV2Test: XCTestCase {
         XCTAssertTrue(configuration.strict)
     }
 
+    func testVersion2File_writesTheVersion2Baseline() throws {
+        XCTAssertEqual(try loadV2("version: 2\n").baselineFormat, .v2)
+    }
+
+    func testVersion1File_writesTheVersion1Baseline() throws {
+        XCTAssertEqual(try loadV1("strict: true\n").baselineFormat, .v1)
+        XCTAssertEqual(Configuration().baselineFormat, .v1)
+    }
+
     func testVersion2FileWithOnlyTheVersionLoadsTheDefaults() throws {
         let configuration = try loadV2("version: 2\n")
 
@@ -816,7 +825,6 @@ final class ConfigurationV2Test: XCTestCase {
     disable_update_check: true
     baseline: baseline.json
     write_baseline: new-baseline.json
-    baseline_format: v2
     prune_baseline: true
     strict_baseline: true
     retain_public: true
@@ -985,7 +993,6 @@ final class ConfigurationV2Test: XCTestCase {
     baseline:
       path: baseline.json
       write: new-baseline.json
-      format: v2
       prune: true
       strict: true
     variants: auto

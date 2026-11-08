@@ -146,7 +146,6 @@ struct ScanCommand: ParsableCommand {
         configuration.apply(\.$jsonPackageManifestPath, projectOptions.jsonPackageManifestPath)
         configuration.apply(\.$baseline, baselineOptions.baseline)
         configuration.apply(\.$writeBaseline, baselineOptions.writeBaseline)
-        configuration.apply(\.$baselineFormat, baselineOptions.baselineFormat)
         configuration.apply(\.$pruneBaseline, baselineOptions.pruneBaseline)
         configuration.apply(\.$strictBaseline, baselineOptions.strictBaseline)
         configuration.apply(\.$writeResults, resultsOptions.writeResults)
@@ -428,7 +427,6 @@ struct ScanCommand: ParsableCommand {
 }
 
 extension OutputFormat: ArgumentParser.ExpressibleByArgument {}
-extension BaselineFormat: ArgumentParser.ExpressibleByArgument {}
 extension ColorOption: ArgumentParser.ExpressibleByArgument {}
 extension PlatformConditionalRetention: ArgumentParser.ExpressibleByArgument {}
 extension ExitCodes: ArgumentParser.ExpressibleByArgument {}
