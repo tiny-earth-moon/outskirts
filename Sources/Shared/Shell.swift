@@ -70,22 +70,22 @@ public final class ShellImpl: Shell {
 
     @discardableResult
     public func exec(_ args: [String]) throws -> String {
-        let (status, stdout, stderr) = try exec(args)
+        let (status, reason, stdout, stderr) = try exec(args)
 
-        if status == 0 {
+        if reason == .exit, status == 0 {
             return stdout
         }
 
-        throw PeripheryError.shellCommandFailed(
-            cmd: args,
-            status: status,
-            output: [stdout, stderr].filter { !$0.isEmpty }.joined(separator: "\n").trimmed
-        )
+        let output = [stdout, stderr].filter { !$0.isEmpty }.joined(separator: "\n").trimmed
+        if reason == .uncaughtSignal {
+            throw PeripheryError.shellCommandKilled(cmd: args, signal: status, output: output)
+        }
+        throw PeripheryError.shellCommandFailed(cmd: args, status: status, output: output)
     }
 
     // MARK: - Private
 
-    private func exec(_ cmd: [String]) throws -> (Int32, String, String) {
+    private func exec(_ cmd: [String]) throws -> (Int32, Process.TerminationReason, String, String) {
         guard let executable = cmd.first else {
             throw PeripheryError.executableNotFound(name: "", searchPath: [])
         }
@@ -139,7 +139,7 @@ public final class ShellImpl: Shell {
             standardError = String(decoding: stderrData, as: UTF8.self)
         }
 
-        return (process.terminationStatus, standardOutput, standardError)
+        return (process.terminationStatus, process.terminationReason, standardOutput, standardError)
     }
 
     private static func parkUntilExit() -> Never {

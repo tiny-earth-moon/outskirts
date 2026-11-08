@@ -3,6 +3,7 @@ import SystemPackage
 
 public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
     case shellCommandFailed(cmd: [String], status: Int32, output: String)
+    case shellCommandKilled(cmd: [String], signal: Int32, output: String)
     case executableNotFound(name: String, searchPath: [String])
     case usageError(String)
     case notInGitWorkTree(path: String)
@@ -36,6 +37,11 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
         case let .shellCommandFailed(cmd, status, output):
             let joinedCmd = cmd.shellQuoted
             return "Shell command '\(joinedCmd)' returned exit status '\(status)':\n\(output)"
+        case let .shellCommandKilled(cmd, signal, output):
+            let joinedCmd = cmd.shellQuoted
+            let name = Self.signalName(signal).map { " (\($0))" } ?? ""
+            let hint = signal == SIGKILL ? ", possibly out of memory" : ""
+            return "Shell command '\(joinedCmd)' was killed by signal \(signal)\(name)\(hint):\n\(output)"
         case let .executableNotFound(name, searchPath):
             if name.isEmpty {
                 return "Cannot run an empty command."
@@ -100,6 +106,20 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
         }
     }
 
+    private static func signalName(_ signal: Int32) -> String? {
+        switch signal {
+        case SIGINT: "SIGINT"
+        case SIGTERM: "SIGTERM"
+        case SIGKILL: "SIGKILL"
+        case SIGABRT: "SIGABRT"
+        case SIGSEGV: "SIGSEGV"
+        case SIGBUS: "SIGBUS"
+        case SIGILL: "SIGILL"
+        case SIGTRAP: "SIGTRAP"
+        default: nil
+        }
+    }
+
     /// The class of the failure, which gives its exit status. Every case is classified explicitly.
     var failureClass: FailureClass {
         switch self {
@@ -108,7 +128,7 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
         case .usageError, .notInGitWorkTree, .unknownGitRef, .removedBazelOption, .invalidScheme, .guidedSetupError,
              .pathDoesNotExist, .changeCurrentDirectoryFailed:
             .configuration
-        case .shellCommandFailed, .executableNotFound, .underlyingError,
+        case .shellCommandFailed, .shellCommandKilled, .executableNotFound, .underlyingError,
              .sourceGraphIntegrityError, .updateCheckError, .xcodebuildNotConfigured, .packageError,
              .swiftVersionParseError, .swiftVersionUnsupportedError, .jsonDeserializationError, .indexStoreNotFound,
              .indexStoreNotFoundAfterSkippedBuild, .spmIndexStoreNotFound, .noIndexedSourceFiles, .outdatedIndexData,

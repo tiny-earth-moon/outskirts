@@ -52,6 +52,20 @@ final class ShellTest: XCTestCase {
         }
     }
 
+    func testSignalTermination_isReportedAsSignal() {
+        let shell = ShellImpl(logger: Logger(quiet: true, verbose: false, colorMode: .never))
+
+        XCTAssertThrowsError(try shell.exec(["/bin/sh", "-c", "echo partial; kill -9 $$"])) { error in
+            guard case let PeripheryError.shellCommandKilled(_, signal, output) = error else {
+                return XCTFail("Expected a killed shell command, received \(error)")
+            }
+
+            XCTAssertEqual(signal, SIGKILL)
+            XCTAssertEqual(output, "partial")
+            XCTAssertTrue(error.localizedDescription.contains("killed by signal 9 (SIGKILL), possibly out of memory"))
+        }
+    }
+
     func testStopRunning_ignoresUnlaunchedProcess() {
         let store = ShellProcessStore()
         let process = Process()
