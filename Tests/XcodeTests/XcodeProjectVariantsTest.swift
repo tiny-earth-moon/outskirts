@@ -183,13 +183,16 @@
                 ["-destination", "generic/platform=iOS Simulator"],
                 ["-destination", "generic/platform=macOS"],
             ].map { try xcodebuild.derivedDataPath(for: project, schemes: ["App"], buildArguments: $0) }
-            for path in paths {
+            let leftovers = paths.map { $0.appending("leftover") }
+            for (path, leftover) in zip(paths, leftovers) {
                 try FileManager.default.createDirectory(atPath: path.string, withIntermediateDirectories: true)
+                XCTAssertTrue(FileManager.default.createFile(atPath: leftover.string, contents: Data()))
             }
 
             try makeDriver(configuration).build()
 
-            XCTAssertEqual(paths.filter(\.exists), [])
+            // Each folder is removed, then created again and locked for the build of its variant.
+            XCTAssertEqual(leftovers.filter(\.exists), [])
         }
 
         // MARK: - Resolver
