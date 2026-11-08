@@ -127,16 +127,8 @@ struct EditResolution {
             }
 
             if next - index > 1 {
-                var lowerBound = range.lowerBound
-                var upperBound = range.upperBound
-                let startsLine = lowerBound == 0 || bytes[lowerBound - 1] == newline
-                let followsBlankLine = lowerBound == 0 || (lowerBound >= 2 && bytes[lowerBound - 2] == newline)
-                if startsLine, followsBlankLine, upperBound < bytes.count, bytes[upperBound] == newline {
-                    upperBound += 1
-                } else if startsLine, upperBound == bytes.count, lowerBound >= 2, bytes[lowerBound - 2] == newline {
-                    lowerBound -= 1
-                }
-                result.append(SourceEdit(range: lowerBound ..< upperBound))
+                let startsLine = range.lowerBound == 0 || bytes[range.lowerBound - 1] == newline
+                result.append(SourceEdit(range: startsLine ? bytes.wholeLineRemoval(range) : range))
             } else {
                 result.append(edits[index])
             }
