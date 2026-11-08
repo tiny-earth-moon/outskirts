@@ -326,7 +326,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         try write(Self.cascade, to: "Sources/Lib/Dead.swift")
         try commitAll()
 
-        let output = try run(Self.iterate + ["--verify"])
+        let output = try run(Self.iterate)
 
         XCTAssertEqual(output.status, 0, output.stderr)
         let passes = output.stderr.components(separatedBy: "Pass ").dropFirst().map { "Pass " + $0 }
@@ -362,6 +362,8 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertEqual(output.status, 0, output.stderr)
         XCTAssertTrue(output.stderr.contains("Pass 5 of at most 5:\n"), output.stderr)
         XCTAssertFalse(output.stderr.contains("Pass 6"), output.stderr)
+        // Without '--verify', every pass is still rebuilt before the next one.
+        XCTAssertEqual(output.stderr.components(separatedBy: "The project builds with the fixes.").count - 1, 5, output.stderr)
         XCTAssertTrue(output.stderr.contains("Stopped at the limit of 5 passes: 7 fixes in 1 file. The last pass still fixed something: run the command again to fix what it left."), output.stderr)
         let fixed = try read("Sources/Lib/Dead.swift")
         XCTAssertFalse(fixed.contains("DeadType"), fixed)
@@ -375,7 +377,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         try write("func excludedClient() -> Int { deadHelper() }\n", to: "Sources/Lib/Excluded.swift")
         try commitAll()
 
-        let output = try run(Self.iterate + ["--verify", "--index-exclude", "Sources/Lib/Excluded.swift", "--allow-partial-scan"])
+        let output = try run(Self.iterate + ["--index-exclude", "Sources/Lib/Excluded.swift", "--allow-partial-scan"])
 
         XCTAssertNotEqual(output.status, 0, output.stderr)
         XCTAssertTrue(output.stderr.contains("Pass 1 of at most 5:\n"), output.stderr)
@@ -394,6 +396,8 @@ final class FixCommandEndToEndTest: XCTestCase {
         for (arguments, message) in [
             (["--rule", "unused", "--iterate"], "'--iterate' scans again the files that each pass wrote, it requires '--apply'"),
             (["--apply", "--iterate"], "'--iterate' only applies to '--rule unused'"),
+            // '--iterate' verifies every pass, so it needs a build it can run again.
+            (["--rule", "unused", "--apply", "--iterate", "--skip-build"], "'--iterate' rebuilds the project after each pass, but the build is skipped"),
         ] {
             let refused = try run(["fix"] + arguments)
             XCTAssertNotEqual(refused.status, 0, arguments.joined(separator: " "))
@@ -419,7 +423,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         try git("init", "-q")
         try commitAll()
 
-        let output = try run(Self.iterate + ["--verify"])
+        let output = try run(Self.iterate)
 
         XCTAssertEqual(output.status, 0, output.stderr)
         XCTAssertTrue(output.stderr.contains("  removed unused 'phoneNeverCalled()' at Sources/Kit/InBlock.swift:2:10 [p2_"), output.stderr)

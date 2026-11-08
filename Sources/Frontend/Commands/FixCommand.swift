@@ -45,7 +45,7 @@ struct FixCommand: ParsableCommand {
     @Flag(help: "With '--rule unused', also remove stored instance properties, which changes the memory layout of their type (never in a @frozen type)")
     var includeStoredProperties: Bool = false
 
-    @Flag(help: "With '--rule unused' and '--apply', scan again after each pass and fix what it left, until a pass fixes nothing, a verification fails or 5 passes are done")
+    @Flag(help: "With '--rule unused' and '--apply', rebuild after each pass as with --verify, then scan again and fix what it left, until a pass fixes nothing, a build fails or 5 passes are done")
     var iterate: Bool = false
 
     @OptionGroup
@@ -94,7 +94,7 @@ struct FixCommand: ParsableCommand {
         let prepared = try scan.prepareScan(messagesToStderr: true)
         let configuration = prepared.configuration
         let logger = prepared.logger
-        if verify {
+        if verify || iterate {
             try validateVerifiableBuild(configuration: configuration, project: prepared.project)
         }
         if removesUnused, !allowPartialVariants, configuration.variants == .default {
@@ -174,7 +174,7 @@ struct FixCommand: ParsableCommand {
         return Pass(plan: plan, driver: output.driver)
     }
 
-    /// `--iterate`: runs passes until one fixes nothing, a verification fails or the limit is reached. Every pass
+    /// `--iterate`: runs verified passes until one fixes nothing, a build fails or the limit is reached. Every pass
     /// scans again, so the gates and the eligibility rules apply to what the earlier passes left.
     private func runPasses(_ prepared: ScanCommand.PreparedScan) throws {
         let configuration = prepared.configuration
@@ -199,9 +199,8 @@ struct FixCommand: ParsableCommand {
                 return
             }
 
-            if verify {
-                try verifyBuild(of: pass.plan, driver: pass.driver, configuration: configuration, logger: logger, keptPasses: keptPasses)
-            }
+            // Every pass is verified, so that no pass leaves the tree broken for the next one.
+            try verifyBuild(of: pass.plan, driver: pass.driver, configuration: configuration, logger: logger, keptPasses: keptPasses)
             keptPasses.append(pass.plan)
             iteratedFiles.record(pass.plan)
             // The first pass cleaned the build if asked to: the next ones only rebuild the fixed files.
@@ -222,8 +221,7 @@ struct FixCommand: ParsableCommand {
         return "\(fixes) fix\(fixes == 1 ? "" : "es") in \(files) file\(files == 1 ? "" : "s")"
     }
 
-    /// What `--iterate` keeps when a pass fails: the fixes of the earlier passes, which were written (and verified,
-    /// with `--verify`).
+    /// What `--iterate` keeps when a pass fails: the fixes of the earlier passes, which were written and built.
     static func keptSummary(of plans: [FixPlan]) -> String {
         guard !plans.isEmpty else { return "No earlier pass wrote a fix." }
 
@@ -277,13 +275,15 @@ struct FixCommand: ParsableCommand {
         return includeMatchers.isEmpty || includeMatchers.anyMatch(filename: file.string)
     }
 
-    /// `--verify` rebuilds with the driver of the scan, so the scan must build the project itself.
+    /// `--verify` and `--iterate` rebuild with the driver of the scan, so the scan must build the project itself.
     private func validateVerifiableBuild(configuration: Configuration, project: Project) throws {
+        let option = iterate ? "--iterate" : "--verify"
+        let rebuild = iterate ? "rebuilds the project after each pass" : "rebuilds the project after writing the fixes"
         if configuration.skipBuild || !configuration.indexStorePath.isEmpty {
-            throw PeripheryError.usageError("'--verify' rebuilds the project after writing the fixes, but the build is skipped ('--skip-build' or '--index-store-path'), so the fixes could not be verified. Remove these options, or apply without '--verify' and build yourself.")
+            throw PeripheryError.usageError("'\(option)' \(rebuild), but the build is skipped ('--skip-build' or '--index-store-path'), so the fixes could not be verified. Remove these options, or apply without '\(option)' and build yourself.")
         }
         if case .generic = project.kind {
-            throw PeripheryError.usageError("'--verify' rebuilds the project after writing the fixes, but a project described by '--generic-project-config' is built outside outskirts, so the fixes could not be verified. Apply without '--verify' and build yourself.")
+            throw PeripheryError.usageError("'\(option)' \(rebuild), but a project described by '--generic-project-config' is built outside outskirts, so the fixes could not be verified. Apply without '\(option)' and build yourself.")
         }
     }
 
