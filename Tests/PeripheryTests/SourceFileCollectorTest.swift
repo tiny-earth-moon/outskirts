@@ -188,14 +188,19 @@ final class SourceFileCollectorTest: XCTestCase {
 
     // MARK: - Unreadable units
 
+    /// An index store without any unit, as a build that never ran or wrote elsewhere leaves it.
+    private func emptyStore() throws -> URL {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("outskirts-index-store-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("v5/units"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("v5/records"), withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        return root
+    }
+
     /// An index store whose only unit has invalid bytes, as left by an interrupted build or a truncated CI cache.
     private func storeWithTruncatedUnit() throws -> FilePath {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("outskirts-truncated-unit-\(UUID().uuidString)")
-        let units = root.appendingPathComponent("v5/units")
-        try FileManager.default.createDirectory(at: units, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: root.appendingPathComponent("v5/records"), withIntermediateDirectories: true)
-        try Data("not a unit".utf8).write(to: units.appendingPathComponent("Truncated.swift.o-1ABCDEF"))
-        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let root = try emptyStore()
+        try Data("not a unit".utf8).write(to: root.appendingPathComponent("v5/units/Truncated.swift.o-1ABCDEF"))
         return FilePath(root.path)
     }
 
@@ -221,6 +226,29 @@ final class SourceFileCollectorTest: XCTestCase {
             XCTAssertTrue(message.contains("1 index store unit cannot be read"), message)
             XCTAssertTrue(message.contains("Truncated.swift.o-1ABCDEF"), message)
             XCTAssertTrue(message.hasSuffix("Failing as '--strict-index' is set."), message)
+        }
+    }
+
+    /// A generic project config has no expected files, so the coverage check cannot notice an empty store.
+    func testEmptyStore_withoutExpectedFiles_throws() throws {
+        let store = try FilePath(emptyStore().path)
+
+        XCTAssertThrowsError(try collector(store: store, strictIndex: false).collectWithIndexExcludedFiles()) { error in
+            guard case let .emptyIndexStore(stores)? = error as? PeripheryError else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+
+            XCTAssertEqual(stores, [store.string])
+        }
+    }
+
+    func testTruncatedUnitWithoutStrictIndex_stillFailsAsNoFileIsLeft() throws {
+        let store = try storeWithTruncatedUnit()
+
+        XCTAssertThrowsError(try collector(store: store, strictIndex: false).collectWithIndexExcludedFiles()) { error in
+            guard case .emptyIndexStore? = error as? PeripheryError else {
+                return XCTFail("Unexpected error: \(error)")
+            }
         }
     }
 

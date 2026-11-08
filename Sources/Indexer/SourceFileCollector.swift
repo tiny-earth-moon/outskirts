@@ -11,6 +11,7 @@ public struct SourceFileCollector {
         let path: FilePath
         let collected: [(FilePath, FilePath, IndexStore, UnitReader, String, Date?, Bool)]
         let unreadable: [String]
+        let hasTargetExcludedUnit: Bool
     }
 
     private let indexStorePaths: Set<FilePath>
@@ -42,6 +43,7 @@ public struct SourceFileCollector {
                 let (units, unreadable) = indexStore.readUnits()
 
                 let unitsDirectory = indexStorePath.appending("v5/units")
+                var hasTargetExcludedUnit = false
 
                 let collected = units.filter { !$0.isSystem }.compactMap { unit -> (FilePath, FilePath, IndexStore, UnitReader, String, Date?, Bool)? in
                     let filePath = unit.mainFile
@@ -59,6 +61,7 @@ public struct SourceFileCollector {
                         }
 
                         if excludedTargets.contains(unit.moduleName) {
+                            hasTargetExcludedUnit = true
                             return nil
                         }
 
@@ -68,7 +71,7 @@ public struct SourceFileCollector {
                     return file.exists ? (file, indexStorePath, indexStore, unit, unit.moduleName, nil, true) : nil
                 }
 
-                return [StoreUnits(path: indexStorePath, collected: collected, unreadable: unreadable)]
+                return [StoreUnits(path: indexStorePath, collected: collected, unreadable: unreadable, hasTargetExcludedUnit: hasTargetExcludedUnit)]
             }
         let unreadableUnits = storeResults.reduce(into: [FilePath: Set<String>]()) { $0[$1.path] = Set($1.unreadable) }
         if let warning = try Self.unreadableUnitsWarning(unreadableUnits, relativeTo: currentFilePath, strict: configuration.strictIndex) {
@@ -76,6 +79,13 @@ public struct SourceFileCollector {
         }
 
         let collectedUnits = storeResults.flatMap(\.collected)
+
+        // Without expected files (a generic project config), nothing else notices a store with no usable unit, and
+        // the scan would report "no unused code". Excluding every unit with `exclude_targets` is the user's choice.
+        if collectedUnits.isEmpty, !storeResults.contains(where: \.hasTargetExcludedUnit) {
+            throw PeripheryError.emptyIndexStore(indexStorePaths: indexStorePaths.map(\.string).sorted())
+        }
+
         let indexExcludedFiles = collectedUnits.filter(\.6).mapSet(\.0)
         let collected = collectedUnits
             .filter { !$0.6 }
