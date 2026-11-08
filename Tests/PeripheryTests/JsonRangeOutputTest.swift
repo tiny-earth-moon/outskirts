@@ -56,7 +56,8 @@ final class JsonRangeOutputTest: XCTestCase {
     }
 
     func testEveryOtherFormat_isUnchangedByTheRanges() throws {
-        for format in OutputFormat.allCases where format != .json {
+        // `json-v2` gives the end of the range as the end of the location.
+        for format in OutputFormat.allCases where ![.json, .jsonV2].contains(format) {
             let formatter = format.formatter.init(configuration: Configuration(), logger: logger)
             let withRanges = try formatter.format(results(withRanges: true), colored: false)
             let withoutRanges = try formatter.format(results(withRanges: false), colored: false)
