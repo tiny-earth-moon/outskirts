@@ -128,3 +128,7 @@ let _: RpmPublicEnum? = nil
 
 // One-line declarations
 retainOneLineDeclarations()
+_ = PublicInlinableAccessorHolder().inlinableProperty
+_ = PublicInlinableAccessorHolder().inlinableGetterProperty
+alwaysEmitIntoClientFunction()
+backDeployedFunction()

@@ -329,6 +329,15 @@ final class RedundantPublicAccessibilityTest: SPMSourceGraphTestCase {
         assertNotRedundantPublicAccessibility(.class("ClassReferencedFromPublicInlinableFunction_UsableFromInline"))
     }
 
+    func testPublicInlinableAccessorAndClientEmittedFunctions() {
+        index()
+
+        assertNotRedundantPublicAccessibility(.class("ClassReferencedFromPublicInlinableProperty"))
+        assertNotRedundantPublicAccessibility(.class("ClassReferencedFromPublicInlinableGetter"))
+        assertNotRedundantPublicAccessibility(.class("ClassReferencedFromPublicAlwaysEmitIntoClientFunction"))
+        assertNotRedundantPublicAccessibility(.class("ClassReferencedFromPublicBackDeployedFunction"))
+    }
+
     func testPublicInheritedAssociatedType() {
         index()
 

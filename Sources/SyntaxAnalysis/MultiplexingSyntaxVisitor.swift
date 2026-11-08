@@ -56,6 +56,7 @@ public protocol PeripherySyntaxNodeVisitor: AnyObject {
     func visitPost(_ node: InitializerDeclSyntax)
     func visitPost(_ node: DeinitializerDeclSyntax)
     func visitPost(_ node: SubscriptDeclSyntax)
+    func visitPost(_ node: AccessorDeclSyntax)
     func visitPost(_ node: VariableDeclSyntax)
     func visitPost(_ node: TypeAliasDeclSyntax)
     func visitPost(_ node: AssociatedTypeDeclSyntax)
@@ -122,6 +123,7 @@ public extension PeripherySyntaxNodeVisitor {
     func visitPost(_: InitializerDeclSyntax) {}
     func visitPost(_: DeinitializerDeclSyntax) {}
     func visitPost(_: SubscriptDeclSyntax) {}
+    func visitPost(_: AccessorDeclSyntax) {}
     func visitPost(_: VariableDeclSyntax) {}
     func visitPost(_: TypeAliasDeclSyntax) {}
     func visitPost(_: AssociatedTypeDeclSyntax) {}
@@ -372,6 +374,10 @@ public class ForwardingSyntaxVisitor: SyntaxVisitor {
     }
 
     override public final func visitPost(_ node: SubscriptDeclSyntax) {
+        visitors.forEach { $0.visitPost(node) }
+    }
+
+    override public final func visitPost(_ node: AccessorDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
