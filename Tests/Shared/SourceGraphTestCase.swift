@@ -34,7 +34,7 @@ open class SourceGraphTestCase: XCTestCase {
         graph = SourceGraph(configuration: configuration, logger: logger)
     }
 
-    override public func tearDown() {
+    override public final func tearDown() {
         super.tearDown()
 
         if (testRun?.failureCount ?? 0) > 0 {
