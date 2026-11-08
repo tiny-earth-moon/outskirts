@@ -49,6 +49,18 @@ extension OutputFormatter {
         result.declaration.usrs.sorted().joined(separator: ".")
     }
 
+    /// The output v2 id and rule of each part that ``describe(_:colored:)`` gives: the result, then the conformances of
+    /// a redundant protocol.
+    func outputV2Identities(of result: ScanResult) -> [(id: String, rule: RuleIdentifier)] {
+        var identities = [(id: OutputV2Id.id(of: result), rule: result.rule)]
+
+        if case let .redundantProtocol(references, _) = result.annotation {
+            identities += sortedReferences(references).map { (id: OutputV2Id.id(ofConformance: $0), rule: .redundantConformance) }
+        }
+
+        return identities
+    }
+
     /// References are held in a set, whose order changes from one process to the next. Output must not depend on it.
     func sortedReferences(_ references: Set<Reference>) -> [Reference] {
         references.sorted {
@@ -214,20 +226,28 @@ public extension OutputFormat {
             XcodeFormatter.self
         case .csv:
             CsvFormatter.self
+        case .csvV2:
+            CsvV2Formatter.self
         case .codeclimate:
             CodeClimateFormatter.self
+        case .codeclimateV2:
+            CodeClimateV2Formatter.self
         case .json:
             JsonFormatter.self
         case .jsonV2:
             JsonV2Formatter.self
         case .checkstyle:
             CheckstyleFormatter.self
+        case .checkstyleV2:
+            CheckstyleV2Formatter.self
         case .githubActions:
             GitHubActionsFormatter.self
         case .githubMarkdown:
             GitHubMarkdownFormatter.self
         case .gitlabCodeQuality:
             GitLabCodeQualityFormatter.self
+        case .gitlabCodeQualityV2:
+            GitLabCodeQualityV2Formatter.self
         case .sarif:
             SarifFormatter.self
         case .agent:

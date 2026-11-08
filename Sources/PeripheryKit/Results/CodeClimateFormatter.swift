@@ -3,14 +3,17 @@ import Foundation
 import Logger
 import SystemPackage
 
-final class CodeClimateFormatter: OutputFormatter {
+class CodeClimateFormatter: OutputFormatter {
     static let requiresRelativePaths = true
+
+    /// Whether each issue holds the output v2 id and rule of its result, the id also being its fingerprint.
+    class var includesOutputV2Identity: Bool { false }
 
     let configuration: Configuration
     let logger: Logger
     lazy var currentFilePath: FilePath = .current
 
-    init(configuration: Configuration, logger: Logger) {
+    required init(configuration: Configuration, logger: Logger) {
         self.logger = logger
         self.configuration = configuration
     }
@@ -33,9 +36,10 @@ final class CodeClimateFormatter: OutputFormatter {
             let description = describe(result, colored: colored)
                 .map(\.1)
                 .joined(separator: ", ")
-            let fingerprint = usrFingerprint(of: result)
+            let identity = Self.includesOutputV2Identity ? (id: OutputV2Id.id(of: result), rule: result.rule) : nil
+            let fingerprint = identity?.id ?? usrFingerprint(of: result)
 
-            let object: [AnyHashable: Any] = [
+            var object: [AnyHashable: Any] = [
                 "type": "issue",
                 "check_name": describe(result.annotation),
                 "categories": ["Bug Risk"],
@@ -45,9 +49,20 @@ final class CodeClimateFormatter: OutputFormatter {
                 "location": locationDict,
             ]
 
+            if let identity {
+                object["id"] = identity.id
+                object["rule"] = identity.rule.rawValue
+            }
+
             jsonObject.append(object)
         }
 
         return try serializeJSON(jsonObject)
     }
+}
+
+/// `codeclimate-v2`: the `codeclimate` format, each issue with the output v2 `id` and `rule` of its result, and the id as
+/// its fingerprint.
+final class CodeClimateV2Formatter: CodeClimateFormatter {
+    override class var includesOutputV2Identity: Bool { true }
 }

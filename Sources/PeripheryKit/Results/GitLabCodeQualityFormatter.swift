@@ -3,14 +3,17 @@ import Foundation
 import Logger
 import SystemPackage
 
-final class GitLabCodeQualityFormatter: OutputFormatter {
+class GitLabCodeQualityFormatter: OutputFormatter {
     static let requiresRelativePaths = true
+
+    /// Whether each issue holds the output v2 id and rule of its result, the id also being its fingerprint.
+    class var includesOutputV2Identity: Bool { false }
 
     let configuration: Configuration
     let logger: Logger
     lazy var currentFilePath: FilePath = .current
 
-    init(configuration: Configuration, logger: Logger) {
+    required init(configuration: Configuration, logger: Logger) {
         self.logger = logger
         self.configuration = configuration
     }
@@ -27,7 +30,8 @@ final class GitLabCodeQualityFormatter: OutputFormatter {
 
             let checkName = describe(result.annotation)
 
-            let fingerprint = usrFingerprint(of: result)
+            let identity = Self.includesOutputV2Identity ? (id: OutputV2Id.id(of: result), rule: result.rule) : nil
+            let fingerprint = identity?.id ?? usrFingerprint(of: result)
 
             let begin = violationFileLocation.line
             let lines: [AnyHashable: Any] = [
@@ -43,7 +47,7 @@ final class GitLabCodeQualityFormatter: OutputFormatter {
                 "lines": lines,
             ]
 
-            let object: [AnyHashable: Any] = [
+            var object: [AnyHashable: Any] = [
                 "description": description,
                 "check_name": checkName,
                 "fingerprint": fingerprint,
@@ -51,9 +55,20 @@ final class GitLabCodeQualityFormatter: OutputFormatter {
                 "severity": "info",
             ]
 
+            if let identity {
+                object["id"] = identity.id
+                object["rule"] = identity.rule.rawValue
+            }
+
             jsonObject.append(object)
         }
 
         return try serializeJSON(jsonObject)
     }
+}
+
+/// `gitlab-codequality-v2`: the `gitlab-codequality` format, each issue with the output v2 `id` and `rule` of its result, and the id as
+/// its fingerprint.
+final class GitLabCodeQualityV2Formatter: GitLabCodeQualityFormatter {
+    override class var includesOutputV2Identity: Bool { true }
 }
