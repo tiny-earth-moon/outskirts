@@ -23,6 +23,7 @@ final class CodeClimateFormatter: OutputFormatter {
 
             let lines: [AnyHashable: Any] = [
                 "begin": location.line,
+                "end": endLine(of: result.declaration, begin: location.line),
             ]
 
             let locationDict: [AnyHashable: Any] = [
@@ -33,7 +34,7 @@ final class CodeClimateFormatter: OutputFormatter {
             let description = describe(result, colored: colored)
                 .map(\.1)
                 .joined(separator: ", ")
-            let fingerprint = usrFingerprint(of: result)
+            let fingerprint = resultFingerprint(of: result)
 
             let object: [AnyHashable: Any] = [
                 "type": "issue",

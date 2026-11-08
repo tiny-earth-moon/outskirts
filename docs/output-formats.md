@@ -205,11 +205,11 @@ Each result carries a `peripheryResult/v1` fingerprint (a SHA-256 of the rule an
 
 ## gitlab-codequality
 
-A [Code Quality](https://docs.gitlab.com/ci/testing/code_quality/) report, which GitLab shows in merge requests. See [GitLab CI](ci.md#gitlab-ci).
+A [Code Quality](https://docs.gitlab.com/ci/testing/code_quality/) report, which GitLab shows in merge requests. Each issue has the same `fingerprint` and `location` as [codeclimate](#codeclimate). See [GitLab CI](ci.md#gitlab-ci).
 
 ## codeclimate
 
-Code Climate JSON issues, each with a `check_name` (the result annotation), a `description`, a `fingerprint` (the ids of the declaration), a `location` and a severity.
+Code Climate JSON issues, each with a `check_name` (the result annotation), a `description`, a `fingerprint` (a SHA-256 of the rule and the ids of the declaration, the same value as the SARIF fingerprint, so two results on the same declaration stay distinct), a `location` with `lines.begin` (the declaration line) and `lines.end` (the last line of the declaration, or `begin` when its extent is unknown) and a severity.
 
 ## agent
 
