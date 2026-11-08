@@ -32,6 +32,8 @@ const COMMAND_LINE_ONLY = [
   ["--explain", "Explains why a declaration is reported, used or retained, before the results. Accepts a name (`draw()`, `draw` or `Beta.draw()`), a USR or a `file:line` location; repeat the option to explain several declarations, e.g. `--explain 'draw()' --explain Sources/Kit/Shape.swift:12`.", "3.22.0"],
   ["--summary", "Prints a summary after the results of the `xcode` format: the count of each result kind, an estimate of the unused lines and the files entirely unused. On by default with `xcode`, `--no-summary` to switch off; with `json`, `--summary` adds a `summary` object to the report. The other formats never hold one.", "3.22.0"],
   ["--max-results", "With `--format agent`, prints at most this many results, a file entirely unused counting all its results; the report then ends with the number of results left out. Scan again after acting on them for the next batch. Default: every result.", "3.22.0"],
+  ["--enable-rule", "Turns a rule on, by its id as `outskirts list-rules` prints it, whatever the format of the configuration file; repeat the option to give several rules. It sets the option of the rule: `--enable-rule missing-final` is `--enable-open-final-analysis`, which also turns `redundant-open` on.", "3.22.0"],
+  ["--disable-rule", "Turns a rule off, by its id as `outskirts list-rules` prints it; repeat the option to give several rules. It sets the option of the rule: `--disable-rule unused-import` is `--disable-unused-import-analysis`. A rule always checked cannot be turned off, and giving a rule both values, also through its own option, is an error.", "3.22.0"],
 ];
 
 /**

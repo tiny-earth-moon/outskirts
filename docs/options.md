@@ -56,6 +56,22 @@ With `--format agent`, prints at most this many results, a file entirely unused 
 
 See [Output formats: agent](output-formats.md#agent).
 
+### `--enable-rule`
+
+Since 3.22.0.
+
+Turns a rule on, by its id as `outskirts list-rules` prints it, whatever the format of the configuration file; repeat the option to give several rules. It sets the option of the rule: `--enable-rule missing-final` is `--enable-open-final-analysis`, which also turns `redundant-open` on.
+
+See [Configuration: Rules](configuration.md#rules).
+
+### `--disable-rule`
+
+Since 3.22.0.
+
+Turns a rule off, by its id as `outskirts list-rules` prints it; repeat the option to give several rules. It sets the option of the rule: `--disable-rule unused-import` is `--disable-unused-import-analysis`. A rule always checked cannot be turned off, and giving a rule both values, also through its own option, is an error.
+
+See [Configuration: Rules](configuration.md#rules).
+
 ## Project and build
 
 ### `--project`
@@ -308,7 +324,7 @@ Turn off the analysis of unused imports.
 
 Key `disable_unused_import_analysis` · flag, `--no-disable-unused-import-analysis` to switch off · default `false`.
 
-See [Analysis: Unused imports](analysis.md#unused-imports), [Analysis: Mixed Swift and Objective-C targets](analysis.md#mixed-swift-and-objective-c-targets).
+See [Configuration: Rules](configuration.md#rules), [Analysis: Unused imports](analysis.md#unused-imports), [Analysis: Mixed Swift and Objective-C targets](analysis.md#mixed-swift-and-objective-c-targets).
 
 ### `--enable-unused-system-imports`
 

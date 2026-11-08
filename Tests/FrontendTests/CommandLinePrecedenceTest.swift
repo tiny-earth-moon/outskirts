@@ -260,6 +260,64 @@ final class CommandLinePrecedenceTest: XCTestCase {
         XCTAssertTrue(configuration.superfluousIgnoreComments)
     }
 
+    func testRuleOptionsSetTheOptionOfTheRule() throws {
+        XCTAssertTrue(try merge(["--disable-rule", "unused-import"], file: "").disableUnusedImportAnalysis)
+        XCTAssertFalse(try merge(["--enable-rule", "unused-import"], file: "disable_unused_import_analysis: true\n").disableUnusedImportAnalysis)
+        XCTAssertTrue(try merge(["--enable-rule", "missing-final"], file: "").enableOpenFinalAnalysis)
+        XCTAssertFalse(try merge(["--disable-rule", "superfluous-ignore"], file: "").superfluousIgnoreComments)
+
+        let configuration = try merge(["--enable-rule", "empty-extension", "--enable-rule", "unused-asset-color", "--disable-rule", "redundant-public", "--enable-rule", "unused"], file: "")
+        XCTAssertTrue(configuration.isEnabled(.emptyExtension))
+        XCTAssertTrue(configuration.isEnabled(.unusedAssetColor))
+        XCTAssertFalse(configuration.isEnabled(.redundantPublic))
+        XCTAssertTrue(configuration.isEnabled(.unused))
+
+        let untouched = try merge([], file: "enable_empty_extension_analysis: true\n")
+        XCTAssertTrue(untouched.isEnabled(.emptyExtension))
+        XCTAssertTrue(untouched.isEnabled(.redundantPublic))
+    }
+
+    func testRuleOptionsRejectAContradictionAnAlwaysCheckedRuleAndAnUnknownId() {
+        for arguments in [
+            ["--disable-rule", "unused"],
+            ["--enable-rule", "redundant-open", "--disable-rule", "missing-final"],
+            ["--enable-rule", "unused-import", "--disable-rule", "unused-import"],
+            ["--enable-rule", "redundant-public", "--disable-redundant-public-analysis"],
+            ["--disable-rule", "empty-extension", "--enable-empty-extension-analysis"],
+            ["--enable-rule", "unused-imports"],
+        ] {
+            XCTAssertThrowsError(try ScanCommand.parse(arguments), "\(arguments)")
+        }
+
+        XCTAssertNoThrow(try ScanCommand.parse(["--enable-rule", "redundant-public", "--no-disable-redundant-public-analysis"]))
+    }
+
+    func testListRulesPrintsEveryRuleWithItsDefaultAndKeys() throws {
+        let lines = ListRulesCommand.text().split(separator: "\n").map(String.init)
+
+        XCTAssertEqual(lines.count, RuleIdentifier.allCases.count + 1)
+        XCTAssertEqual(lines[0], "RULE                     DEFAULT  V2 KEY                         V1 KEY")
+        XCTAssertEqual(lines[1], "unused                   on       rules.unused                   - (always checked)")
+        XCTAssertEqual(lines[2], "unused-import            on       rules.unused-import            disable_unused_import_analysis (true turns it off)")
+        XCTAssertTrue(lines.contains("missing-final            off      rules.missing-final            enable_open_final_analysis"))
+
+        let rules = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(ListRulesCommand.json().utf8)) as? [[String: Any]])
+        XCTAssertEqual(rules.compactMap { $0["id"] as? String }, RuleIdentifier.allCases.map(\.rawValue))
+        let unusedImport = try XCTUnwrap(rules.first { $0["id"] as? String == "unused-import" })
+        XCTAssertEqual(unusedImport["v1_key"] as? String, "disable_unused_import_analysis")
+        XCTAssertEqual(unusedImport["v2_key"] as? String, "rules.unused-import")
+        XCTAssertEqual(Set(unusedImport.keys), ["id", "enabled_by_default", "v2_key", "v1_key", "v1_key_turns_rule_off", "overridable"])
+        XCTAssertTrue(rules.first { $0["id"] as? String == "unused" }?["v1_key"] is NSNull)
+    }
+
+    func testConfigCommandsAreListed() {
+        let help = ConfigCommand.helpMessage(columns: 1000)
+
+        for subcommand in ["check", "print", "migrate", "schema"] {
+            XCTAssertTrue(help.contains("  \(subcommand) "), "no '\(subcommand)' in the help")
+        }
+    }
+
     func testHelpStatesTheDefaultsThatOptionsNoLongerShow() {
         let defaults = Configuration()
         let help = ScanCommand.helpMessage()

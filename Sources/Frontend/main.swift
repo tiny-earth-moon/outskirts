@@ -23,6 +23,7 @@ struct OutskirtsCommand: ParsableCommand {
             CheckUpdateCommand.self,
             ClearCacheCommand.self,
             ConfigCommand.self,
+            ListRulesCommand.self,
             VersionCommand.self,
         ]
     )
