@@ -28,6 +28,7 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
     case changeCurrentDirectoryFailed(FilePath)
     case noIndexedSourceFiles(fileCount: Int, indexStorePaths: [String])
     case outdatedIndexData(message: String)
+    case unreadableIndexUnits(message: String)
     case buildFailed(message: String)
 
     public var errorDescription: String? {
@@ -92,6 +93,8 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
             return "None of the \(fileCount) source file(s) of the scanned targets have index data, so no results can be reported. Index store(s):\(paths)\nThe index store is probably stale or was produced by a different build; rebuild the project and make sure '--index-store-path' points to its index store."
         case let .outdatedIndexData(message):
             return message
+        case let .unreadableIndexUnits(message):
+            return message
         case let .buildFailed(message):
             return message
         }
@@ -109,7 +112,7 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
              .sourceGraphIntegrityError, .updateCheckError, .xcodebuildNotConfigured, .packageError,
              .swiftVersionParseError, .swiftVersionUnsupportedError, .jsonDeserializationError, .indexStoreNotFound,
              .indexStoreNotFoundAfterSkippedBuild, .spmIndexStoreNotFound, .noIndexedSourceFiles, .outdatedIndexData,
-             .buildFailed:
+             .unreadableIndexUnits, .buildFailed:
             .project
         }
     }

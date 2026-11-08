@@ -117,6 +117,7 @@ final class ExitCodesTest: XCTestCase {
         assertStatus(of: PeripheryError.indexStoreNotFoundAfterSkippedBuild(tried: ["/DerivedData"]), v1: 1, v2: 3)
         assertStatus(of: PeripheryError.spmIndexStoreNotFound(tried: [".build"]), v1: 1, v2: 3)
         assertStatus(of: PeripheryError.noIndexedSourceFiles(fileCount: 1, indexStorePaths: ["/store"]), v1: 1, v2: 3)
+        assertStatus(of: PeripheryError.unreadableIndexUnits(message: "1 index store unit cannot be read"), v1: 1, v2: 3)
     }
 
     func testFailedBuildIsAProjectFailure() {

@@ -15,6 +15,8 @@ public struct IndexPlan {
     /// A catalogue without an entry has an unknown owner.
     let xcStringsModules: [FilePath: Set<String>]
     let expectedSourceFiles: [String: Set<FilePath>]
+    /// The names of the index store units that could not be read, whose source files are missing from `sourceFiles`.
+    let unreadableUnits: [String]
     let indexStorePaths: Set<FilePath>
     /// Values of the `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME` build setting, `nil` when the project driver
     /// does not read build settings.
@@ -30,6 +32,7 @@ public struct IndexPlan {
         xcStringsPaths: Set<FilePath> = [],
         xcStringsModules: [FilePath: Set<String>] = [:],
         expectedSourceFiles: [String: Set<FilePath>] = [:],
+        unreadableUnits: [String] = [],
         indexStorePaths: Set<FilePath> = [],
         globalAccentColorNames: Set<String>? = nil
     ) {
@@ -42,6 +45,7 @@ public struct IndexPlan {
         self.xcStringsPaths = xcStringsPaths
         self.xcStringsModules = xcStringsModules
         self.expectedSourceFiles = expectedSourceFiles
+        self.unreadableUnits = unreadableUnits
         self.indexStorePaths = indexStorePaths
         self.globalAccentColorNames = globalAccentColorNames
     }

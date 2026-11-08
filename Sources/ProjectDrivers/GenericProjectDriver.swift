@@ -127,7 +127,7 @@ extension GenericProjectDriver: ProjectDriver {
             logger: logger,
             configuration: configuration
         )
-        let (sourceFiles, indexExcludedSourceFiles) = try collector.collectWithIndexExcludedFiles()
+        let (sourceFiles, indexExcludedSourceFiles, unreadableUnits) = try collector.collectWithIndexExcludedFiles()
 
         return IndexPlan(
             sourceFiles: sourceFiles,
@@ -136,7 +136,8 @@ extension GenericProjectDriver: ProjectDriver {
             xibPaths: xibPaths,
             xcDataModelPaths: xcDataModelsPaths,
             xcMappingModelPaths: xcMappingModelsPaths,
-            xcStringsPaths: xcStringsPaths
+            xcStringsPaths: xcStringsPaths,
+            unreadableUnits: unreadableUnits
         )
     }
 }

@@ -1,5 +1,7 @@
+import Configuration
 import Foundation
 @testable import Indexer
+import Logger
 import Shared
 import SystemPackage
 import XCTest
@@ -182,5 +184,60 @@ final class SourceFileCollectorTest: XCTestCase {
             try SourceFileCollector.outdatedIndexWarning(outdated, relativeTo: "/project", strict: false),
             SourceFileCollector.outdatedIndexWarning(outdated, relativeTo: "/project")
         )
+    }
+
+    // MARK: - Unreadable units
+
+    /// An index store whose only unit has invalid bytes, as left by an interrupted build or a truncated CI cache.
+    private func storeWithTruncatedUnit() throws -> FilePath {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("outskirts-truncated-unit-\(UUID().uuidString)")
+        let units = root.appendingPathComponent("v5/units")
+        try FileManager.default.createDirectory(at: units, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("v5/records"), withIntermediateDirectories: true)
+        try Data("not a unit".utf8).write(to: units.appendingPathComponent("Truncated.swift.o-1ABCDEF"))
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        return FilePath(root.path)
+    }
+
+    private func collector(store: FilePath, strictIndex: Bool) -> SourceFileCollector {
+        let configuration = Configuration()
+        configuration.apply(\.$strictIndex, strictIndex)
+        return SourceFileCollector(
+            indexStorePaths: [store],
+            excludedTestTargets: [],
+            logger: Logger(quiet: true, verbose: false, colorMode: .never).contextualized(with: "test"),
+            configuration: configuration
+        )
+    }
+
+    func testTruncatedUnit_failsInsteadOfDroppingFile() throws {
+        let store = try storeWithTruncatedUnit()
+
+        XCTAssertThrowsError(try collector(store: store, strictIndex: true).collectWithIndexExcludedFiles()) { error in
+            guard case let .unreadableIndexUnits(message)? = error as? PeripheryError else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+
+            XCTAssertTrue(message.contains("1 index store unit cannot be read"), message)
+            XCTAssertTrue(message.contains("Truncated.swift.o-1ABCDEF"), message)
+            XCTAssertTrue(message.hasSuffix("Failing as '--strict-index' is set."), message)
+        }
+    }
+
+    func testUnreadableUnitsWarning_countsEveryUnitAndListsAFewPerStore() {
+        let warning = SourceFileCollector.unreadableUnitsWarning(
+            ["/project/.build/store": ["A.o-1", "B.o-2", "C.o-3", "D.o-4"], "/elsewhere/DataStore": ["E.o-5"]],
+            relativeTo: "/project"
+        )
+
+        XCTAssertEqual(
+            warning,
+            "5 index store units cannot be read: 4 in .build/store (A.o-1, B.o-2, C.o-3 and 1 more), 1 in /elsewhere/DataStore (E.o-5). The source files they describe are left out of the scan, so declarations used only there may be reported as unused: rebuild the project before scanning, or pass '--clean-build' to start from an empty index store."
+        )
+    }
+
+    func testReadableStore_hasNoUnreadableUnitsWarning() throws {
+        XCTAssertNil(try SourceFileCollector.unreadableUnitsWarning([:], relativeTo: "/project", strict: true))
+        XCTAssertNil(try SourceFileCollector.unreadableUnitsWarning(["/project/.build/store": []], relativeTo: "/project", strict: true))
     }
 }
