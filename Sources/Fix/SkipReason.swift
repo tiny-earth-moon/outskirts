@@ -24,6 +24,7 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case openClass
     case outsideProject
     case ignoredByGit
+    case gitFailed(String)
 
     var description: String {
         switch self {
@@ -51,6 +52,7 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .openClass: "open class"
         case .outsideProject: "outside the project root"
         case .ignoredByGit: "ignored by git"
+        case let .gitFailed(message): message
         }
     }
 }

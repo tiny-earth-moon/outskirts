@@ -164,7 +164,11 @@ public struct FixPlanner {
             guard realPath.hasPrefix(topLevel + "/") else { return .outsideRepository }
 
             let directory = FilePath(realPath).removingLastComponent()
-            guard GitWorkingTree.topLevel(of: directory) == topLevel else { return .nestedRepository }
+            do {
+                guard try GitWorkingTree.topLevel(of: directory) == topLevel else { return .nestedRepository }
+            } catch {
+                return .gitFailed("\(error)")
+            }
 
             if uncommitted.contains(realPath) {
                 return .uncommittedChanges
