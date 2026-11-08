@@ -33,7 +33,8 @@ brew install tiny-earth-moon/tap/outskirts
 
 Most changes are additions; the following ones may need a look when you come from an older upstream release.
 
-- **Bazel**: the Bazel mode (`--bazel` and every `--bazel-*` option) was removed in 3.13.0. Passing one of these options, or a `bazel` or `bazel_*` key in the configuration file, fails with an explicit error. See [Bazel](getting-started.md#bazel) for the alternative.
+- **Bazel**: the Bazel mode (`--bazel` and every `--bazel-*` option) was removed in 3.13.0. Passing one of these options, or a `bazel` or `bazel_*` key in the configuration file, fails with an explicit error. See [Bazel](getting-started.md#bazel) for the alternative. This rejection is itself deprecated: these options and keys will eventually be reported like any unknown option or key.
+- **Colors**: `--no-color` is deprecated in favour of `--color never`. It keeps working and prints a deprecation warning.
 - **Build arguments**: commands are run without a shell since 3.12.12. Each element of `build_arguments`, `xcode_list_arguments` and of the arguments after `--` is passed as exactly one argument, so an element such as `"-destination generic/platform=iOS"` must be written as two elements.
 - **Build cache**: it lives in `~/Library/Caches/com.github.tiny-earth-moon.outskirts`. The first scan moves a cache left under the former directory, so nothing is rebuilt.
 - **Configuration values**: values are checked when the file is loaded, and a value of the wrong type or an unknown key is reported instead of being ignored. Run [`outskirts config check`](configuration.md#checking-a-configuration-file) once to see what your file contains.

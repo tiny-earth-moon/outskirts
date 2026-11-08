@@ -144,6 +144,16 @@ Key `index_store_path` · list of strings · default empty.
 
 See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Fixing results: Options](fixing-results.md#options).
 
+### `--quiet-index-store`
+
+Since 3.22.0.
+
+With index_store_path, imply skip_build silently and warn about Xcode only for a store under Xcode's DerivedData.
+
+Key `quiet_index_store` · flag, `--no-quiet-index-store` to switch off · default `false`.
+
+See [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+
 ### `--strict-index`
 
 Since 3.21.0.
@@ -660,11 +670,11 @@ See [Getting started: Results and messages](getting-started.md#results-and-messa
 
 ### `--color`
 
-Colored output mode. `--no-color` is a hidden alias of `--color never`.
+Colored output mode. `--no-color` is a deprecated hidden alias of `--color never`: it still works and prints a deprecation warning.
 
 Key `color` · one of `auto`, `always`, `never` · default `auto`.
 
-See [Output formats: xcode](output-formats.md#xcode).
+See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x), [Output formats: xcode](output-formats.md#xcode).
 
 ### `--strict`
 

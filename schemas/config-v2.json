@@ -482,6 +482,10 @@
           "type": "boolean",
           "description": "Fail when a source file is newer than its index data. v1: strict_index."
         },
+        "quiet_index_store": {
+          "type": "boolean",
+          "description": "With 'index_store_paths', imply 'skip' silently and warn about Xcode only for a store under Xcode's DerivedData. v1: quiet_index_store."
+        },
         "cache_max_age_days": {
           "type": "integer",
           "minimum": 0,
