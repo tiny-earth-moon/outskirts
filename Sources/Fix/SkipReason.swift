@@ -22,6 +22,10 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case partialParameterIgnore
     case alreadyFinal
     case openClass
+    case uncoveredConditionalName
+    case uncoveredConditionalType
+    case implicitMemberWithUncoveredCode
+    case uncoveredConditionalCode
 
     var description: String {
         switch self {
@@ -47,6 +51,10 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .partialParameterIgnore: "some ignored parameters are still unused"
         case .alreadyFinal: "already final"
         case .openClass: "open class"
+        case .uncoveredConditionalName: "name written in an #if clause that no scanned build compiled"
+        case .uncoveredConditionalType: "member of a type declared, extended or inherited from in an #if clause that no scanned build compiled"
+        case .implicitMemberWithUncoveredCode: "subscript, operator or implicitly called member, with code in an #if clause that no scanned build compiled"
+        case .uncoveredConditionalCode: "file with code in an #if clause that no scanned build compiled"
         }
     }
 }

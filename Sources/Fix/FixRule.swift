@@ -17,6 +17,17 @@ public enum FixRule: String, CaseIterable, Sendable {
         self == .missingFinal
     }
 
+    /// Whether the rule takes away something that code the scan did not compile may use: an access level, the ability
+    /// to subclass or override, or an import. Such code includes the `#if` clauses that no scanned build compiled.
+    public var isRestrictive: Bool {
+        switch self {
+        case .redundantPublic, .redundantOpen, .unusedImport, .missingFinal:
+            true
+        case .redundantAccessLevel, .emptyExtension, .superfluousIgnore, .unusedParameter:
+            false
+        }
+    }
+
     /// Whether the rule is only safe after a scan that covers all the code: every variant, built by this run, and no
     /// option that leaves code out of the index. No rule needs it yet; the guards of `fix` apply to the rules that do.
     public var requiresCompleteScan: Bool {

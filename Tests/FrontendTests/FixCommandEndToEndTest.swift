@@ -137,6 +137,45 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.library)
     }
 
+    // MARK: - Uncovered conditional clauses
+
+    func testUnusedImportUsedOnlyUnderNotDebugIsKept() throws {
+        let release = "import Helpers\n\npublic func releaseValue() -> Int {\n    #if !DEBUG\n        return helperValue()\n    #else\n        return 0\n    #endif\n}\n"
+        try write(release, to: "Sources/Lib/Release.swift")
+        try commitAll()
+
+        let output = try run(["fix", "--rule", "unused-import", "--apply"])
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        // A debug scan does not see the call, so the import looks unused, but the release build needs it.
+        XCTAssertTrue(output.stderr.contains("  skipped unused-import 'Helpers' at Sources/Lib/Release.swift:1:8: file with code in an #if clause that no scanned build compiled"), output.stderr)
+        XCTAssertEqual(try read("Sources/Lib/Release.swift"), release)
+        XCTAssertFalse(try read("Sources/Lib/Lib.swift").contains("import Helpers"))
+    }
+
+    func testRedundantPublicUsedCrossModuleUnderNotDebugIsKept() throws {
+        try write("import Lib\n\nprint(Widget().render(width: 1, 2))\n#if !DEBUG\n    print(libraryOnly())\n#endif\n", to: "Sources/App/main.swift")
+        try commitAll()
+
+        let output = try run(["fix", "--rule", "redundant-public", "--variants", "auto", "--apply"])
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        XCTAssertTrue(output.stderr.contains("  skipped redundant-public 'libraryOnly()' at Sources/Lib/Lib.swift:18:13: name written in an #if clause that no scanned build compiled"), output.stderr)
+        XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.library)
+    }
+
+    func testOverridesInUncompiledClausesKeepOpen() throws {
+        try write("open class PlatformBase {\n    public init() {}\n    open func hook() {}\n}\n\nopen class FlagBase {\n    public init() {}\n}\n", to: "Sources/Lib/Bases.swift")
+        try write("import Lib\n\nprint(Widget().render(width: 1, 2), PlatformBase(), FlagBase())\n#if os(iOS)\n    final class PhoneSub: PlatformBase {\n        override func hook() {}\n    }\n#endif\n#if FEATURE\n    final class FlagSub: FlagBase {}\n#endif\n", to: "Sources/App/main.swift")
+        try commitAll()
+
+        let output = try run(["fix", "--rule", "redundant-open", "--enable-open-final-analysis", "--variants", "auto"])
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        XCTAssertFalse(output.stdout.contains("Bases.swift"), output.stdout)
+        XCTAssertTrue(output.stderr.contains("  skipped redundant-open 'FlagBase' at Sources/Lib/Bases.swift:6:12: name written in an #if clause that no scanned build compiled"), output.stderr)
+    }
+
     // MARK: - Verify
 
     func testVerifyKeepsTheFixesWhenTheProjectBuilds() throws {

@@ -76,11 +76,13 @@ struct FixCommand: ParsableCommand {
             try Self.validateVariantCoverage(of: output.driver, for: rule)
         }
 
-        let targets = selectTargets(from: reported, configuration: configuration)
+        var guarded = selectTargets(from: reported, configuration: configuration)
+        try guarded.keepUncoveredConditionalUses(in: output.graph)
         let workingTree: WorkingTreeState = try allowDirty ? .ignored : GitWorkingTree.state(at: configuration.projectRoot)
         let indexDates = IndexDates(scanStartedAt: scanStartedAt, unitDates: output.unitDates)
         let planner = FixPlanner(workingTree: workingTree, indexDates: indexDates, isIndexExcluded: configuration.isIndexExcluded)
-        let plan = planner.plan(targets)
+        var plan = planner.plan(guarded.targets)
+        plan.addSkipped(guarded)
 
         if apply {
             try FixWriter.apply(plan)
@@ -169,11 +171,11 @@ struct FixCommand: ParsableCommand {
         logger.info("The project builds with the fixes.")
     }
 
-    private func selectTargets(from results: [ScanResult], configuration: Configuration) -> [FixTarget] {
+    private func selectTargets(from results: [ScanResult], configuration: Configuration) -> GuardedTargets {
         let selectedRules = rules.isEmpty ? Set(FixRule.allCases.filter { aggressive || !$0.isAggressive }) : Set(rules)
         let includeMatchers = configuration.buildFilenameMatchers(with: includes)
 
-        return results.compactMap(FixTarget.init(result:)).filter { target in
+        return GuardedTargets(results) { target in
             selectedRules.contains(target.rule)
                 && target.rule.isEnabled(in: configuration)
                 && (includeMatchers.isEmpty || includeMatchers.anyMatch(filename: target.file.string))
