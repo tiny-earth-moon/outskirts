@@ -130,6 +130,13 @@ extension SPMProjectDriver: ProjectDriver {
         }
     }
 
+    /// The module names of the targets of the library products of the root package.
+    public func libraryProductModules() throws -> Set<String>? {
+        let description = try description()
+        let libraryTargets = Set((description.products ?? []).filter(\.isLibrary).flatMap(\.targets))
+        return Set(description.targets.filter { libraryTargets.contains($0.name) }.map { $0.c99name ?? $0.name })
+    }
+
     public func plan(logger: ContextualLogger) throws -> IndexPlan {
         let indexStorePaths: Set<FilePath> = if !configuration.indexStorePath.isEmpty {
             Set(configuration.indexStorePath)

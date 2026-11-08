@@ -12,7 +12,7 @@ struct FixCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "fix",
         abstract: "Scan, then apply the syntax-only fixes: print a unified diff, or write the files with --apply",
-        discussion: "Takes every option of the scan command. Rules: \(FixRule.allCases.filter { !$0.isAggressive }.map(\.rawValue).joined(separator: ", ")); with --aggressive: \(FixRule.allCases.filter(\.isAggressive).map(\.rawValue).joined(separator: ", ")). Rules whose analysis is opt-in only apply when the analysis is enabled."
+        discussion: "Takes every option of the scan command. Rules: \(FixRule.allCases.filter { !$0.isAggressive && !$0.isOptIn }.map(\.rawValue).joined(separator: ", ")); with --aggressive: \(FixRule.allCases.filter(\.isAggressive).map(\.rawValue).joined(separator: ", ")); only when named with --rule: \(FixRule.allCases.filter(\.isOptIn).map(\.rawValue).joined(separator: ", ")), refused on the modules of a library product unless retain_public is set. Rules whose analysis is opt-in only apply when the analysis is enabled."
     )
 
     @Flag(help: "Write the fixes to the files atomically instead of printing a unified diff")
@@ -88,6 +88,9 @@ struct FixCommand: ParsableCommand {
 
         var guarded = selectTargets(from: reported, configuration: configuration)
         try guarded.keepDependencyPackages(ownModules: output.driver.ownModules())
+        if !configuration.retainPublic {
+            try guarded.keepLibraryProductAPI(modules: output.driver.libraryProductModules())
+        }
         if let partialScan {
             guarded.keepRulesRequiringACompleteScan(because: partialScan.reason)
         }
@@ -158,7 +161,7 @@ struct FixCommand: ParsableCommand {
     }
 
     private func selectTargets(from results: [ScanResult], configuration: Configuration) -> GuardedTargets {
-        let selectedRules = rules.isEmpty ? Set(FixRule.allCases.filter { aggressive || !$0.isAggressive }) : Set(rules)
+        let selectedRules = rules.isEmpty ? Set(FixRule.allCases.filter { (aggressive || !$0.isAggressive) && !$0.isOptIn }) : Set(rules)
         let includeMatchers = configuration.buildFilenameMatchers(with: includes)
 
         return GuardedTargets(results) { target in

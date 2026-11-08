@@ -28,6 +28,7 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case uncoveredConditionalCode
     case partialScan(String)
     case dependencyPackage
+    case libraryProduct
 
     var description: String {
         switch self {
@@ -59,6 +60,7 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .uncoveredConditionalCode: "file with code in an #if clause that no scanned build compiled"
         case let .partialScan(reason): "partial scan (\(reason)), use --allow-partial-scan"
         case .dependencyPackage: "dependency package"
+        case .libraryProduct: "public API of a library product, clients outside the scan may use it"
         }
     }
 }

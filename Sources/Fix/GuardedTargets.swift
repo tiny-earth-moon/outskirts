@@ -46,6 +46,15 @@ public struct GuardedTargets {
         }
     }
 
+    /// Keeps the redundant `public` of the modules of a library product, whose clients outside the scan may use it.
+    public mutating func keepLibraryProductAPI(modules: Set<String>?) {
+        guard let modules else { return }
+
+        keep { target, declaration in
+            target.rule == .redundantPublic && !declaration.location.file.modules.isDisjoint(with: modules) ? .libraryProduct : nil
+        }
+    }
+
     // MARK: - Private
 
     private mutating func keep(where reason: (FixTarget, Declaration) -> SkipReason?) {

@@ -92,9 +92,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         let dryRun = try run(["fix"])
         XCTAssertEqual(dryRun.status, 0, dryRun.stderr)
         XCTAssertTrue(dryRun.stdout.hasPrefix("--- a/Sources/Lib/Lib.swift\n+++ b/Sources/Lib/Lib.swift\n"), dryRun.stdout)
-        XCTAssertTrue(dryRun.stderr.contains("Would apply 6 fixes in 1 file, skipped 1."), dryRun.stderr)
-        // redundant-public needs a scan of every variant.
-        XCTAssertTrue(dryRun.stderr.contains("  skipped redundant-public 'libraryOnly()' at Sources/Lib/Lib.swift:18:13: partial scan ('variants' is 'default'), use --allow-partial-scan"), dryRun.stderr)
+        XCTAssertTrue(dryRun.stderr.contains("Would apply 6 fixes in 1 file, skipped 0."), dryRun.stderr)
         XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.library)
 
         let applied = try run(["fix", "--apply"])
@@ -106,7 +104,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         let rescan = try run(["fix"])
         XCTAssertEqual(rescan.status, 0, "the fixed package builds:\n\(rescan.stderr)")
         XCTAssertEqual(rescan.stdout, "")
-        XCTAssertTrue(rescan.stderr.contains("Would apply 0 fixes in 0 files, skipped 1."), rescan.stderr)
+        XCTAssertTrue(rescan.stderr.contains("Would apply 0 fixes in 0 files, skipped 0."), rescan.stderr)
     }
 
     func testFileEditedAfterItsIndexWasWrittenIsRefused() throws {
@@ -186,11 +184,42 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertNotEqual(named.status, 0)
         XCTAssertTrue(named.stderr.contains("'--rule redundant-public' is only safe when every file that may use the code it changes is scanned, but 'exclude_targets' leaves code out of the scan"), named.stderr)
         XCTAssertTrue(named.stderr.contains("Pass '--allow-partial-scan' to accept this."), named.stderr)
+    }
 
-        let byDefault = try run(["fix", "--variants", "auto", "--exclude-targets", "App"])
+    // MARK: - Opt-in redundant-public
+
+    func testRedundantPublicIsNotAppliedByDefault() throws {
+        let byDefault = try run(["fix", "--variants", "auto"])
         XCTAssertEqual(byDefault.status, 0, byDefault.stderr)
-        XCTAssertFalse(byDefault.stdout.contains("-public"), byDefault.stdout)
-        XCTAssertTrue(byDefault.stderr.contains("partial scan ('exclude_targets' leaves code out of the scan), use --allow-partial-scan"), byDefault.stderr)
+        XCTAssertFalse(byDefault.stdout.contains("-public func libraryOnly()"), byDefault.stdout)
+        XCTAssertFalse(byDefault.stderr.contains("redundant-public"), byDefault.stderr)
+
+        let aggressive = try run(["fix", "--aggressive", "--variants", "auto"])
+        XCTAssertEqual(aggressive.status, 0, aggressive.stderr)
+        XCTAssertFalse(aggressive.stdout.contains("-public func libraryOnly()"), aggressive.stdout)
+
+        let named = try run(["fix", "--rule", "redundant-public", "--variants", "auto"])
+        XCTAssertEqual(named.status, 0, named.stderr)
+        XCTAssertTrue(named.stdout.contains("-public func libraryOnly() -> Int { 3 }\n+func libraryOnly() -> Int { 3 }"), named.stdout)
+    }
+
+    func testRedundantPublicIsRefusedOnALibraryProductWithoutRetainPublic() throws {
+        try write("""
+        // swift-tools-version:5.9
+        import PackageDescription
+        let package = Package(name: "Fixture", products: [.library(name: "Lib", targets: ["Lib"])], targets: [
+            .target(name: "Helpers"),
+            .target(name: "Lib", dependencies: ["Helpers"]),
+            .executableTarget(name: "App", dependencies: ["Lib"]),
+        ])
+        """, to: "Package.swift")
+        try commitAll()
+
+        let output = try run(["fix", "--rule", "redundant-public", "--variants", "auto"])
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        XCTAssertEqual(output.stdout, "")
+        XCTAssertTrue(output.stderr.contains("  skipped redundant-public 'libraryOnly()' at Sources/Lib/Lib.swift:18:13: public API of a library product, clients outside the scan may use it"), output.stderr)
     }
 
     // MARK: - Partial scans

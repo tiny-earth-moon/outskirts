@@ -128,6 +128,8 @@ public enum SPM {
 
 struct PackageDescription: Decodable {
     let targets: [Target]
+    /// The products of the manifest, nil when the description leaves them out.
+    let products: [Product]?
     /// The `platforms` of the manifest, nil when it declares none.
     let platforms: [Platform]?
 
@@ -135,6 +137,39 @@ struct PackageDescription: Decodable {
         /// Lowercased, e.g. `macos`, `ios`, `maccatalyst`.
         let name: String
         let version: String
+    }
+}
+
+struct Product: Decodable {
+    let name: String
+    let targets: [String]
+    /// Whether the product is a library, which modules outside the package may import: `type` is an object with a
+    /// single key, such as `{"library": ["automatic"]}` or `{"executable": null}`.
+    let isLibrary: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case name, targets, type
+    }
+
+    private struct TypeKey: CodingKey {
+        let stringValue: String
+        let intValue: Int? = nil
+
+        init(stringValue: String) {
+            self.stringValue = stringValue
+        }
+
+        init?(intValue _: Int) {
+            nil
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        targets = try container.decode([String].self, forKey: .targets)
+        let type = try container.nestedContainer(keyedBy: TypeKey.self, forKey: .type)
+        isLibrary = type.allKeys.contains { $0.stringValue == "library" }
     }
 }
 
