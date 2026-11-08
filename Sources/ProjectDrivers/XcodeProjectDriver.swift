@@ -208,7 +208,7 @@
                 logger: logger,
                 configuration: configuration
             )
-            let (sourceFiles, indexExcludedSourceFiles) = try collector.collectWithIndexExcludedFiles()
+            let (sourceFiles, indexExcludedSourceFiles, unreadableUnits) = try collector.collectWithIndexExcludedFiles()
             let excluded = excludedTestTargets.union(configuration.excludeTargets)
             let expectedSourceFiles = targets
                 .filter { !excluded.contains($0.name) && !$0.swiftSourceFiles.isEmpty }
@@ -228,6 +228,7 @@
                 xcMappingModelPaths: xcMappingModelPaths,
                 xcStringsPaths: xcStringsPaths,
                 expectedSourceFiles: expectedSourceFiles,
+                unreadableUnits: unreadableUnits,
                 indexStorePaths: indexStorePaths,
                 globalAccentColorNames: targets.flatMapSet(\.globalAccentColorNames)
             )
