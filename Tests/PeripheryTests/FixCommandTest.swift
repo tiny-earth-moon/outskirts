@@ -489,6 +489,8 @@ final class FixCommandTest: XCTestCase {
         // An atomic write creates a temporary file next to the file: a read-only directory makes it fail.
         try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.string)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.string) }
+        // Root ignores directory permissions (the Linux CI container), so the write cannot be made to fail there.
+        try XCTSkipIf(FileManager.default.isWritableFile(atPath: locked.string), "directory permissions are not enforced")
 
         XCTAssertThrowsError(try FixWriter.apply(plan))
         XCTAssertEqual(try String(contentsOfFile: file.string, encoding: .utf8), source)
