@@ -144,20 +144,22 @@ final class CacheManagerTest: XCTestCase {
 
     func testEviction_renamesTheFolderOutOfReachBeforeRemovingIt() throws {
         let stale = try makeDerivedData("DerivedData-stale", ageDays: 30)
-        let fileManager = RemovalObservingFileManager()
+        let recorder = CacheEventRecorder()
         let otherScan = CacheLease()
-        fileManager.onRemove = { [fm] _ in
+        let events = CacheEvents(willRemove: { _ in
             // A scan starting while the removal runs gets a fresh folder, never the one being removed.
-            fileManager.originalExistedDuringRemoval = fm.fileExists(atPath: stale.path)
-            if !fileManager.originalExistedDuringRemoval {
+            recorder.originalExistedDuringRemoval = FileManager.default.fileExists(atPath: stale.path)
+            if !recorder.originalExistedDuringRemoval {
                 try? otherScan.hold(stale)
             }
+        })
+
+        let result = CacheManager.$events.withValue(events) {
+            CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: [])
         }
 
-        let result = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: [], fileManager: fileManager)
-
         XCTAssertEqual(result.evicted.map(\.name), ["DerivedData-stale"])
-        XCTAssertFalse(fileManager.originalExistedDuringRemoval)
+        XCTAssertFalse(recorder.originalExistedDuringRemoval)
         XCTAssertTrue(fm.fileExists(atPath: stale.appendingPathComponent(".outskirts-lock").path))
         XCTAssertEqual(try fm.contentsOfDirectory(atPath: cache.path).filter { $0.hasPrefix(".evicting-") }, [])
     }
@@ -174,11 +176,10 @@ final class CacheManagerTest: XCTestCase {
     func testClearCache_keepsFolderCreatedDuringTheClear() throws {
         let old = try makeDerivedData("DerivedData-old", ageDays: 1)
         let created = cache.appendingPathComponent("DerivedData-created")
-        let fileManager = RemovalObservingFileManager()
         let otherScan = CacheLease()
-        fileManager.onRemove = { _ in try? otherScan.hold(created) }
+        let events = CacheEvents(willRemove: { _ in try? otherScan.hold(created) })
 
-        XCTAssertNoThrow(try CacheManager.clear(cacheDirectory: cache, fileManager: fileManager))
+        XCTAssertNoThrow(try CacheManager.$events.withValue(events) { try CacheManager.clear(cacheDirectory: cache) })
 
         XCTAssertFalse(fm.fileExists(atPath: old.path))
         XCTAssertTrue(fm.fileExists(atPath: created.appendingPathComponent(".outskirts-lock").path))
@@ -220,24 +221,26 @@ final class CacheManagerTest: XCTestCase {
     }
 
     func testRefresh_sweepsTheCacheAtMostOncePerInterval() throws {
-        let fileManager = CountingFileManager()
+        let recorder = CacheEventRecorder()
         let now = Date()
         func refresh(at date: Date) -> CacheRefreshResult {
-            CacheManager.refresh(directories: [], projectPath: root.path, maxAgeDays: 14, maxSizeGB: 1, cacheDirectory: cache, now: date, fileManager: fileManager)
+            CacheManager.$events.withValue(CacheEvents(willList: { _ in recorder.listings += 1 })) {
+                CacheManager.refresh(directories: [], projectPath: root.path, maxAgeDays: 14, maxSizeGB: 1, cacheDirectory: cache, now: date)
+            }
         }
         _ = try makeDerivedData("DerivedData-first", ageDays: 30)
 
         XCTAssertEqual(refresh(at: now).evicted.map(\.name), ["DerivedData-first"])
-        XCTAssertGreaterThan(fileManager.reads, 0)
+        XCTAssertGreaterThan(recorder.listings, 0)
 
         let second = try makeDerivedData("DerivedData-second", ageDays: 30)
-        fileManager.reads = 0
+        recorder.listings = 0
         XCTAssertTrue(refresh(at: now.addingTimeInterval(CacheManager.evictionInterval - 1)).evicted.isEmpty)
-        XCTAssertEqual(fileManager.reads, 0)
+        XCTAssertEqual(recorder.listings, 0)
         XCTAssertTrue(fm.fileExists(atPath: second.path))
 
         XCTAssertEqual(refresh(at: now.addingTimeInterval(CacheManager.evictionInterval)).evicted.map(\.name), ["DerivedData-second"])
-        XCTAssertGreaterThan(fileManager.reads, 0)
+        XCTAssertGreaterThan(recorder.listings, 0)
     }
 
     func testEvict_removesStaleKeepsRecentAndCurrent() throws {
@@ -439,23 +442,8 @@ extension CacheManagerTest {
     }
 }
 
-/// Counts the directory listings: a cache sweep starts with one, and measures only the folders it lists.
-private final class CountingFileManager: FileManager, @unchecked Sendable {
-    var reads = 0
-
-    override func contentsOfDirectory(at url: URL, includingPropertiesForKeys keys: [URLResourceKey]?, options mask: FileManager.DirectoryEnumerationOptions = []) throws -> [URL] {
-        reads += 1
-        return try super.contentsOfDirectory(at: url, includingPropertiesForKeys: keys, options: mask)
-    }
-}
-
-/// Calls `onRemove` before each removal.
-private final class RemovalObservingFileManager: FileManager, @unchecked Sendable {
-    var onRemove: (URL) -> Void = { _ in }
+/// Records what the cache hooks observe.
+private final class CacheEventRecorder: @unchecked Sendable {
+    var listings = 0
     var originalExistedDuringRemoval = true
-
-    override func removeItem(at url: URL) throws {
-        onRemove(url)
-        try super.removeItem(at: url)
-    }
 }

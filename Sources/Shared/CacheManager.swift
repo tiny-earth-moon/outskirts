@@ -46,7 +46,15 @@ public struct CacheRefreshResult {
     }
 }
 
+/// Hooks around the file operations of the cache, for the tests.
+struct CacheEvents: Sendable {
+    var willList: @Sendable (URL) -> Void = { _ in }
+    var willRemove: @Sendable (URL) -> Void = { _ in }
+}
+
 public enum CacheManager {
+    @TaskLocal static var events = CacheEvents()
+
     static let derivedDataPrefix = "DerivedData-"
     /// The scratch paths of the Swift package builds of the `variants` setting.
     public static let packageBuildPrefix = "PackageBuild-"
@@ -224,6 +232,7 @@ public enum CacheManager {
         let keptNames = Set(keeping.map(\.lastPathComponent))
         let entries: [URL]
         do {
+            events.willList(cacheDirectory)
             entries = try fileManager.contentsOfDirectory(
                 at: cacheDirectory,
                 includingPropertiesForKeys: [.contentModificationDateKey],
@@ -323,6 +332,7 @@ public enum CacheManager {
     public static func removeUnlessInUse(_ entry: URL, fileManager: FileManager = .default) throws -> Bool {
         let type = try fileManager.attributesOfItem(atPath: entry.path)[.type] as? FileAttributeType
         guard type == .typeDirectory, !entry.lastPathComponent.hasPrefix(evictingPrefix) else {
+            events.willRemove(entry)
             try fileManager.removeItem(at: entry)
             return true
         }
@@ -336,6 +346,7 @@ public enum CacheManager {
             throw error
         }
         close(descriptor)
+        events.willRemove(renamed)
         try fileManager.removeItem(at: renamed)
         return true
     }
