@@ -22,7 +22,7 @@ public struct ScanResult {
     let declaration: Declaration
     let annotation: Annotation
 
-    var usrs: Set<String> {
+    public var usrs: Set<String> {
         if case .superfluousIgnoreCommand = annotation {
             return declaration.usrs.mapSet { "superfluous-ignore-\($0)" }
         }

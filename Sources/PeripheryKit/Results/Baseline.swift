@@ -19,14 +19,14 @@ public enum Baseline: Equatable {
     case outputV2(ids: [String])
 
     public struct Entry: Codable, Hashable {
-        let id: String
+        public let id: String
         /// What the id was written for. Absent for an entry carried over from a version 1 baseline.
-        let kind: String?
-        let name: String?
+        public let kind: String?
+        public let name: String?
         /// The path of the file relative to the project root.
-        let file: String?
+        public let file: String?
 
-        init(id: String, kind: String? = nil, name: String? = nil, file: String? = nil) {
+        public init(id: String, kind: String? = nil, name: String? = nil, file: String? = nil) {
             self.id = id
             self.kind = kind
             self.name = name
@@ -53,7 +53,7 @@ public enum Baseline: Equatable {
         }
     }
 
-    var entries: [Entry] {
+    public var entries: [Entry] {
         switch self {
         case let .v1(usrs):
             usrs.map { Entry(id: $0) }
@@ -129,7 +129,7 @@ public enum Baseline: Equatable {
 
     /// The file contents: pretty-printed with sorted keys, slashes left unescaped and a trailing newline, so that
     /// a diff shows what changed and the same baseline always gives the same bytes.
-    func encoded() throws -> Data {
+    public func encoded() throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         return try encoder.encode(self) + Data("\n".utf8)

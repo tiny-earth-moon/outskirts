@@ -5,20 +5,20 @@ import SystemPackage
 /// What a scan amounts to: the number of results of each kind, the files that can be removed whole and an estimate
 /// of the lines that removing the reported code would delete.
 public struct ScanSummary: Equatable {
-    struct UnusedFile: Equatable {
-        let path: FilePath
-        let lineCount: Int
+    public struct UnusedFile: Equatable {
+        public let path: FilePath
+        public let lineCount: Int
     }
 
     /// The number of results, the conformances of a redundant protocol not counted apart.
-    let resultCount: Int
+    public let resultCount: Int
     /// The number of results of each annotation, keyed by its name in the `hints` of the `json` format.
-    let countsByAnnotation: [String: Int]
+    public let countsByAnnotation: [String: Int]
     /// The lines of the unused declarations and empty extensions, attached doc comments and attributes included,
     /// each line counted once however many reported declarations cover it.
-    let unusedLineCount: Int
+    public let unusedLineCount: Int
     /// The Swift files whose every top-level declaration, imports excepted, is reported as unused, sorted by path.
-    let unusedFiles: [UnusedFile]
+    public let unusedFiles: [UnusedFile]
     /// The builds scanned together with the `variants` setting, empty with `variants: default`.
     public var variants: [String] = []
 }
