@@ -149,7 +149,7 @@ outskirts config migrate            # prints the v2 file
 outskirts config migrate --apply    # writes it over the file
 ```
 
-`config migrate` reads the file as `outskirts scan` would (with the same `--config`) and writes the format 2 equivalent, which loads into the same configuration. The values are kept as written, `index_exclude` is written with its default globs and `index_defaults: false`, and relative globs are rewritten relative to the directory of the file. Comments are kept: a comment above a key or at the end of its line moves with the option, a comment inside a value moves above its option, the comments that open the file stay at the top and the schema comment points to the v2 schema. A file that the format 1 warns about must be fixed first, and the output is the same for the same file, so it can be checked into version control.
+`config migrate` reads the file as `outskirts scan` would (with the same `--config`) and writes the format 2 equivalent, which loads into the same configuration. The values are kept as written (a single value of a list key becomes a one-item list), `index_exclude` is written with its default globs and `index_defaults: false`, and relative globs are rewritten relative to the directory of the file. Comments are kept: a comment above a key or at the end of its line moves with the option, a comment inside a value moves above its option, the comments that open the file stay at the top and the schema comment points to the v2 schema. A file that the format 1 warns about must be fixed first, and the output is the same for the same file, so it can be checked into version control.
 
 ### Printing the configuration in effect
 

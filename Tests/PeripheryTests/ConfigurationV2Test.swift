@@ -503,6 +503,17 @@ final class ConfigurationV2Test: XCTestCase {
         }
     }
 
+    func testMigrateWrapsAListKeyWrittenAsAScalar() throws {
+        let keys = Configuration().settings.filter { [.stringList, .pathList].contains($0.kind) }.map(\.key)
+        XCTAssertTrue(keys.contains("schemes") && keys.contains("retain_files"))
+
+        for key in keys {
+            let file = try write("\(key): \"**/Value\"\n")
+            let migrated = try Configuration.migratedToV2(file: file)
+            XCTAssertEqual(try migratedEffective(migrated), try anchoredV1Effective(file), key)
+        }
+    }
+
     func testMigrateAnchorsTheGlobsRelativeToTheFile() throws {
         let root = FilePath(directory.path)
         let file = try write("report_include: [Sources/**, \"**/Kit/**\"]\n", named: "config/outskirts.yml")

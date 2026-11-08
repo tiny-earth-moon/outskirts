@@ -181,9 +181,16 @@ enum ConfigurationV2Writer {
                   let value = values[key]
             else { return nil }
 
+            // v1 reads a scalar as a one-element list, v2 does not.
+            if listKeys.contains(key), case .scalar = value {
+                return Entry(path: path, value: .sequence(.init([value])), v1Keys: [key])
+            }
             return Entry(path: path, value: value, v1Keys: [key])
         }
     }
+
+    /// The v1 keys whose value is a list, which v1 also accepts as a single scalar.
+    private static let listKeys: Set<String> = Set(Configuration().settings.filter { [.stringList, .pathList].contains($0.kind) }.map(\.key))
 
     private static func plain(_ value: String) -> Node {
         Node(value, .implicit, .plain)
