@@ -130,7 +130,7 @@ outskirts scan --format json \
 
 ## json-v2
 
-An opt-in, versioned document that [`schemas/output-v2.json`](https://github.com/tiny-earth-moon/outskirts/blob/master/schemas/output-v2.json) describes. `json` and the other formats are unchanged.
+An opt-in, versioned document that [`schemas/output-v2.json`](https://github.com/tiny-earth-moon/outskirts/blob/master/schemas/output-v2.json) describes. `json` and the other formats are unchanged. `json-v2` is a 4.0 preview: opt-in in 3.x, 4.0 makes it the default JSON output.
 
 ```json
 {
@@ -178,7 +178,7 @@ An opt-in, versioned document that [`schemas/output-v2.json`](https://github.com
 
 The location string of `json` is `.results[] | "\(.location.path):\(.location.line):\(.location.column)"` with `jq`.
 
-A baseline written with `--baseline-format v2` holds these ids, see [Baselines: Formats](baselines.md#formats).
+A baseline written with a `version: 2` configuration holds these ids, see [Baselines: Formats](baselines.md#formats).
 
 ## csv
 
