@@ -4,6 +4,7 @@ public enum OutputFormat: String, CaseIterable, Sendable {
     case xcode
     case csv
     case json
+    case jsonV2 = "json-v2"
     case checkstyle
     case codeclimate
     case githubActions = "github-actions"

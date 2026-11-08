@@ -1,0 +1,636 @@
+{
+  "results" : [
+    {
+      "asset" : {
+        "name" : "AccentColor",
+        "paths" : [
+          "App/Assets.xcassets/AccentColor.colorset"
+        ]
+      },
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "var.static",
+        "modules" : [
+          "App"
+        ],
+        "name" : "accent",
+        "usrs" : [
+          "s:So7ColorV3AppE6accentABvpZ"
+        ]
+      },
+      "fixable" : false,
+      "id" : "p2_7ntx6en4lnmge2zwg76s73scl7473aonfiylbdxjyydaezwjptsa",
+      "location" : {
+        "column" : 16,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 3,
+        "path" : "DerivedSources/GeneratedAssetSymbols.swift"
+      },
+      "message" : "Unused asset catalog color 'AccentColor' (App/Assets.xcassets/AccentColor.colorset)",
+      "related" : [
+
+      ],
+      "rule" : "unused-asset-color",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : {
+        "name" : null,
+        "paths" : [
+
+        ]
+      },
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "var.static",
+        "modules" : [
+          "App"
+        ],
+        "name" : "logo",
+        "usrs" : [
+          "s:So5ImageV3AppE4logoABvpZ"
+        ]
+      },
+      "fixable" : false,
+      "id" : "p2_vdsceoqbz7d3uljdf2k3qdm3cumevw22jd7rzv7a42qck4dhem4q",
+      "location" : {
+        "column" : 16,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 7,
+        "path" : "DerivedSources/GeneratedAssetSymbols.swift"
+      },
+      "message" : "Unused asset catalog image 'logo' (asset name not found in the generated symbols)",
+      "related" : [
+
+      ],
+      "rule" : "unused-asset-image",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "localized_string",
+        "modules" : [
+          "App"
+        ],
+        "name" : "greeting",
+        "usrs" : [
+          "xcstrings:Resources/Localizable.xcstrings:greeting"
+        ]
+      },
+      "fixable" : false,
+      "id" : "p2_5jpgeqj2i5rjy3ifdf7amsm2jvjiwdo6d3zq6g2g2spbi5ucvmwa",
+      "location" : {
+        "column" : 5,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 4,
+        "path" : "Resources/Localizable.xcstrings"
+      },
+      "message" : "Unused localized string 'greeting'",
+      "related" : [
+
+      ],
+      "rule" : "unused-localized-string",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "open",
+        "kind" : "class",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "Base",
+        "usrs" : [
+          "s:3Lib4BaseC"
+        ]
+      },
+      "fixable" : true,
+      "id" : "p2_lodavg27fa5amugaqbg6exkkav63eitamxla3rywxzluku6xjlxa",
+      "location" : {
+        "column" : 12,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 1,
+        "path" : "Sources/Lib/Base.swift"
+      },
+      "message" : "Class 'Base' is open but never subclassed outside its module",
+      "related" : [
+
+      ],
+      "rule" : "redundant-open",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "public",
+        "kind" : "function.free",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "helper()",
+        "usrs" : [
+          "s:3Lib6helperyyF"
+        ]
+      },
+      "fixable" : true,
+      "id" : "p2_o3vwwwzoyx4ixn23sec76aq3edliicyvk4ip6bnke6bmdrznf6ra",
+      "location" : {
+        "column" : 13,
+        "endColumn" : 2,
+        "endLine" : 7,
+        "line" : 5,
+        "path" : "Sources/Lib/Helper.swift"
+      },
+      "message" : "Redundant public accessibility for function 'helper()' (not used outside of Lib)",
+      "related" : [
+
+      ],
+      "rule" : "redundant-public",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "class",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "Leaf",
+        "usrs" : [
+          "s:3Lib4LeafC"
+        ]
+      },
+      "fixable" : true,
+      "id" : "p2_rqqqzt5tsx3kfflgs3zdt5xaf6qsnfrofbctvhjbcfi5ctpi5cna",
+      "location" : {
+        "column" : 7,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 1,
+        "path" : "Sources/Lib/Leaf.swift"
+      },
+      "message" : "Class 'Leaf' could be final",
+      "related" : [
+
+      ],
+      "rule" : "missing-final",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "function.free",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "legacy()",
+        "usrs" : [
+          "s:3Lib6legacyyyF"
+        ]
+      },
+      "fixable" : true,
+      "id" : "p2_svy3nhn2wfdu2e2gtgqs4iqqtjplhfjfmikzigplfpwm57jrqwda",
+      "location" : {
+        "column" : 6,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 2,
+        "path" : "Sources/Lib/Legacy.swift"
+      },
+      "message" : "Superfluous ignore comment for function 'legacy()' (declaration is referenced and should not be ignored)",
+      "related" : [
+
+      ],
+      "rule" : "superfluous-ignore",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "protocol",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "Marker",
+        "usrs" : [
+          "s:3Lib6MarkerP"
+        ]
+      },
+      "fixable" : false,
+      "id" : "p2_ddn2dxwojsanunn7yemitfo7jq3yfwa6ujlii5nehv2o652pbzwq",
+      "location" : {
+        "column" : 10,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 1,
+        "path" : "Sources/Lib/Marker.swift"
+      },
+      "message" : "Redundant protocol 'Marker' (never used as an existential type)",
+      "related" : [
+        {
+          "declaration" : {
+            "accessibility" : "internal",
+            "kind" : "struct",
+            "modules" : [
+              "Lib"
+            ],
+            "name" : "Alpha",
+            "usrs" : [
+              "s:3Lib5AlphaV"
+            ]
+          },
+          "id" : "p2_zn6k5m63ydz45k6onnipq5tmuwdnyi73ss5qo2ien3sjyjm7x6wa",
+          "location" : {
+            "column" : 15,
+            "endColumn" : null,
+            "endLine" : null,
+            "line" : 3,
+            "path" : "Sources/Lib/Types.swift"
+          },
+          "message" : "Redundant protocol conformance 'Marker' (replace with 'Sendable')",
+          "rule" : "redundant-conformance"
+        },
+        {
+          "declaration" : {
+            "accessibility" : "internal",
+            "kind" : "struct",
+            "modules" : [
+              "Lib"
+            ],
+            "name" : "Beta",
+            "usrs" : [
+              "s:3Lib4BetaV"
+            ]
+          },
+          "id" : "p2_s3icn7c6mtcvj5nh3l7e22qqujmlzr2neittblu7hfkbpgzxxrha",
+          "location" : {
+            "column" : 14,
+            "endColumn" : null,
+            "endLine" : null,
+            "line" : 7,
+            "path" : "Sources/Lib/Types.swift"
+          },
+          "message" : "Redundant protocol conformance 'Marker' (replace with 'Sendable')",
+          "rule" : "redundant-conformance"
+        }
+      ],
+      "rule" : "redundant-protocol",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "metal_function",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "blurr",
+        "usrs" : [
+          "metal-missing:Sources/Lib/Renderer.swift:blurr"
+        ]
+      },
+      "fixable" : false,
+      "id" : "p2_5qux6sfnjhmavm33a645nycuoyxppbvinft4oupjnk75aklntcya",
+      "location" : {
+        "column" : 40,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 12,
+        "path" : "Sources/Lib/Renderer.swift"
+      },
+      "message" : "Metal function 'blurr' not found in any .metal file",
+      "related" : [
+
+      ],
+      "rule" : "unused",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "var.parameter",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "count",
+        "usrs" : [
+          "param-count-run(count:)-s:3Lib3run5countySi_tF"
+        ]
+      },
+      "fixable" : true,
+      "id" : "p2_q6aasmzlqvthaasd2xk7v5fgjcwtuqijrec5zbp5hyxfytlbiisa",
+      "location" : {
+        "column" : 10,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 2,
+        "path" : "Sources/Lib/Run.swift"
+      },
+      "message" : "Unused parameter 'count'",
+      "related" : [
+
+      ],
+      "rule" : "unused-parameter",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "enumelement",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "retrying",
+        "usrs" : [
+          "s:3Lib5StateO8retryingyA2CmF"
+        ]
+      },
+      "fixable" : false,
+      "id" : "p2_xjzhzvc7gzqxbvvcckwg4ujup4oakxz32uui7ufouaae7nipo4sa",
+      "location" : {
+        "column" : 10,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 4,
+        "path" : "Sources/Lib/State.swift"
+      },
+      "message" : "Enum case 'retrying' is only matched, never constructed",
+      "related" : [
+
+      ],
+      "rule" : "unused",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "var.global",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "tag",
+        "usrs" : [
+          "s:3Lib3tagSSvp"
+        ]
+      },
+      "fixable" : true,
+      "id" : "p2_vivpay2au6rfpbib4usqzoanabowu2gfkoahj6dzflojbupa5fga",
+      "location" : {
+        "column" : 14,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 1,
+        "path" : "Sources/Lib/Tag.swift"
+      },
+      "message" : "Redundant internal access level for property 'tag' (already the default at the top level)",
+      "related" : [
+
+      ],
+      "rule" : "redundant-access-level",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "extension.class",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "Widget",
+        "usrs" : [
+          "empty-extension-Widget-Sources/Lib/Widget+Empty.swift"
+        ]
+      },
+      "fixable" : true,
+      "id" : "p2_en7ihgkc5npp3qpxyhytrvx35mqax5nlxwopfx5x6pccffifjbqq",
+      "location" : {
+        "column" : 11,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 1,
+        "path" : "Sources/Lib/Widget+Empty.swift"
+      },
+      "message" : "Empty extension of 'Widget'",
+      "related" : [
+
+      ],
+      "rule" : "empty-extension",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "module",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "Combine",
+        "usrs" : [
+          "import-Combine-Sources/Lib/Widget.swift"
+        ]
+      },
+      "fixable" : true,
+      "id" : "p2_eyt3uw6u6jnrmvm74r3dc3pzfdapob24aipgc5qvfbzsrhfbxlha",
+      "location" : {
+        "column" : 1,
+        "endColumn" : 15,
+        "endLine" : 1,
+        "line" : 1,
+        "path" : "Sources/Lib/Widget.swift"
+      },
+      "message" : "Unused imported module 'Combine'",
+      "related" : [
+
+      ],
+      "rule" : "unused-import",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "class",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "Widget",
+        "usrs" : [
+          "s:3Lib6WidgetC"
+        ]
+      },
+      "fixable" : false,
+      "id" : "p2_23ujfuotm6z5eyq2tl4mfgzmjny3molzraqc4jyrpln2cksmjemq",
+      "location" : {
+        "column" : 14,
+        "endColumn" : 2,
+        "endLine" : 9,
+        "line" : 3,
+        "path" : "Sources/Lib/Widget.swift"
+      },
+      "message" : "Unused class 'Widget'",
+      "related" : [
+
+      ],
+      "rule" : "unused",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "var.instance",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "cache",
+        "usrs" : [
+          "s:3Lib6WidgetC5cacheSDySSSiGvp"
+        ]
+      },
+      "fixable" : false,
+      "id" : "p2_nn444o5uworudzztdacrix6ojve5i2dhomrvzghtvd6kf4bv2dbq",
+      "location" : {
+        "column" : 9,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 4,
+        "path" : "Sources/Lib/Widget.swift"
+      },
+      "message" : "Assign-only property 'cache' is assigned, but never used",
+      "related" : [
+
+      ],
+      "rule" : "assign-only-property",
+      "variants" : [
+
+      ]
+    },
+    {
+      "asset" : null,
+      "declaration" : {
+        "accessibility" : "internal",
+        "kind" : "var.instance",
+        "modules" : [
+          "Lib"
+        ],
+        "name" : "delegate",
+        "usrs" : [
+          "s:3Lib6WidgetC8delegateAA0B8DelegateCSgvp"
+        ]
+      },
+      "fixable" : false,
+      "id" : "p2_fvkfbbdi4ek74ao6onaybv2hxpexvhlegpoudb5ifvpqg7t6e3ra",
+      "location" : {
+        "column" : 9,
+        "endColumn" : null,
+        "endLine" : null,
+        "line" : 5,
+        "path" : "Sources/Lib/Widget.swift"
+      },
+      "message" : "Optional property 'delegate' is never assigned (always nil)",
+      "related" : [
+
+      ],
+      "rule" : "unassigned-optional",
+      "variants" : [
+
+      ]
+    }
+  ],
+  "run" : {
+    "files" : {
+      "DerivedSources/GeneratedAssetSymbols.swift" : null,
+      "Resources/Localizable.xcstrings" : null,
+      "Sources/Lib/Base.swift" : null,
+      "Sources/Lib/Helper.swift" : null,
+      "Sources/Lib/Leaf.swift" : null,
+      "Sources/Lib/Legacy.swift" : null,
+      "Sources/Lib/Marker.swift" : null,
+      "Sources/Lib/Renderer.swift" : null,
+      "Sources/Lib/Run.swift" : null,
+      "Sources/Lib/State.swift" : null,
+      "Sources/Lib/Tag.swift" : null,
+      "Sources/Lib/Types.swift" : null,
+      "Sources/Lib/Widget.swift" : null,
+      "Sources/Lib/Widget+Empty.swift" : null
+    },
+    "projectRoot" : "/work/project",
+    "timings" : {
+
+    },
+    "variants" : [
+      "arm64-apple-macosx"
+    ]
+  },
+  "schemaVersion" : 2,
+  "summary" : {
+    "byRule" : {
+      "assign-only-property" : 1,
+      "empty-extension" : 1,
+      "missing-final" : 1,
+      "redundant-access-level" : 1,
+      "redundant-open" : 1,
+      "redundant-protocol" : 1,
+      "redundant-public" : 1,
+      "superfluous-ignore" : 1,
+      "unassigned-optional" : 1,
+      "unused" : 3,
+      "unused-asset-color" : 1,
+      "unused-asset-image" : 1,
+      "unused-import" : 1,
+      "unused-localized-string" : 1,
+      "unused-parameter" : 1
+    },
+    "total" : 17
+  },
+  "tool" : {
+    "name" : "outskirts",
+    "version" : "0.0.0"
+  }
+}

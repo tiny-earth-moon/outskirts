@@ -28,7 +28,7 @@ final class RelativeResultPathsTest: XCTestCase {
     // MARK: - Formats that require relative paths
 
     func testRequiresRelativePaths_isLimitedToTheFormatsThatNeedIt() {
-        let expected: Set<OutputFormat> = [.githubActions, .gitlabCodeQuality, .codeclimate, .sarif, .agent]
+        let expected: Set<OutputFormat> = [.githubActions, .gitlabCodeQuality, .codeclimate, .sarif, .agent, .jsonV2]
 
         for format in OutputFormat.allCases {
             XCTAssertEqual(format.requiresRelativePaths, expected.contains(format), "\(format)")
@@ -91,8 +91,15 @@ final class RelativeResultPathsTest: XCTestCase {
         return try XCTUnwrap(formatter.format([result()], colored: false), "\(format)")
     }
 
+    func testJsonV2_withABase_keepsThePathRelativeToTheProjectRoot() throws {
+        let output = try format(.jsonV2, base: "/work")
+
+        XCTAssertTrue(output.contains("\"path\" : \"\(relativePath)\""), output)
+        XCTAssertFalse(output.contains("project/\(relativePath)"), output)
+    }
+
     func testEveryFormatter_withTheBaseSetToTheParentOfTheProjectRoot_emitsThePathFromThatBase() throws {
-        for format in OutputFormat.allCases {
+        for format in OutputFormat.allCases where !format.formatter.pathsAreRootRelative {
             let output = try self.format(format, base: "/work")
             // SARIF names the base once, as the absolute URI the relative paths are resolved from.
             let paths = format == .sarif ? output.replacingOccurrences(of: "\"uri\" : \"file:///work/\"", with: "") : output
