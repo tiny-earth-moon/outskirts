@@ -145,6 +145,7 @@ struct ScanCommand: ParsableCommand {
         configuration.apply(\.$jsonPackageManifestPath, projectOptions.jsonPackageManifestPath)
         configuration.apply(\.$baseline, baselineOptions.baseline)
         configuration.apply(\.$writeBaseline, baselineOptions.writeBaseline)
+        configuration.apply(\.$baselineFormat, baselineOptions.baselineFormat)
         configuration.apply(\.$pruneBaseline, baselineOptions.pruneBaseline)
         configuration.apply(\.$strictBaseline, baselineOptions.strictBaseline)
         configuration.apply(\.$writeResults, resultsOptions.writeResults)
@@ -303,12 +304,18 @@ struct ScanCommand: ParsableCommand {
         let filteredResults = try outputFilter.filter(results, with: baseline)
 
         if configuration.pruneBaseline, let baselinePath = configuration.baseline {
-            try Baseline.pruned(keeping: outputFilter.baselineMatchedResults, projectRoot: configuration.projectRoot).write(to: baselinePath)
+            try Baseline.pruned(keeping: outputFilter.baselineMatchedResults, format: baseline?.format ?? .v1, projectRoot: configuration.projectRoot).write(to: baselinePath)
             logger.info("Pruned \(outputFilter.staleBaselineEntries.count) stale entries from \(baselinePath.string)")
         }
 
         if let baselinePath = configuration.writeBaseline {
-            try Baseline.written(from: filteredResults, union: baseline, projectRoot: configuration.projectRoot).write(to: baselinePath)
+            try Baseline.written(
+                from: filteredResults,
+                union: baseline,
+                matchedResults: outputFilter.baselineMatchedResults,
+                format: configuration.baselineFormat,
+                projectRoot: configuration.projectRoot
+            ).write(to: baselinePath)
         }
 
         let reportedResults = try ChangedSinceFilter(configuration: configuration, shell: shell, logger: logger).filter(filteredResults)
@@ -417,6 +424,7 @@ struct ScanCommand: ParsableCommand {
 }
 
 extension OutputFormat: ArgumentParser.ExpressibleByArgument {}
+extension BaselineFormat: ArgumentParser.ExpressibleByArgument {}
 extension ColorOption: ArgumentParser.ExpressibleByArgument {}
 extension PlatformConditionalRetention: ArgumentParser.ExpressibleByArgument {}
 extension ExitCodes: ArgumentParser.ExpressibleByArgument {}

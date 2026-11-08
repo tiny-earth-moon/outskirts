@@ -815,6 +815,7 @@ final class ConfigurationV2Test: XCTestCase {
     disable_update_check: true
     baseline: baseline.json
     write_baseline: new-baseline.json
+    baseline_format: v2
     prune_baseline: true
     strict_baseline: true
     retain_public: true
@@ -982,6 +983,7 @@ final class ConfigurationV2Test: XCTestCase {
     baseline:
       path: baseline.json
       write: new-baseline.json
+      format: v2
       prune: true
       strict: true
     variants: auto

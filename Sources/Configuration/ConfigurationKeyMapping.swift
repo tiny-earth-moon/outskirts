@@ -72,6 +72,7 @@ struct ConfigurationKeyMapping: Sendable {
     private static let baseline: [Self] = [
         .init("baseline", "baseline.path") { $0.baseline?.path },
         .init("write_baseline", "baseline.write") { $0.baseline?.write },
+        .init("baseline_format", "baseline.format") { $0.baseline?.format?.rawValue },
         .init("prune_baseline", "baseline.prune") { $0.baseline?.prune },
         .init("strict_baseline", "baseline.strict") { $0.baseline?.strict },
     ]
