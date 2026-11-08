@@ -18,7 +18,7 @@ struct FixCommand: ParsableCommand {
     @Flag(help: "Write the fixes to the files atomically instead of printing a unified diff")
     var apply: Bool = false
 
-    @Flag(help: "With --apply, rebuild the project after writing the fixes, and restore every original file if the build fails")
+    @Flag(help: "With --apply, rebuild the project after writing the fixes, and restore every original file if the build fails or is interrupted")
     var verify: Bool = false
 
     @Flag(help: "Also apply the tier-2 rules, which change behavior: add final to the classes that the open/final analysis reports")
@@ -101,8 +101,10 @@ struct FixCommand: ParsableCommand {
         var plan = planner.plan(guarded.targets)
         plan.addSkipped(guarded)
 
+        let pendingFixes = PendingFixes(projectRoot: configuration.projectRoot, logger: logger)
         if apply {
-            try FixWriter.apply(plan)
+            prepared.shell.onCancellation(pendingFixes.cancel)
+            try pendingFixes.apply(plan)
         } else {
             let diff = plan.diff(relativeTo: configuration.projectRoot)
             if !diff.isEmpty {
@@ -113,8 +115,9 @@ struct FixCommand: ParsableCommand {
         logger.info(plan.summary(relativeTo: configuration.projectRoot, applying: apply))
 
         if verify, !plan.changes.isEmpty {
-            try verifyBuild(of: plan, driver: output.driver, configuration: configuration, logger: logger)
+            try Self.verifyBuild(of: pendingFixes, driver: output.driver, configuration: configuration, logger: logger)
         }
+        pendingFixes.keep()
     }
 
     // MARK: - Private
@@ -147,15 +150,17 @@ struct FixCommand: ParsableCommand {
     }
 
     /// Rebuilds the project; when the build fails, writes back every original buffer of the plan and fails.
-    private func verifyBuild(of plan: FixPlan, driver: ProjectDriver, configuration: Configuration, logger: Logger) throws {
+    static func verifyBuild(of pendingFixes: PendingFixes, driver: ProjectDriver, configuration: Configuration, logger: Logger) throws {
         // The scan already cleaned the build if asked to: only the fixed files need to be rebuilt.
         configuration.cleanBuild = false
         do {
             try driver.build()
         } catch {
-            let restoration = FixWriter.restore(plan)
+            // A cancellation has already written back the files.
+            guard let restoration = pendingFixes.restore() else { throw error }
+
             logger.error("The build failed after the fixes were applied:\n\(error.localizedDescription)")
-            throw PeripheryError.buildFailed(message: restoration.summary(relativeTo: configuration.projectRoot, changeCount: plan.changes.count))
+            throw PeripheryError.buildFailed(message: restoration.summary)
         }
         logger.info("The project builds with the fixes.")
     }
@@ -254,6 +259,68 @@ extension FixCommand {
             }
             return nil
         }
+    }
+}
+
+/// The fixes that `--apply` wrote, until the command keeps them. A cancellation (`SIGINT`, `SIGTERM`) before then writes
+/// back every original file, so an interrupted `--apply` or `--verify` does not leave fixes that were not verified.
+///
+/// `@unchecked Sendable` invariant: `plan` is only read and written under `lock`, which the writes of `apply` hold, so
+/// a cancellation waits for them to end before it restores the files.
+final class PendingFixes: @unchecked Sendable {
+    /// The restoration of the files, with the number of changes it covered.
+    struct Restoration {
+        let restoration: FixRestoration
+        let changeCount: Int
+        let projectRoot: FilePath
+
+        var summary: String {
+            restoration.summary(relativeTo: projectRoot, changeCount: changeCount)
+        }
+
+        var cancellationSummary: String {
+            restoration.summary(relativeTo: projectRoot, changeCount: changeCount, cause: "Cancelled before the fixes were kept")
+        }
+    }
+
+    private let projectRoot: FilePath
+    private let logger: Logger
+    private let lock = NSLock()
+    private var plan: FixPlan?
+
+    init(projectRoot: FilePath, logger: Logger) {
+        self.projectRoot = projectRoot
+        self.logger = logger
+    }
+
+    /// Writes every change of the plan, or none, and holds them until `keep()`.
+    func apply(_ plan: FixPlan) throws {
+        try lock.withLock {
+            try FixWriter.apply(plan)
+            self.plan = plan
+        }
+    }
+
+    /// Keeps the fixes: a later cancellation leaves them.
+    func keep() {
+        lock.withLock { plan = nil }
+    }
+
+    /// Writes back the original buffer of every change, unless the fixes were kept or already restored.
+    func restore() -> Restoration? {
+        lock.withLock {
+            guard let plan else { return nil }
+
+            self.plan = nil
+            return Restoration(restoration: FixWriter.restore(plan), changeCount: plan.changes.count, projectRoot: projectRoot)
+        }
+    }
+
+    /// The cancellation hook: restores the files that were not kept, and lists them.
+    func cancel() {
+        guard let restoration = restore() else { return }
+
+        logger.warn(restoration.cancellationSummary)
     }
 }
 
