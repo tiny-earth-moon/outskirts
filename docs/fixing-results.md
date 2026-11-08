@@ -19,6 +19,7 @@ outskirts fix --apply          # write the files
 outskirts fix --apply --verify # rebuild, restore on failure
 outskirts fix --rule unused-import --include 'Sources/App/**'
 outskirts fix --rule unused --variants auto
+outskirts fix --rule unused --apply --verify --iterate
 ```
 
 The command takes every option of `scan` and reads the same configuration file, so the baseline, `report_exclude`, `report_include` and `--changed-since` limit what it fixes too. `--setup`, `--write-baseline`, `--prune-baseline` and `--write-results` are refused.
@@ -96,7 +97,22 @@ Would apply 3 fixes in 1 file, skipped 1.
   would remove unused 'Dead' at A.swift:1:8 [p2_...]
 ```
 
-Removing a declaration can make others unused: scan again to remove them.
+Removing a declaration can make others unused, such as a helper called only in an `#if` clause of a removed type: scan again to remove them, or pass `--iterate` with `--apply`.
+
+With `--iterate`, the command scans again after each pass and fixes what the pass left, until a pass fixes nothing, at most 5 passes (`--max-passes`). Every pass is a full scan and build, so the refusals and the rules above apply again to what the earlier passes left. A file written by an earlier pass now has uncommitted changes, but a later pass may still edit it as long as it holds the bytes that pass wrote, since version control can still restore its committed content.
+
+With `--verify`, each pass is rebuilt before the next one starts. When the build fails, only the files of that pass get back the content they had before it; the fixes of the earlier passes, which built, stay, and the command exits with a non-zero status. Without `--verify`, nothing checks a pass before the next one: a pass that breaks the build stops the run when the next pass builds the project, and the fixes of every pass so far stay written.
+
+Each pass starts with `Pass N of at most M:` and its summary, and the last line gives the total:
+
+```
+Pass 3 of at most 5:
+Applied 0 fixes in 0 files, skipped 1.
+  unused: 0, skipped 1 (public API, use --include-public 1)
+Nothing left to fix after 3 passes: 3 fixes in 1 file.
+```
+
+When the last allowed pass still fixed something, the command stops with `Stopped at the limit of 5 passes`: run it again, or raise `--max-passes`.
 
 Some uses are invisible to every scan, so the declarations they reach can be reported as unused and removed:
 
@@ -110,7 +126,7 @@ Use `--verify`, run the tests, and review the diff before committing.
 ## Options
 
 - **`--apply`**: write the fixes. Each file is written atomically, and only if it still holds the content the edits were made on. Every file is written or none: each one is checked before the first write, and when a write fails, the files already written get their original content back.
-- **`--verify`**: with `--apply`, rebuild the project with the same build as the scan (the Xcode schemes or `swift build`, with `--build-arguments`) once the fixes are written. The build covers test targets too: for an Xcode project, each scheme of `--schemes` runs `xcodebuild build-for-testing`, which builds the targets of the scheme's Build and Test actions (test targets included), without running the tests; for a Swift package, `swift build --build-tests` builds every target of the package, test targets included. Targets outside the listed schemes, and tests themselves, are not checked. If the build fails, every fixed file gets back its original bytes, the restored files are listed, and the command exits with a non-zero status. A file edited again during the build is not restored and is listed as such. `--verify` is refused when the build is skipped (`--skip-build`, `--index-store-path`) and for `--generic-project-config` projects, since outskirts does not build them.
+- **`--verify`**: with `--apply`, rebuild the project with the same build as the scan (the Xcode schemes or `swift build`, with `--build-arguments`) once the fixes are written. The build covers test targets too: for an Xcode project, each scheme of `--schemes` runs `xcodebuild build-for-testing`, which builds the targets of the scheme's Build and Test actions (test targets included), without running the tests; for a Swift package, `swift build --build-tests` builds every target of the package, test targets included. Targets outside the listed schemes, and tests themselves, are not checked. If the build fails, every fixed file gets back its original bytes, the restored files are listed, and the command exits with a non-zero status. A file edited again during the build is not restored and is listed as such. With `--iterate`, each pass is verified on its own, and a failure only restores the files of that pass. `--verify` is refused when the build is skipped (`--skip-build`, `--index-store-path`) and for `--generic-project-config` projects, since outskirts does not build them.
 - **`--aggressive`**: also apply the tier-2 rules.
 - **`--rule <rule>`**: only apply this rule; repeat the option to apply several.
 - **`--include <glob>`**: only fix the files that match the glob, relative to `--project-root`; repeat the option to give several.
@@ -119,6 +135,8 @@ Use `--verify`, run the tests, and review the diff before committing.
 - **`--allow-partial-scan`**: allow `--rule unused` on an Xcode project, whose scan only builds the listed schemes in Debug, or when `index_exclude`, `exclude_tests` or `exclude_targets` leaves code out of the scan.
 - **`--include-public`**: with `--rule unused`, also remove `public` and `open` declarations, unless `retain_public`, `retain_public_modules` or an override retains them.
 - **`--include-stored-properties`**: with `--rule unused`, also remove stored instance properties, which changes the memory layout of their type; never those of a `@frozen` type.
+- **`--iterate`**: with `--rule unused` and `--apply`, scan again after each pass and fix what it left, until a pass fixes nothing, a verification fails or the limit of passes is reached.
+- **`--max-passes <n>`**: with `--iterate`, the maximum number of passes, 5 by default.
 
 ## Safety
 
