@@ -242,6 +242,22 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.library)
     }
 
+    func testUnusedRuleIsRefusedWhenAnOptionLeavesCodeOutOfTheScan() throws {
+        for (option, key) in [
+            (["--index-exclude", "Sources/App/**"], "index_exclude"),
+            (["--exclude-tests"], "exclude_tests"),
+            (["--exclude-targets", "App"], "exclude_targets"),
+        ] {
+            let refused = try run(["fix", "--rule", "unused", "--variants", "auto"] + option)
+            XCTAssertNotEqual(refused.status, 0)
+            XCTAssertTrue(refused.stderr.contains("but '\(key)' leaves code out of the scan"), refused.stderr)
+        }
+
+        let flagWithoutRule = try run(["fix", "--allow-partial-scan"])
+        XCTAssertNotEqual(flagWithoutRule.status, 0)
+        XCTAssertTrue(flagWithoutRule.stderr.contains("'--allow-partial-scan' only applies to '--rule unused'"), flagWithoutRule.stderr)
+    }
+
     // MARK: - Private
 
     private struct Output {

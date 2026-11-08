@@ -53,6 +53,8 @@ A class made `final` can no longer be subclassed, including by a module the scan
 
 A declaration used only in the `#if` clauses of another platform or configuration looks unused to a scan that did not build it, so the rule needs a scan of every variant that ships: [`variants`](configuration.md) set to `auto` or to a list of variants. The variants are scanned together, so a declaration is reported only when it is unused in every one of them. The rule is refused with `variants: default`, when a variant could not be built (its SDK is not installed), and when the scan did not build the variants itself (`--skip-build`, `--index-store-path`, `--generic-project-config`). `--allow-partial-variants` lifts the refusal; the removals can then break the variants that were not scanned.
 
+A file left out of the scan may use the declarations it removes, so the rule is also refused when `index_exclude` (beyond its default globs), `exclude_tests` or `exclude_targets` is set. `--allow-partial-scan` lifts this refusal; it is a separate flag from `--allow-partial-variants`, as each accepts a different risk. `report_exclude`, `report_include`, the baseline and `--changed-since` only narrow the results: the files they hide are still scanned, so their references still count.
+
 A declaration is removed when all of these hold:
 
 - Its kind is a function, method, subscript, computed property, type, typealias, enum case or associated type, or it is a stored property:
@@ -89,6 +91,7 @@ Reflection is invisible to every scan: a type created with `NSClassFromString`, 
 - **`--include <glob>`**: only fix the files that match the glob, relative to `--project-root`; repeat the option to give several.
 - **`--allow-dirty`**: also fix files with uncommitted changes, and projects outside a git repository.
 - **`--allow-partial-variants`**: allow `--rule unused` after a scan that did not cover every variant.
+- **`--allow-partial-scan`**: allow `--rule unused` when `index_exclude`, `exclude_tests` or `exclude_targets` leaves code out of the scan.
 
 ## Safety
 

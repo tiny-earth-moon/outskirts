@@ -36,6 +36,9 @@ struct FixCommand: ParsableCommand {
     @Flag(help: "Allow '--rule unused' after a scan that did not cover every variant ('variants: default', or a variant that could not be built)")
     var allowPartialVariants: Bool = false
 
+    @Flag(help: "Allow '--rule unused' when index_exclude, exclude_tests or exclude_targets leaves code out of the scan")
+    var allowPartialScan: Bool = false
+
     @OptionGroup
     var scan: ScanCommand
 
@@ -58,6 +61,9 @@ struct FixCommand: ParsableCommand {
         if allowPartialVariants, !removesUnused {
             throw ValidationError("'--allow-partial-variants' only applies to '--rule unused'")
         }
+        if allowPartialScan, !removesUnused {
+            throw ValidationError("'--allow-partial-scan' only applies to '--rule unused'")
+        }
     }
 
     func run() throws {
@@ -69,6 +75,9 @@ struct FixCommand: ParsableCommand {
         }
         if removesUnused, !allowPartialVariants, configuration.variants == .default {
             throw PeripheryError.usageError("'--rule unused' removes declarations, which is only safe once every variant that ships is scanned: code used only in another platform's '#if' clauses would break. Set 'variants' to 'auto' or to a list of variants, or pass '--allow-partial-variants'.")
+        }
+        if removesUnused, !allowPartialScan, let option = Self.narrowingOption(of: configuration) {
+            throw PeripheryError.usageError("'--rule unused' removes declarations, which is only safe when every file that may use them is scanned, but '\(option)' leaves code out of the scan: its references would be lost. Remove '\(option)', or pass '--allow-partial-scan'.")
         }
 
         let scanStartedAt = Date()
@@ -110,6 +119,21 @@ struct FixCommand: ParsableCommand {
 
     private var removesUnused: Bool {
         rules.contains(.unused)
+    }
+
+    /// The first option that leaves code out of the index, whose references to the removed declarations would be
+    /// lost. `report_exclude` and `report_include` only narrow the results, so the references stay.
+    static func narrowingOption(of configuration: Configuration) -> String? {
+        if !Set(configuration.indexExclude).subtracting(configuration.$indexExclude.defaultValue).isEmpty {
+            return "index_exclude"
+        }
+        if configuration.excludeTests {
+            return "exclude_tests"
+        }
+        if !configuration.excludeTargets.isEmpty {
+            return "exclude_targets"
+        }
+        return nil
     }
 
     /// The removals are only safe when the index holds every variant the configuration declares.
