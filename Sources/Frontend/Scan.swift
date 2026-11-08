@@ -63,7 +63,6 @@ final class Scan {
     ) -> [String] {
         let paths = configuration.indexStorePath
         guard !paths.isEmpty else { return [] }
-
         guard configuration.quietIndexStore else {
             return [xcodeRunningWarning] + (configuration.skipBuild ? [] : [impliedSkipBuildWarning])
         }

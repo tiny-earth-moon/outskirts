@@ -791,6 +791,7 @@ final class ConfigurationV2Test: XCTestCase {
     clean_build: true
     index_store_path: [Index]
     strict_index: true
+    quiet_index_store: true
     cache_max_age_days: 3
     cache_max_size_gb: 5
     variants: auto
@@ -962,6 +963,7 @@ final class ConfigurationV2Test: XCTestCase {
       clean: true
       index_store_paths: [Index]
       strict_index: true
+      quiet_index_store: true
       cache_max_age_days: 3
       cache_max_size_gb: 5
     report:

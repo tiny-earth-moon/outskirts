@@ -9,7 +9,9 @@ final class DeprecationWarningsEndToEndTest: XCTestCase {
     private static let skipBuildWarning = "The '--index-store-path' option implies '--skip-build', specify it to silence this warning."
 
     private var directory: URL!
-    private var missingStore: String { directory.appendingPathComponent(".build/debug/index/store").path }
+    private var missingStore: String {
+        directory.appendingPathComponent(".build/debug/index/store").path
+    }
 
     override func setUpWithError() throws {
         try super.setUpWithError()

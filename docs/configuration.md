@@ -213,6 +213,7 @@ outskirts config migrate --apply    # writes it over the file
 | `skip_schemes_validation` | `project.skip_schemes_validation` |  |
 | `clean_build` | `build.clean` |  |
 | `strict_index` | `build.strict_index` |  |
+| `quiet_index_store` | `build.quiet_index_store` |  |
 | `cache_max_age_days` | `build.cache_max_age_days` |  |
 | `cache_max_size_gb` | `build.cache_max_size_gb` |  |
 | `build_arguments` | `build.arguments` |  |
