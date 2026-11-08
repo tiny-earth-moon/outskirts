@@ -1,3 +1,4 @@
+import SourceGraph
 import SwiftParser
 import SwiftSyntax
 @testable import SyntaxAnalysis
@@ -13,6 +14,56 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
             configurations: configurations,
             narrowsNestedBlocks: narrowsNestedBlocks
         )
+    }
+
+    private func collectAll(_ source: String, _ configurations: [PlatformBuildConfiguration]) -> PlatformConditionalNames {
+        PlatformConditionalNameCollector.collectAll(from: Parser.parse(source: source), configurations: configurations)
+    }
+
+    func testCollectsUsesThatWriteNoName() {
+        let source = """
+        #if os(iOS)
+        let isEqual = lhs <~> rhs
+        let negated = -value
+        extension Module.FixtureType: @unchecked Sendable, FixtureProtocol & OtherProtocol {}
+        final class FixtureSubclass: FixtureBase {
+            override func update() {}
+            override var size: Int { 0 }
+            override subscript(index: Int) -> Int { index }
+            func notOverridden() {}
+        }
+        #endif
+        """
+
+        let collected = collectAll(source, [macOS])
+
+        XCTAssertEqual(collected.references, [
+            "lhs", "<~>", "rhs", "-", "value", "Module", "unchecked", "Sendable", "FixtureProtocol", "OtherProtocol",
+            "FixtureBase", "Int", "index",
+        ])
+        XCTAssertEqual(collected.conformances, [
+            PlatformConditionalConformance(typeName: "FixtureType", protocolName: "Sendable"),
+            PlatformConditionalConformance(typeName: "FixtureType", protocolName: "FixtureProtocol"),
+            PlatformConditionalConformance(typeName: "FixtureType", protocolName: "OtherProtocol"),
+        ])
+        XCTAssertEqual(collected.inheritedNames, ["FixtureBase"])
+        XCTAssertEqual(collected.overriddenNames, ["update", "size", "subscript"])
+        XCTAssertEqual(collected.otherClauseNames, [])
+    }
+
+    /// The names of the other `#if` blocks only account for imports: they are collected apart, both clauses whole.
+    func testCollectsNamesOfNonPlatformConditionalsApart() {
+        let source = """
+        #if !DEBUG
+        releaseOnly()
+        #else
+        debugOnly()
+        #endif
+        """
+
+        var expected = PlatformConditionalNames()
+        expected.otherClauseNames = ["releaseOnly", "debugOnly"]
+        XCTAssertEqual(collectAll(source, [macOS]), expected)
     }
 
     func testParsesKnownTriples() throws {

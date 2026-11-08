@@ -22,6 +22,7 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case partialParameterIgnore
     case alreadyFinal
     case openClass
+    case openMember
 
     var description: String {
         switch self {
@@ -47,6 +48,7 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .partialParameterIgnore: "some ignored parameters are still unused"
         case .alreadyFinal: "already final"
         case .openClass: "open class"
+        case .openMember: "open member"
         }
     }
 }

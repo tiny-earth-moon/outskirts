@@ -431,6 +431,30 @@ final class FixCommandTest: XCTestCase {
         XCTAssertTrue(plan.changes.isEmpty)
     }
 
+    func testMissingFinalSkipsAClassWithAnOpenMember() throws {
+        let source = """
+        public class Lone {
+            open func f() {}
+        }
+        public class Extended {}
+        extension Extended {
+            open var v: Int { 0 }
+        }
+        public class Plain {
+            public func g() {}
+        }
+
+        """
+        let plan = try planned(source, [
+            target(.missingFinal, "Lone", .class, at: "Lone", in: source),
+            target(.missingFinal, "Extended", .class, at: "Extended {}", in: source),
+            target(.missingFinal, "Plain", .class, at: "Plain", in: source),
+        ])
+
+        XCTAssertEqual(plan.skipped.map { "\($0.target.name): \($0.reason)" }, ["Lone: open member", "Extended: open member"])
+        XCTAssertEqual(try apply(plan), source.replacingOccurrences(of: "public class Plain", with: "public final class Plain"))
+    }
+
     func testMissingFinalSecondRunProducesNoChange() throws {
         let source = "@MainActor public class A {\n    class B {}\n}\n"
         let targets = [
@@ -539,6 +563,38 @@ final class FixCommandTest: XCTestCase {
         ].joined(separator: "\n")
         XCTAssertEqual(plan.diff(relativeTo: directory), expectedDiff)
         XCTAssertEqual(try String(contentsOfFile: file.string, encoding: .utf8), source)
+    }
+
+    func testDryRunDiffOfACRLFFileHasNoNoNewlineMarker() throws {
+        let source = "import A\r\nimport B\r\n\r\nfunc f() {}\r\n"
+        let plan = try planned(source, [target(.unusedImport, "B", .module, at: "import B", in: source)])
+
+        let diff = plan.diff(relativeTo: directory)
+        XCTAssertFalse(diff.contains("No newline at end of file"))
+        XCTAssertEqual(diff, "--- a/File.swift\n+++ b/File.swift\n@@ -1,4 +1,3 @@\n import A\r\n-import B\r\n \r\n func f() {}\r\n")
+    }
+
+    func testCRLFFileEditsKeepTheLineEndings() throws {
+        let source = "import A\r\nimport B\r\n\r\npublic class C {}\r\nfunc f(a: Int) {}\r\n"
+        let fixed = try fix(source, [
+            target(.unusedImport, "B", .module, at: "import B", in: source),
+            target(.missingFinal, "C", .class, at: "C {}", in: source),
+            target(.unusedParameter, "a", .varParameter, at: "a:", in: source),
+        ])
+
+        XCTAssertEqual(fixed, "import A\r\n\r\npublic final class C {}\r\nfunc f(a _: Int) {}\r\n")
+    }
+
+    func testRemovalInACRLFFileLeavesOneBlankLine() throws {
+        let source = "struct A {}\r\n\r\nextension A {}\r\n\r\nstruct B {}\r\n\r\nextension B {}\r\nextension A {}\r\n\r\nstruct C {}\r\n\r\nextension C {}\r\n"
+        let fixed = try fix(source, [
+            target(.emptyExtension, "A", .extension, at: "A {}\r\n\r\nstruct B", in: source),
+            target(.emptyExtension, "B", .extension, at: "B {}\r\nextension", in: source),
+            target(.emptyExtension, "A", .extension, at: "A {}\r\n\r\nstruct C", in: source),
+            target(.emptyExtension, "C", .extension, at: "C {}\r\n", in: source, occurrence: 2),
+        ])
+
+        XCTAssertEqual(fixed, "struct A {}\r\n\r\nstruct B {}\r\n\r\nstruct C {}\r\n")
     }
 
     func testSecondRunProducesNoDiff() throws {
@@ -770,8 +826,9 @@ final class FixCommandTest: XCTestCase {
         }
 
         let prefix = source[..<range.lowerBound]
-        let line = prefix.count(where: { $0 == "\n" }) + 1
-        let lineStart = prefix.lastIndex(of: "\n").map { source.index(after: $0) } ?? source.startIndex
+        let isLineBreak: (Character) -> Bool = { $0 == "\n" || $0 == "\r\n" }
+        let line = prefix.count(where: isLineBreak) + 1
+        let lineStart = prefix.lastIndex(where: isLineBreak).map { source.index(after: $0) } ?? source.startIndex
         let column = source[lineStart ..< range.lowerBound].utf8.count + 1
         return FixTarget(rule: rule, name: name, kind: kind, file: file, line: line, column: column, accessibility: accessibility)
     }
