@@ -16,10 +16,18 @@ public struct DeclarationExplainer {
         self.configuration = configuration
     }
 
-    /// The explanations of the declarations matching each query: a name (`draw()`, `draw` or `Beta.draw()`), a USR, or
-    /// a `file:line` (or `file:line:column`) location.
+    /// The explanations of the declarations matching each query: a name (`draw()`, `draw` or `Beta.draw()`), a USR, an
+    /// output v2 id (`p2_…`), or a `file:line` (or `file:line:column`) location.
     public func explain(_ queries: [String]) -> String {
         queries.map(explain(query:)).joined(separator: "\n\n")
+    }
+
+    /// The lines `explain` prints for each declaration matching the queries, for `json-v2`.
+    public func explanationLines(_ queries: [String]) -> [Declaration: [String]] {
+        let matches = Set(queries.flatMap(declarations(matching:)))
+        return Dictionary(uniqueKeysWithValues: matches.map { declaration in
+            (declaration, explanation(of: declaration).components(separatedBy: "\n"))
+        })
     }
 
     // MARK: - Private
@@ -36,6 +44,13 @@ public struct DeclarationExplainer {
     private func declarations(matching query: String) -> [Declaration] {
         if let declaration = graph.declaration(withUsr: query) {
             return [declaration]
+        }
+
+        if query.hasPrefix(OutputV2Id.prefix) {
+            return graph.allDeclarations.filter { declaration in
+                let identity = declaration.usrs.sorted()
+                return RuleIdentifier.allCases.contains { OutputV2Id.id(rule: $0, identity: identity) == query }
+            }.sorted()
         }
 
         if let match = query.wholeMatch(of: #/(.+\.swift):(\d+)(?::(\d+))?/#), let line = Int(match.output.2) {

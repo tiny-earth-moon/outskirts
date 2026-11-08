@@ -10,7 +10,7 @@ Most surprising results come from what the index store saw, or did not see. This
 
 Since 3.22.0.
 
-`--explain` tells why a declaration is reported, used or retained. It takes a name (`draw()`, `draw` or `Beta.draw()`), a USR or a `file:line` location, can be repeated, and prints its explanation before the results:
+`--explain` tells why a declaration is reported, used or retained. It takes a name (`draw()`, `draw` or `Beta.draw()`), a USR, a `json-v2` id (`p2_…`) or a `file:line` location, can be repeated, and prints its explanation before the results:
 
 ```
 outskirts scan --explain 'Beta.draw()'
@@ -22,6 +22,8 @@ Each matching declaration gets one of these explanations:
 - **reported as unused**: references were found but none is reached from a root, and each is listed with the reason, e.g. a self-reference written inside the declaration, or a reference from a declaration that is itself unused.
 - **used**: the shortest reference chain from a root (a retained declaration or top-level code), with the location of each reference.
 - **retained**: the retainer and its reason, e.g. `PubliclyAccessibleRetainer, retain_public`, a comment command, or `PlatformConditionalRetainer, name 'draw' written in #if os(iOS) at Sources/Kit/Shapes.swift:7`. A retained member that is used shows the chain that reaches it as well.
+
+With `--format json-v2`, the results of the explained declarations carry the same explanation as an `explanation` field, see [Output formats: json-v2](output-formats.md#json-v2).
 
 The scan records these reasons only when `--explain` is passed, so other scans are as fast as before.
 
