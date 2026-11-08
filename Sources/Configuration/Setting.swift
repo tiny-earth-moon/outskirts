@@ -137,6 +137,19 @@ extension Setting where Value == [String] {
     }
 }
 
+extension Setting where Value == [ReportExcludeEntry] {
+    /// - Parameter requireDefaultValues: Whether the default entries are kept after the ones given.
+    convenience init(key: String, description: String, defaultValue: Value, requireDefaultValues: Bool) {
+        self.init(
+            key: key,
+            description: description,
+            defaultValue: defaultValue,
+            normalize: { values in requireDefaultValues ? values + defaultValue.filter { !values.contains($0) } : values },
+            convert: SettingConverter.reportExclude
+        )
+    }
+}
+
 extension Setting where Value: RawRepresentable & CaseIterable & Sendable, Value.RawValue == String {
     convenience init(key: String, description: String, defaultValue: Value) {
         self.init(
