@@ -495,6 +495,38 @@ final class FixCommandTest: XCTestCase {
         XCTAssertEqual(try String(contentsOfFile: other.string, encoding: .utf8), "import C\nimport D\n")
     }
 
+    // MARK: - Unused declarations
+
+    func testCaseOfAnEnumWithAnUnresolvedRawTypeIsKept() throws {
+        let source = """
+        typealias Code = Int
+        enum Status: Code {
+            case ok
+            case unused
+            case fail
+        }
+        enum CStatus: CInt {
+            case ok
+            case unused
+            case fail
+        }
+        enum Plain: Equatable {
+            case ok
+            case unused
+            case fail
+        }
+
+        """
+        let plan = try planned(source, [
+            target(.unused, "unused", .enumelement, at: "unused", in: source),
+            target(.unused, "unused", .enumelement, at: "unused", in: source, occurrence: 2),
+            target(.unused, "unused", .enumelement, at: "unused", in: source, occurrence: 3),
+        ])
+
+        XCTAssertEqual(plan.skipped.map { "\($0.target.line) \($0.reason)" }, ["4 \(SkipReason.implicitRawValues)", "9 \(SkipReason.implicitRawValues)"])
+        XCTAssertEqual(plan.applied.map(\.line), [14])
+    }
+
     // MARK: - Diff, idempotence and trivia
 
     func testDryRunPrintsAUnifiedDiffAndLeavesTheFileUntouched() throws {

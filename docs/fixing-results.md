@@ -61,7 +61,7 @@ A declaration is removed when all of these hold:
   - without an initializer if it is `static` or `class`;
   - not in a struct whose memberwise initializer is used, nor in a type that may synthesize `Equatable`, `Hashable` or `Codable` from its stored properties.
 - It is not `override`, `dynamic`, `@objc` (or exposed to Objective-C), `@main`, `@_cdecl`, `@_silgen_name`, an Interface Builder or `@NSManaged` member, and it carries no attribute of `retain_attributes`. A type that contains such a member, or a member ignored by a comment command, is kept too.
-- It is not a case of a `CaseIterable` or `Codable` enum, nor a case whose removal would change the raw value of a later case.
+- It is not a case of a `CaseIterable` or `Codable` enum, nor a case whose removal would change the raw value of a later case. A raw type that is not `String` and cannot be read from the syntax, such as a typealias or `CInt`, counts as numeric.
 - Nothing kept references it or one of its members: a declaration that only removed code references goes in the same run.
 - No kept declaration overrides it or implements it, and it does not implement a kept protocol requirement.
 - Every extension of the type, and of the types nested in it, is in the results and is removed with it, in the same edit set.

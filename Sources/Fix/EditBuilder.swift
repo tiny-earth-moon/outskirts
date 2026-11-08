@@ -185,7 +185,9 @@ struct EditBuilder {
     }
 
     /// Whether removing the case changes the raw value of a later case: a later case has no explicit raw value, in an
-    /// enum whose raw values count up, that is with a numeric raw type or with any explicit raw value.
+    /// enum whose raw values count up, that is with a numeric raw type or with any explicit raw value. A first
+    /// inherited type that is neither `String` nor a protocol known not to be a raw type, such as a typealias or
+    /// `CInt`, counts as numeric.
     private func shiftsImplicitRawValues(_ enumCase: EnumCaseDeclSyntax) -> Bool {
         guard let enumDecl = enumCase.ancestorOrSelf(mapping: { $0.as(EnumDeclSyntax.self) }),
               let removed = enumCase.elements.first
@@ -200,12 +202,17 @@ struct EditBuilder {
         let laterImplicit = ordered[(index + 1)...].contains { $0.rawValue == nil }
         guard laterImplicit else { return false }
 
-        let rawType = enumDecl.inheritanceClause?.inheritedTypes.first?.type.trimmedDescription ?? ""
-        let numericTypes: Set = [
-            "Int", "Int8", "Int16", "Int32", "Int64", "UInt", "UInt8", "UInt16", "UInt32", "UInt64",
-            "Float", "Double", "Float80", "CGFloat",
+        // An enum with associated values has no raw type.
+        guard !ordered.contains(where: { $0.parameterClause != nil }) else { return false }
+
+        let rawType = (enumDecl.inheritanceClause?.inheritedTypes.first?.type.trimmedDescription ?? "")
+            .replacingOccurrences(of: "Swift.", with: "")
+        let nonCountingTypes: Set = [
+            "", "String", "Equatable", "Hashable", "Comparable", "CaseIterable", "Codable", "Encodable", "Decodable",
+            "Sendable", "Error", "LocalizedError", "Identifiable", "CustomStringConvertible", "CustomDebugStringConvertible",
+            "CodingKey",
         ]
-        let isNumeric = numericTypes.contains(rawType.replacingOccurrences(of: "Swift.", with: ""))
+        let isNumeric = !nonCountingTypes.contains(rawType)
         return isNumeric || ordered.contains { $0.rawValue != nil }
     }
 
