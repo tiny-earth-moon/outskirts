@@ -204,7 +204,7 @@ Targets to exclude from indexing.
 
 Key `exclude_targets` · list of strings · default empty.
 
-See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Fixing results: Opt-in: unused](fixing-results.md#opt-in-unused).
 
 ### `--exclude-tests`
 
@@ -212,7 +212,7 @@ Exclude test targets from indexing.
 
 Key `exclude_tests` · flag, `--no-exclude-tests` to switch off · default `false`.
 
-See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Fixing results: Opt-in: unused](fixing-results.md#opt-in-unused).
 
 ### `--index-exclude`
 
@@ -252,7 +252,7 @@ Report only the results in files that changed since this git ref: committed sinc
 
 Key `changed_since` · string · default none.
 
-See [Baselines: Baselines and pull requests](baselines.md#baselines-and-pull-requests), [Fixing results](fixing-results.md), [Output formats: Summary](output-formats.md#summary), [Roadmap: Published](roadmap.md#published).
+See [Baselines: Baselines and pull requests](baselines.md#baselines-and-pull-requests), [Fixing results](fixing-results.md), [Fixing results: Opt-in: unused](fixing-results.md#opt-in-unused), [Output formats: Summary](output-formats.md#summary).
 
 ### `--changed-lines`
 
