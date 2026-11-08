@@ -20,7 +20,7 @@ open class SourceGraphTestCase: XCTestCase {
 
     private var scopeStack: [DeclarationScope] = []
 
-    override open class func setUp() {
+    override public class func setUp() {
         super.setUp()
         logger = Logger(quiet: true, verbose: false, colorMode: .never)
         shell = ShellImpl(logger: logger)
@@ -34,7 +34,7 @@ open class SourceGraphTestCase: XCTestCase {
         graph = SourceGraph(configuration: configuration, logger: logger)
     }
 
-    override open func tearDown() {
+    override public func tearDown() {
         super.tearDown()
 
         if (testRun?.failureCount ?? 0) > 0 {
