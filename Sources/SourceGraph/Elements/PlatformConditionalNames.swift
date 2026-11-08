@@ -24,8 +24,8 @@ public struct PlatformConditionalNames: Equatable, Sendable {
 
 /// A conformance declared by an extension written in a platform conditional clause.
 public struct PlatformConditionalConformance: Hashable, Sendable {
-    public let typeName: String
-    public let protocolName: String
+    let typeName: String
+    let protocolName: String
 
     public init(typeName: String, protocolName: String) {
         self.typeName = typeName
