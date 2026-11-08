@@ -223,7 +223,6 @@ final class UnusedImportMarker: SourceGraphMutator {
         return (modules, isUnresolved)
     }
 
-    /// The modules declaring a referenceable declaration, by the base name of the declaration.
     /// The names of each file that the index store may lack: those of the platform conditional clauses no indexed build
     /// compiled, and those of the `#if` blocks whose condition does not involve the platform (`DEBUG`, custom flags),
     /// such as an import only used under `#if !DEBUG`. These blocks are collected whole, so their names that the index
@@ -249,6 +248,7 @@ final class UnusedImportMarker: SourceGraphMutator {
         return result
     }
 
+    /// The modules declaring a referenceable declaration, by the base name of the declaration.
     private func modulesByDeclarationBaseName() -> [String: Set<String>] {
         graph.allDeclarations.reduce(into: [:]) { result, decl in
             guard !PlatformConditionalRetainer.nonReferenceableKinds.contains(decl.kind) else { return }
