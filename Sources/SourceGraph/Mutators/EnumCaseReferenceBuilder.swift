@@ -60,6 +60,8 @@ final class EnumCaseReferenceBuilder: SourceGraphMutator {
     /// stable (it may use word substitutions), so references are matched by name and USR prefix.
     /// The cases are referenced from the declaration using `allCases`, so they are used exactly
     /// when that use is reachable.
+    private let caseIterableRequirementUsrPrefix = "s:s12CaseIterableP8allCases"
+
     private func retainCasesUsedThroughAllCases() {
         let caseIterableEnums = graph.declarations(ofKind: .enum).filter { enumDeclaration in
             guard !enumDeclaration.declarations.contains(where: { $0.kind == .varStatic && $0.name == "allCases" }) else { return false }
@@ -86,10 +88,16 @@ final class EnumCaseReferenceBuilder: SourceGraphMutator {
                 return (enumDeclaration, usr.count)
             }
 
-            guard let owner = matches.max(by: { $0.1 < $1.1 })?.0 else { continue }
-
-            for enumCase in enumCases(of: owner) {
-                addReference(to: enumCase, from: reference.parent)
+            if let owner = matches.max(by: { $0.1 < $1.1 })?.0 {
+                for enumCase in enumCases(of: owner) {
+                    addReference(to: enumCase, from: reference.parent)
+                }
+            } else if reference.usr.hasPrefix(caseIterableRequirementUsrPrefix) {
+                // A use of the protocol requirement, as in `T.allCases` with `T: CaseIterable`, may
+                // reach the cases of any `CaseIterable` enum.
+                for enumCase in caseIterableEnums.flatMap(enumCases(of:)) {
+                    addReference(to: enumCase, from: reference.parent)
+                }
             }
         }
     }
