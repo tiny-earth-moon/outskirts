@@ -8,6 +8,9 @@ import Shared
 /// scanned modules, so an `open` declaration subclassed or overridden by an unscanned client module cannot be
 /// observed; the analysis is therefore opt-in and disabled for the `open` declarations of the modules whose public
 /// declarations are retained (`retain_public`, `retain_public_modules`).
+///
+/// The index neither describes the platform conditional clauses that were not compiled: a class inherited from, or a
+/// member name declared `override`, in such a clause counts as subclassed or overridden from that clause's file.
 final class OpenFinalAccessibilityMarker: SourceGraphMutator {
     private static let overridableMemberKinds: Set<Declaration.Kind> = [
         .functionMethodInstance, .functionMethodClass, .functionSubscript, .varInstance, .varClass,
@@ -53,7 +56,10 @@ final class OpenFinalAccessibilityMarker: SourceGraphMutator {
     private func validateMissingFinal(_ classDecl: Declaration) {
         guard !isFinal(classDecl), !isDynamicallyExposed(classDecl) else { return }
 
-        if [.public, .internal].contains(classDecl.accessibility.value), subclassDeclarations(of: classDecl).isEmpty {
+        if [.public, .internal].contains(classDecl.accessibility.value),
+           subclassDeclarations(of: classDecl).isEmpty,
+           conditionalSubclassFiles(of: classDecl).isEmpty
+        {
             // Members of a class that could be final are implicitly final once the class is.
             graph.markMissingFinal(classDecl)
             return
@@ -63,7 +69,8 @@ final class OpenFinalAccessibilityMarker: SourceGraphMutator {
             guard [.public, .internal].contains(member.accessibility.value),
                   !isFinal(member),
                   !isDynamicallyExposed(member),
-                  overrideDeclarations(of: member).isEmpty
+                  overrideDeclarations(of: member).isEmpty,
+                  conditionalOverrideFiles(of: member).isEmpty
             else { continue }
 
             graph.markMissingFinal(member)
@@ -107,11 +114,27 @@ final class OpenFinalAccessibilityMarker: SourceGraphMutator {
     private func isSubclassedCrossModule(_ classDecl: Declaration) -> Bool {
         let modules = classDecl.location.file.modules
         return subclassDeclarations(of: classDecl).contains { $0.location.file.isNonTestableClient(ofModules: modules) }
+            || conditionalSubclassFiles(of: classDecl).contains { $0.isNonTestableClient(ofModules: modules) }
     }
 
     private func isOverriddenCrossModule(_ member: Declaration) -> Bool {
         let modules = member.location.file.modules
         return overrideDeclarations(of: member).contains { $0.location.file.isNonTestableClient(ofModules: modules) }
+            || conditionalOverrideFiles(of: member).contains { $0.isNonTestableClient(ofModules: modules) }
+    }
+
+    // MARK: - Platform conditional clauses
+
+    /// The files whose platform conditional clauses declare a class or protocol inheriting a type of this name.
+    private func conditionalSubclassFiles(of classDecl: Declaration) -> [SourceFile] {
+        let name = PlatformConditionalRetainer.baseName(of: classDecl.name)
+        return graph.platformConditionalSuperclassNamesByFile.compactMap { $0.value.contains(name) ? $0.key : nil }
+    }
+
+    /// The files whose platform conditional clauses declare `override` a member of this name.
+    private func conditionalOverrideFiles(of member: Declaration) -> [SourceFile] {
+        let name = PlatformConditionalRetainer.baseName(of: member.name)
+        return graph.platformConditionalOverrideNamesByFile.compactMap { $0.value.contains(name) ? $0.key : nil }
     }
 
     // MARK: - Predicates
