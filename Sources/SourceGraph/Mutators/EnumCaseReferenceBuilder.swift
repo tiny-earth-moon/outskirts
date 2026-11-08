@@ -55,13 +55,13 @@ final class EnumCaseReferenceBuilder: SourceGraphMutator {
         }
     }
 
+    private let caseIterableRequirementUsrPrefix = "s:s12CaseIterableP8allCases"
+
     /// The synthesized `allCases` getter has no declaration in the index, only references to
     /// a USR made of the enum USR followed by the mangled member name. The mangled name is not
     /// stable (it may use word substitutions), so references are matched by name and USR prefix.
     /// The cases are referenced from the declaration using `allCases`, so they are used exactly
     /// when that use is reachable.
-    private let caseIterableRequirementUsrPrefix = "s:s12CaseIterableP8allCases"
-
     private func retainCasesUsedThroughAllCases() {
         let caseIterableEnums = graph.declarations(ofKind: .enum).filter { enumDeclaration in
             guard !enumDeclaration.declarations.contains(where: { $0.kind == .varStatic && $0.name == "allCases" }) else { return false }
