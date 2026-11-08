@@ -9,7 +9,7 @@
         private let fixtureRoot = FixturesProjectPath.appending("Sources/MetalFunctionFixtures")
 
         func testDetectsUnusedMetalFunctions() {
-            let results = analyze(retainPublic: true, detectUnusedMetalFunctions: true, projectRoot: fixtureRoot) {
+            let results = analyze(detectUnusedMetalFunctions: true, projectRoot: fixtureRoot) {
                 assertReferenced(.metalFunction("fixtureUsedKernel"))
                 assertReferenced(.metalFunction("fixtureSpecializedVertex"))
                 assertReferenced(.metalFunction("fixtureDescriptorVisible"))
@@ -38,6 +38,35 @@
             XCTAssertEqual(missing.first?.declaration.location.file.path, testFixturePath)
             XCTAssertEqual(missing.first?.declaration.location.line, 7)
             XCTAssertEqual(missing.first?.declaration.usrs, ["metal-missing:testDetectsUnusedMetalFunctions.swift:fixtureMissingFunction"])
+        }
+
+        func testRetainsStitchableFunctionsWithRetainPublic() {
+            let results = analyze(retainPublic: true, detectUnusedMetalFunctions: true, projectRoot: fixtureRoot) {
+                assertReferenced(.metalFunction("fixtureUsedKernel"))
+                assertReferenced(.metalFunction("fixtureUnusedStitchable"))
+                assertReferenced(.metalFunction("fixtureUnusedVisible"))
+                assertReferenced(.metalFunction("fixtureDescriptorVisible"))
+                assertNotReferenced(.metalFunction("fixtureUnusedFragment"))
+                assertNotReferenced(.metalFunction("fixtureSpecializedVertex"))
+            }
+
+            XCTAssertEqual(unusedMetalFunctions(results), [
+                "fixtureDynamicKernel", "fixtureSpecializedVertex", "fixtureUnusedFragment",
+            ])
+        }
+
+        func testRetainsMetalFunctionCalledThroughShaderLibraryMember() {
+            let results = analyze(detectUnusedMetalFunctions: true, projectRoot: fixtureRoot) {
+                assertReferenced(.metalFunction("fixtureUnusedStitchable"))
+                assertReferenced(.metalFunction("fixtureUnusedVisible"))
+                assertReferenced(.metalFunction("fixtureUnusedFragment"))
+                assertReferenced(.metalFunction("fixtureSpecializedVertex"))
+                assertNotReferenced(.metalFunction("fixtureUsedKernel"))
+            }
+
+            XCTAssertEqual(unusedMetalFunctions(results), [
+                "fixtureDescriptorVisible", "fixtureDynamicKernel", "fixtureUsedKernel",
+            ])
         }
 
         func testRetainsEveryFunctionForANonLiteralName() {

@@ -25,13 +25,17 @@ enum ConfigurationV2Writer {
     /// The order of the sections of a v2 file; `variants` is a top-level option.
     static let sectionOrder = ["project", "build", "variants", "exclude", "rules", "retain", "analysis", "report", "baseline"]
 
+    /// The pseudo key of the values that writes `exclude.index_defaults`, which no v1 key drives: `config print` sets
+    /// it, as its `index_exclude` lists the default globs; `config migrate` does not, as v1 always keeps them.
+    static let indexDefaultsKey = "exclude.index_defaults"
+
     /// Every v2 path a v1 key drives, plus `exclude.index_defaults`, in the order they are written.
     static let orderedPaths: [String] = {
         var paths: [String] = []
         for path in ConfigurationKeyMapping.all.map(\.v2Path) where !paths.contains(path) {
             paths.append(path)
             if path == "exclude.index" {
-                paths.append("exclude.index_defaults")
+                paths.append(indexDefaultsKey)
             }
         }
         return paths.sorted { lhs, rhs in
@@ -45,7 +49,7 @@ enum ConfigurationV2Writer {
     }()
 
     /// The v2 options set by the given values of v1 keys, in the order they are written. A key left out keeps its
-    /// default. `index_exclude` is written with `index_defaults: false`, the default globs being in the list.
+    /// default.
     static func entries(fromV1Values values: [String: Node]) throws -> [Entry] {
         var entries: [Entry] = []
 
@@ -134,10 +138,10 @@ enum ConfigurationV2Writer {
         }
 
         switch path {
-        case "exclude.index_defaults":
-            guard values["index_exclude"] != nil else { return nil }
+        case indexDefaultsKey:
+            guard let value = values[indexDefaultsKey] else { return nil }
 
-            return Entry(path: path, value: plain("false"), v1Keys: [])
+            return Entry(path: path, value: value, v1Keys: [])
         case "retain.objc":
             let keys = ["retain_objc_annotated", "retain_objc_accessible"]
             guard keys.contains(where: { values[$0] != nil }) else { return nil }
@@ -181,9 +185,16 @@ enum ConfigurationV2Writer {
                   let value = values[key]
             else { return nil }
 
+            // v1 reads a scalar as a one-element list, v2 does not.
+            if listKeys.contains(key), case .scalar = value {
+                return Entry(path: path, value: .sequence(.init([value])), v1Keys: [key])
+            }
             return Entry(path: path, value: value, v1Keys: [key])
         }
     }
+
+    /// The v1 keys whose value is a list, which v1 also accepts as a single scalar.
+    private static let listKeys: Set<String> = Set(Configuration().settings.filter { [.stringList, .pathList].contains($0.kind) }.map(\.key))
 
     private static func plain(_ value: String) -> Node {
         Node(value, .implicit, .plain)

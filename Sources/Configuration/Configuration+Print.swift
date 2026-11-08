@@ -19,6 +19,10 @@ public extension Configuration {
             return lines.joined().map { $0 + "\n" }.joined()
         }
 
+        if values[$indexExclude.key] != nil {
+            values[ConfigurationV2Writer.indexDefaultsKey] = Node("false", .implicit, .plain)
+        }
+
         var comments = ConfigurationV2Writer.Comments()
         if !loadedFiles.isEmpty {
             comments.header = ["# Read from \(loadedFiles.map(\.string).joined(separator: ", then "))"]

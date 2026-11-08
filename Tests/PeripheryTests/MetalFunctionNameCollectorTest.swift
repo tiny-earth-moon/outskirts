@@ -16,6 +16,33 @@ final class MetalFunctionNameCollectorTest: XCTestCase {
             .map(\.call)
     }
 
+    private func names(_ source: String) -> [String?] {
+        let syntax = Parser.parse(source: source)
+        let file = SourceFile(path: FilePath("/fixture.swift"), modules: ["Fixture"])
+        let converter = SourceLocationConverter(fileName: "/fixture.swift", tree: syntax)
+        return MetalFunctionNameCollector
+            .collect(from: syntax, file: file, locationConverter: converter)
+            .candidates
+            .map(\.reference.name)
+    }
+
+    func testRecognizesTheShaderLibraryLookups() {
+        let source = """
+        func f(name: String) {
+            _ = ShaderLibrary.ripple
+            _ = ShaderLibrary.default.wave(.float(1))
+            _ = ShaderLibrary.bundle(.module).glow
+            _ = ShaderLibrary(url: url).pixel
+            _ = ShaderLibrary.default[dynamicMember: "shine"]
+            _ = ShaderLibrary.bundle(.module)[dynamicMember: name]
+            _ = ShaderFunction(library: .default, name: "blur")
+            _ = OtherLibrary.default.notAShader
+        }
+        """
+
+        XCTAssertEqual(names(source), ["ripple", "wave", "glow", "pixel", "shine", nil, "blur"])
+    }
+
     func testRecognizesTheCallsThatCreateALibraryAtRunTime() {
         let source = """
         func f(device: MTLDevice, url: URL, data: DispatchData, descriptor: MTLStitchedLibraryDescriptor) throws {

@@ -12,11 +12,17 @@ final class IndexCoverageTest: XCTestCase {
     private let b = FilePath("/pkg/Sources/Lib/B.swift")
     private let c = FilePath("/pkg/Sources/App/C.swift")
 
-    private func coverage(indexed: [FilePath], expected: [String: Set<FilePath>], configuration: Configuration = Configuration()) -> IndexCoverage {
+    private func coverage(
+        indexed: [FilePath],
+        expected: [String: Set<FilePath>],
+        unreadableUnits: [String] = [],
+        configuration: Configuration = Configuration()
+    ) -> IndexCoverage {
         let sourceFiles = Dictionary(uniqueKeysWithValues: indexed.map { (SourceFile(path: $0, modules: ["M"]), [IndexUnit]()) })
         let plan = IndexPlan(
             sourceFiles: sourceFiles,
             expectedSourceFiles: expected,
+            unreadableUnits: unreadableUnits,
             indexStorePaths: [FilePath("/pkg/.build/index/store")]
         )
         return IndexCoverage(plan: plan, logger: Logger(quiet: true, verbose: false, colorMode: .never).contextualized(with: "test"), configuration: configuration)
@@ -34,6 +40,13 @@ final class IndexCoverageTest: XCTestCase {
 
     func testTargetWithoutAnyIndexedFile_isNotReportedWhenOthersAreIndexed() throws {
         XCTAssertEqual(try coverage(indexed: [a, b], expected: ["Lib": [a, b], "App": [c]]).gaps(), [])
+    }
+
+    /// Units that cannot be read may be the ones of a whole target, which is then not merely unbuilt.
+    func testTargetWithoutAnyIndexedFile_isReportedWhenUnitsAreUnreadable() throws {
+        let gaps = try coverage(indexed: [c], expected: ["Lib": [a, b], "App": [c]], unreadableUnits: ["A.o-1", "B.o-2"]).gaps()
+
+        XCTAssertEqual(gaps, [.init(target: "Lib", files: [a, b])])
     }
 
     func testNoIndexedFile_throwsExplicitError() {

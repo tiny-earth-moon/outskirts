@@ -503,6 +503,53 @@ final class ConfigurationV2Test: XCTestCase {
         }
     }
 
+    func testMigratedConfigWithCLIIndexExcludeKeepsDefaults() throws {
+        for yaml in ["index_exclude: [\"**/Gen/**\"]\n", "skip_build: true\n"] {
+            let migrated = try Configuration.migratedToV2(file: write(yaml))
+            XCTAssertFalse(migrated.contains("index_defaults"), migrated)
+            XCTAssertEqual(migrated.contains("index:"), yaml.hasPrefix("index_exclude"), migrated)
+
+            let v1 = try loadV1(yaml)
+            let v2 = try loadV2(migrated)
+            for configuration in [v1, v2] {
+                configuration.apply(\.$indexExclude, ["**/CLI/**"])
+            }
+            XCTAssertEqual(Set(v2.indexExclude), Set(v1.indexExclude), yaml)
+            XCTAssertTrue(Set(v2.indexExclude).isSuperset(of: Configuration().$indexExclude.defaultValue), yaml)
+        }
+    }
+
+    func testMigrateWrapsAListKeyWrittenAsAScalar() throws {
+        let keys = Configuration().settings.filter { [.stringList, .pathList].contains($0.kind) }.map(\.key)
+        XCTAssertTrue(keys.contains("schemes") && keys.contains("retain_files"))
+
+        for key in keys {
+            let file = try write("\(key): \"**/Value\"\n")
+            let migrated = try Configuration.migratedToV2(file: file)
+            XCTAssertEqual(try migratedEffective(migrated), try anchoredV1Effective(file), key)
+        }
+    }
+
+    func testMigrateKeepsEveryMappedV1KeyEquivalent() throws {
+        let configuration = Configuration()
+        for key in Set(ConfigurationKeyMapping.all.map(\.v1Key)).sorted() {
+            let setting = try XCTUnwrap(configuration.settings.first { $0.key == key }, key)
+            let value = switch setting.kind {
+            case .bool: "true"
+            case .boolOrStringList: "[Kit]"
+            case .int: "3"
+            case .stringList, .pathList: "[\"**/Value\"]"
+            case .string, .path: "value"
+            case let .enumeration(cases): "\"\(cases.last ?? "")\""
+            case .reportExclude: "[\"**/Legacy/**\"]"
+            case .buildVariants: "auto"
+            }
+            let file = try write("\(key): \(value)\n")
+            let migrated = try Configuration.migratedToV2(file: file)
+            XCTAssertEqual(try migratedEffective(migrated), try anchoredV1Effective(file), key)
+        }
+    }
+
     func testMigrateAnchorsTheGlobsRelativeToTheFile() throws {
         let root = FilePath(directory.path)
         let file = try write("report_include: [Sources/**, \"**/Kit/**\"]\n", named: "config/outskirts.yml")
@@ -886,10 +933,7 @@ final class ConfigurationV2Test: XCTestCase {
     variants: auto
     exclude:
       index:
-      - '**/*?.build/**/*'
-      - '**/SourcePackages/checkouts/**'
-      - '**/Generated/**'
-      index_defaults: false
+      - "**/Generated/**"
       report:
       - path: "**/Legacy/**"
         kinds:
