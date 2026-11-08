@@ -137,7 +137,7 @@ public final class SourceGraph {
         allReferencesByUsr[usr, default: []]
     }
 
-    public func hasReferences(to decl: Declaration) -> Bool {
+    func hasReferences(to decl: Declaration) -> Bool {
         decl.usrs.contains { !allReferencesByUsr[$0, default: []].isEmpty }
     }
 

@@ -330,6 +330,13 @@
               "shortDescription" : {
                 "text" : "The asset catalog image is never referenced"
               }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#metal-functions",
+              "id" : "missingMetalFunction",
+              "shortDescription" : {
+                "text" : "The string literal names a Metal function that no Metal file declares"
+              }
             }
           ],
           "version" : "VERSION"

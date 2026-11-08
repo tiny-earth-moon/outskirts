@@ -1,0 +1,66 @@
+[
+  {
+    "categories" : [
+      "Bug Risk"
+    ],
+    "check_name" : "unused",
+    "description" : "Unused function '==(_:_:)'",
+    "fingerprint" : "s:3Lib1VV2eeoiySbAC_ACtFZ",
+    "location" : {
+      "lines" : {
+        "begin" : 4
+      },
+      "path" : "Project/Sources/My Lib, Extras/Operators.swift"
+    },
+    "severity" : "major",
+    "type" : "issue"
+  },
+  {
+    "categories" : [
+      "Bug Risk"
+    ],
+    "check_name" : "unused",
+    "description" : "Unused function '<(_:_:)'",
+    "fingerprint" : "s:3Lib1VV1loiySbAC_ACtFZ",
+    "location" : {
+      "lines" : {
+        "begin" : 8
+      },
+      "path" : "Project/Sources/My Lib, Extras/Operators.swift"
+    },
+    "severity" : "major",
+    "type" : "issue"
+  },
+  {
+    "categories" : [
+      "Bug Risk"
+    ],
+    "check_name" : "unused",
+    "description" : "Unused function '&&(_:_:)'",
+    "fingerprint" : "s:3Lib1VV2aaoiySbAC_ACtFZ",
+    "location" : {
+      "lines" : {
+        "begin" : 12
+      },
+      "path" : "Project/Sources/My Lib, Extras/Operators.swift"
+    },
+    "severity" : "major",
+    "type" : "issue"
+  },
+  {
+    "categories" : [
+      "Bug Risk"
+    ],
+    "check_name" : "unused",
+    "description" : "Unused function 'map<T>(_:) \"quoted\" | piped'",
+    "fingerprint" : "s:3Lib1VV3mapyqd__qd__xXElF",
+    "location" : {
+      "lines" : {
+        "begin" : 16
+      },
+      "path" : "Project/Sources/My Lib, Extras/Operators.swift"
+    },
+    "severity" : "major",
+    "type" : "issue"
+  }
+]

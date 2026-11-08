@@ -19,13 +19,13 @@ final class SarifFormatter: OutputFormatter {
     /// Documentation page of every rule, followed by the section of the rule.
     static let helpBaseUri = "https://outskirts.dev/docs/"
 
-    private struct Rule {
+    struct Rule {
         let id: String
         let description: String
         let help: String
     }
 
-    private static let rules: [Rule] = [
+    static let rules: [Rule] = [
         Rule(id: "unused", description: "The declaration is never referenced", help: "analysis/#unused-declarations"),
         Rule(id: "assignOnlyProperty", description: "The property is assigned, but never read", help: "analysis/#assign-only-properties"),
         Rule(id: "unassignedOptionalProperty", description: "The optional property is never assigned and is always nil", help: "analysis/#unassigned-optional-properties"),
@@ -39,11 +39,13 @@ final class SarifFormatter: OutputFormatter {
         Rule(id: "superfluousIgnoreCommand", description: "The ignore comment is on a declaration that is referenced", help: "analysis/#superfluous-ignore-comments"),
         Rule(id: "unusedAssetCatalogColor", description: "The asset catalog color is never referenced", help: "analysis/#asset-catalog-colors"),
         Rule(id: "unusedAssetCatalogImage", description: "The asset catalog image is never referenced", help: "analysis/#asset-catalog-images"),
+        Rule(id: "missingMetalFunction", description: "The string literal names a Metal function that no Metal file declares", help: "analysis/#metal-functions"),
     ]
 
     let configuration: Configuration
     let logger: Logger
     lazy var currentFilePath: FilePath = .current
+    private var sourceLines: [FilePath: [Data]] = [:]
 
     init(configuration: Configuration, logger: Logger) {
         self.logger = logger
@@ -129,8 +131,32 @@ final class SarifFormatter: OutputFormatter {
 
         return [
             "artifactLocation": ["uri": uri, "uriBaseId": Self.baseId],
-            "region": ["startLine": location.line, "startColumn": location.column],
+            "region": ["startLine": location.line, "startColumn": utf16Column(of: location)],
         ]
+    }
+
+    /// outskirts counts columns in UTF-8 bytes, SARIF in UTF-16 code units by default. The column is converted by
+    /// reading the line from the source file; when the file or the line cannot be read, the column is kept as is.
+    private func utf16Column(of location: Location) -> Int {
+        let path = location.file.path
+        let lines: [Data]
+        if let cached = sourceLines[path] {
+            lines = cached
+        } else {
+            let data = FileManager.default.contents(atPath: path.string) ?? Data()
+            lines = data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false).map { Data($0) }
+            sourceLines[path] = lines
+        }
+
+        guard location.line >= 1, location.line <= lines.count, location.column >= 1 else { return location.column }
+
+        let line = lines[location.line - 1]
+        let prefix = line.prefix(location.column - 1)
+        guard prefix.count == location.column - 1, let text = String(data: prefix, encoding: .utf8) else {
+            return location.column
+        }
+
+        return text.utf16.count + 1
     }
 
     private func fingerprint(ruleId: String, ids: Set<String>) -> String {

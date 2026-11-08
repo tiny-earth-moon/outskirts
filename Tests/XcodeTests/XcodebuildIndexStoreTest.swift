@@ -30,9 +30,12 @@ final class XcodebuildIndexStoreTest: XCTestCase {
     }
 
     @discardableResult
-    private func makeDataStore(in folder: String, modified: Date) throws -> FilePath {
+    private func makeDataStore(in folder: String, modified: Date, workspacePath: String? = nil) throws -> FilePath {
         let store = root.appending(folder).appending("Index.noindex/DataStore")
         try FileManager.default.createDirectory(atPath: store.string, withIntermediateDirectories: true)
+        let info = ["WorkspacePath": workspacePath ?? project.path.lexicallyNormalized().string]
+        let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+        try data.write(to: URL(fileURLWithPath: root.appending(folder).appending("info.plist").string))
         try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: store.string)
         return store
     }
@@ -45,6 +48,19 @@ final class XcodebuildIndexStoreTest: XCTestCase {
         let path = try xcodebuild.indexStorePath(project: project, schemes: [], skipBuild: true, xcodeDerivedDataRoot: root)
 
         XCTAssertEqual(path, newest)
+    }
+
+    func testSkipBuildFallback_ignoresDerivedDataOfAnotherWorkspace() throws {
+        let own = try makeDataStore(in: "\(projectName)-own", modified: Date(timeIntervalSince1970: 1000))
+        try makeDataStore(
+            in: "\(projectName)-clone",
+            modified: Date(timeIntervalSince1970: 2000),
+            workspacePath: "/elsewhere/\(projectName).xcodeproj"
+        )
+
+        let path = try xcodebuild.indexStorePath(project: project, schemes: [], skipBuild: true, xcodeDerivedDataRoot: root)
+
+        XCTAssertEqual(path, own)
     }
 
     func testSkippedBuildWithoutAnyIndexStoreListsTriedPaths() throws {

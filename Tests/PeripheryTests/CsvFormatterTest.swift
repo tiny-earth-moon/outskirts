@@ -97,6 +97,13 @@ final class CsvFormatterTest: XCTestCase {
 
     // MARK: - Helpers
 
+    func testCsvOutput_neutralizesFieldsThatSpreadsheetsReadAsFormulas() throws {
+        let output = try format([result(name: "==(_:_:)"), result(name: "+(_:_:)"), result(name: "-(_:)"), result(name: "@x")])
+        let names = splitRows(output).dropFirst().map { splitFields($0)[1] }
+
+        XCTAssertEqual(names, ["'==(_:_:)", "'+(_:_:)", "'-(_:)", "'@x"])
+    }
+
     private func format(_ results: [ScanResult]) throws -> String {
         try XCTUnwrap(CsvFormatter(configuration: Configuration(), logger: logger).format(results, colored: false))
     }

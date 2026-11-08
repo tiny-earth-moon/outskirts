@@ -11,9 +11,6 @@ public protocol ProjectDriver {
     var builtVariants: [String] { get }
     /// Why some builds of the `variants` setting were not scanned, such as an SDK that is not installed.
     var skippedVariants: [String] { get }
-    /// The modules of the targets the project itself declares, or nil when the driver does not know them. A module
-    /// outside this set, such as a local dependency package, is scanned but its own tests are not built.
-    func ownModules() throws -> Set<String>?
 }
 
 public extension ProjectDriver {
@@ -29,9 +26,5 @@ public extension ProjectDriver {
 
     var skippedVariants: [String] {
         []
-    }
-
-    func ownModules() throws -> Set<String>? {
-        nil
     }
 }

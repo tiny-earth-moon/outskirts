@@ -27,7 +27,7 @@ final class Scan {
         let unitDates: [FilePath: Date]
         /// The driver that built the project, so that `fix --verify` rebuilds it the same way.
         let driver: ProjectDriver
-        /// The analyzed graph, so that `fix --rule unused` checks who references each declaration it removes.
+        /// The analyzed graph, so that `--explain` describes why each declaration is reported.
         let graph: SourceGraph
     }
 

@@ -1,0 +1,5 @@
+Kind,Name,Modifiers,Attributes,Accessibility,IDs,Location,Hints
+function.operator.infix,'==(_:_:),,,internal,s:3Lib1VV2eeoiySbAC_ACtFZ,"Project/Sources/My Lib, Extras/Operators.swift:4:17",unused
+function.operator.infix,<(_:_:),,,internal,s:3Lib1VV1loiySbAC_ACtFZ,"Project/Sources/My Lib, Extras/Operators.swift:8:17",unused
+function.operator.infix,&&(_:_:),,,internal,s:3Lib1VV2aaoiySbAC_ACtFZ,"Project/Sources/My Lib, Extras/Operators.swift:12:17",unused
+function.method.instance,"map<T>(_:) ""quoted"" | piped",,,internal,s:3Lib1VV3mapyqd__qd__xXElF,"Project/Sources/My Lib, Extras/Operators.swift:16:10",unused
