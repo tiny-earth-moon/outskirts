@@ -8,27 +8,16 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
     private let macOS = PlatformBuildConfiguration(triple: "arm64-apple-macosx14.0")!
     private let iOSSimulator = PlatformBuildConfiguration(triple: "arm64-apple-ios18.0-simulator")!
 
-    /// The names written as references.
     private func collect(_ source: String, _ configurations: [PlatformBuildConfiguration], narrowsNestedBlocks: Bool = false) -> Set<String> {
-        Set(collectEntries(source, configurations, narrowsNestedBlocks: narrowsNestedBlocks).compactMap { entry in
-            if case let .reference(name) = entry {
-                name
-            } else {
-                nil
-            }
-        })
-    }
-
-    private func collectEntries(
-        _ source: String,
-        _ configurations: [PlatformBuildConfiguration],
-        narrowsNestedBlocks: Bool = false
-    ) -> Set<PlatformConditionalName> {
-        Set(PlatformConditionalNameCollector.collect(
+        PlatformConditionalNameCollector.collect(
             from: Parser.parse(source: source),
             configurations: configurations,
             narrowsNestedBlocks: narrowsNestedBlocks
-        ).compactMap(PlatformConditionalName.init(encoded:)))
+        )
+    }
+
+    private func collectAll(_ source: String, _ configurations: [PlatformBuildConfiguration]) -> PlatformConditionalNames {
+        PlatformConditionalNameCollector.collectAll(from: Parser.parse(source: source), configurations: configurations)
     }
 
     func testCollectsUsesThatWriteNoName() {
@@ -46,16 +35,20 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         #endif
         """
 
-        XCTAssertEqual(collectEntries(source, [macOS]), [
-            .reference("lhs"), .reference("<~>"), .reference("rhs"), .reference("-"), .reference("value"),
-            .reference("Module"), .reference("unchecked"), .reference("Sendable"), .reference("FixtureProtocol"), .reference("OtherProtocol"),
-            .reference("FixtureBase"), .reference("Int"), .reference("index"),
-            .conformance(type: "FixtureType", protocol: "Sendable"),
-            .conformance(type: "FixtureType", protocol: "FixtureProtocol"),
-            .conformance(type: "FixtureType", protocol: "OtherProtocol"),
-            .superclass("FixtureBase"),
-            .override("update"), .override("size"), .override("subscript"),
+        let collected = collectAll(source, [macOS])
+
+        XCTAssertEqual(collected.references, [
+            "lhs", "<~>", "rhs", "-", "value", "Module", "unchecked", "Sendable", "FixtureProtocol", "OtherProtocol",
+            "FixtureBase", "Int", "index",
         ])
+        XCTAssertEqual(collected.conformances, [
+            PlatformConditionalConformance(typeName: "FixtureType", protocolName: "Sendable"),
+            PlatformConditionalConformance(typeName: "FixtureType", protocolName: "FixtureProtocol"),
+            PlatformConditionalConformance(typeName: "FixtureType", protocolName: "OtherProtocol"),
+        ])
+        XCTAssertEqual(collected.inheritedNames, ["FixtureBase"])
+        XCTAssertEqual(collected.overriddenNames, ["update", "size", "subscript"])
+        XCTAssertEqual(collected.otherClauseNames, [])
     }
 
     /// The names of the other `#if` blocks only account for imports: they are collected apart, both clauses whole.
@@ -68,17 +61,9 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         #endif
         """
 
-        XCTAssertEqual(collectEntries(source, [macOS]), [.otherClauseReference("releaseOnly"), .otherClauseReference("debugOnly")])
-    }
-
-    func testEncodedEntriesRoundTrip() {
-        let entries: [PlatformConditionalName] = [
-            .reference("name"), .reference("<~>"), .conformance(type: "T", protocol: "P"), .override("update"),
-            .superclass("Base"), .otherClauseReference("flagOnly"),
-        ]
-
-        XCTAssertEqual(entries.map { PlatformConditionalName(encoded: $0.encoded) }, entries)
-        XCTAssertNil(PlatformConditionalName(encoded: "`unknown`name"))
+        var expected = PlatformConditionalNames()
+        expected.otherClauseNames = ["releaseOnly", "debugOnly"]
+        XCTAssertEqual(collectAll(source, [macOS]), expected)
     }
 
     func testParsesKnownTriples() throws {

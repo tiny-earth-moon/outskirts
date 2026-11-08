@@ -483,29 +483,20 @@ public final class SourceGraph {
         indexedSourceFiles.append(file)
     }
 
-    /// Adds the entries of `PlatformConditionalNameCollector.names`, see `PlatformConditionalName`.
-    public func addPlatformConditionalNames(_ names: Set<String>, in file: SourceFile) {
-        var references: Set<String> = []
+    public func addPlatformConditionalNames(_ names: PlatformConditionalNames, in file: SourceFile) {
+        platformConditionalNames.formUnion(names.references)
+        platformConditionalNamesByFile[file, default: []].formUnion(names.references)
+        platformConditionalConformances.formUnion(names.conformances)
 
-        for name in names {
-            switch PlatformConditionalName(encoded: name) {
-            case let .reference(reference):
-                references.insert(reference)
-            case let .conformance(type, `protocol`):
-                platformConditionalConformances.insert(PlatformConditionalConformance(typeName: type, protocolName: `protocol`))
-            case let .override(name):
-                platformConditionalOverrideNamesByFile[file, default: []].insert(name)
-            case let .superclass(name):
-                platformConditionalSuperclassNamesByFile[file, default: []].insert(name)
-            case let .otherClauseReference(name):
-                otherConditionalNamesByFile[file, default: []].insert(name)
-            case nil:
-                break
-            }
+        if !names.overriddenNames.isEmpty {
+            platformConditionalOverrideNamesByFile[file, default: []].formUnion(names.overriddenNames)
         }
-
-        platformConditionalNames.formUnion(references)
-        platformConditionalNamesByFile[file, default: []].formUnion(references)
+        if !names.inheritedNames.isEmpty {
+            platformConditionalSuperclassNamesByFile[file, default: []].formUnion(names.inheritedNames)
+        }
+        if !names.otherClauseNames.isEmpty {
+            otherConditionalNamesByFile[file, default: []].formUnion(names.otherClauseNames)
+        }
     }
 
     public func addParameterAttributeNames(_ names: Set<String>) {
