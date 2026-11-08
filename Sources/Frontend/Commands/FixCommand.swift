@@ -87,6 +87,7 @@ struct FixCommand: ParsableCommand {
         }
 
         var guarded = selectTargets(from: reported, configuration: configuration)
+        try guarded.keepDependencyPackages(ownModules: output.driver.ownModules())
         if let partialScan {
             guarded.keepRulesRequiringACompleteScan(because: partialScan.reason)
         }

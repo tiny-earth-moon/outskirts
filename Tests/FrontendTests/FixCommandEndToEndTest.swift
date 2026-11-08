@@ -225,6 +225,39 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertFalse(scanned.stdout.contains("final class Box"), scanned.stdout)
     }
 
+    // MARK: - Dependency packages
+
+    func testTierOneRulesKeepTheFilesOfALocalDependencyPackage() throws {
+        try write("""
+        // swift-tools-version:5.9
+        import PackageDescription
+        let package = Package(name: "Core", products: [.library(name: "Core", targets: ["Core"])], targets: [
+            .target(name: "Core"),
+        ])
+        """, to: "Modules/Core/Package.swift")
+        let core = "public func coreValue(_ unused: Int) -> Int { 1 }\n"
+        try write(core, to: "Modules/Core/Sources/Core/Core.swift")
+        try write("""
+        // swift-tools-version:5.9
+        import PackageDescription
+        let package = Package(name: "Fixture", dependencies: [.package(path: "Modules/Core")], targets: [
+            .target(name: "Helpers"),
+            .target(name: "Lib", dependencies: ["Helpers"]),
+            .executableTarget(name: "App", dependencies: ["Lib", .product(name: "Core", package: "Core")]),
+        ])
+        """, to: "Package.swift")
+        try write("import Core\nimport Lib\n\nprint(Widget().render(width: 1, 2), coreValue(0))\n", to: "Sources/App/main.swift")
+        try commitAll()
+
+        let output = try run(["fix", "--apply"])
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        // Another client of the package, or its own tests, may need what this scan reports.
+        XCTAssertTrue(output.stderr.contains("skipped unused-parameter 'unused' at Modules/Core/Sources/Core/Core.swift:1:25: dependency package"), output.stderr)
+        XCTAssertEqual(try read("Modules/Core/Sources/Core/Core.swift"), core)
+        XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.fixedLibrary)
+    }
+
     // MARK: - Verify
 
     func testVerifyKeepsTheFixesWhenTheProjectBuilds() throws {

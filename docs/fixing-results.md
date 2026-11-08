@@ -79,6 +79,7 @@ After a partial scan, a rule named with `--rule` is refused with the reason, and
   - an unused import in a file with code in such a clause.
 - Files modified after their index store unit was written, or after the scan started, are refused, since they may no longer match the results; with `--skip-build` or `--index-store-path`, rebuild first.
 - Only the files that version control can restore are edited. Files with uncommitted changes, untracked files included, are refused unless `--allow-dirty` is given, and so are symbolic links, files outside the repository of the project and files of a submodule or nested repository. git is run with an argument array, never through a shell.
+- For a Swift package, only the root package is built: a local dependency (`.package(path:)`) is scanned, but its own tests and its other clients are not, so its files are never edited and its results are skipped with the reason `dependency package`.
 - The file is parsed as the bytes on disk, so a byte order mark does not shift the edits.
 
 The analyses have known false positives, for example a redundant `public` that a client module outside the scan needs, so build (or pass `--verify`) and review the changes before committing them. Removing unused declarations is not part of this command.

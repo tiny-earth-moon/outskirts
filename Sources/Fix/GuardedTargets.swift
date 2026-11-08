@@ -36,6 +36,16 @@ public struct GuardedTargets {
         }
     }
 
+    /// Keeps the files of the modules the project does not declare, such as a local dependency package: its own tests
+    /// and its other clients are not built, so they may use what the scan reports.
+    public mutating func keepDependencyPackages(ownModules: Set<String>?) {
+        guard let ownModules else { return }
+
+        keep { _, declaration in
+            declaration.location.file.modules.isDisjoint(with: ownModules) ? .dependencyPackage : nil
+        }
+    }
+
     // MARK: - Private
 
     private mutating func keep(where reason: (FixTarget, Declaration) -> SkipReason?) {

@@ -121,6 +121,15 @@ extension SPMProjectDriver: ProjectDriver {
         }
     }
 
+    /// The targets of the root package, by name and by module name: `swift package describe` leaves out the targets
+    /// of the dependencies, local ones included.
+    public func ownModules() throws -> Set<String>? {
+        try description().targets.reduce(into: []) { modules, target in
+            modules.insert(target.name)
+            modules.insert(target.c99name ?? target.name)
+        }
+    }
+
     public func plan(logger: ContextualLogger) throws -> IndexPlan {
         let indexStorePaths: Set<FilePath> = if !configuration.indexStorePath.isEmpty {
             Set(configuration.indexStorePath)
