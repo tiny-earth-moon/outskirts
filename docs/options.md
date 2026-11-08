@@ -126,7 +126,7 @@ Skip the project build step.
 
 Key `skip_build` · flag, `--no-skip-build` to switch off · default `false`.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Fixing results: Options](fixing-results.md#options), [Fixing results: Safety](fixing-results.md#safety).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Fixing results: Opt-in: unused](fixing-results.md#opt-in-unused), [Fixing results: Options](fixing-results.md#options).
 
 ### `--skip-schemes-validation`
 
@@ -142,7 +142,7 @@ Index store paths, relative to the project root; implies skip_build.
 
 Key `index_store_path` · list of strings · default empty.
 
-See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Fixing results: Options](fixing-results.md#options).
+See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Fixing results: Opt-in: unused](fixing-results.md#opt-in-unused).
 
 ### `--strict-index`
 
@@ -168,7 +168,7 @@ Project configuration file for other build systems.
 
 Key `generic_project_config` · string · default none.
 
-See [Configuration: Paths](configuration.md#paths), [Fixing results: Options](fixing-results.md#options), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Configuration: Paths](configuration.md#paths), [Fixing results: Opt-in: unused](fixing-results.md#opt-in-unused), [Fixing results: Options](fixing-results.md#options), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--cache-max-age-days`
 

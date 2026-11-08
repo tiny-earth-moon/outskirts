@@ -1,5 +1,5 @@
 ---
-description: Apply the mechanical results of outskirts with the fix command: redundant access levels, empty extensions, unused imports, superfluous ignore comments, unused parameter names and, with --aggressive, missing final.
+description: Apply the mechanical results of outskirts with the fix command: redundant access levels, empty extensions, unused imports, superfluous ignore comments, unused parameter names, with --aggressive missing final and, opt-in after a scan of every variant, unused declarations.
 ---
 
 # Fixing results
@@ -18,6 +18,7 @@ outskirts fix                  # print the diff
 outskirts fix --apply          # write the files
 outskirts fix --apply --verify # rebuild, restore on failure
 outskirts fix --rule unused-import --include 'Sources/App/**'
+outskirts fix --rule unused --variants auto
 ```
 
 The command takes every option of `scan` and reads the same configuration file, so the baseline, `report_exclude`, `report_include` and `--changed-since` limit what it fixes too. `--setup`, `--write-baseline`, `--prune-baseline` and `--write-results` are refused.
@@ -46,6 +47,39 @@ Tier-2 rules change behavior, so they only apply with `--aggressive`, and `--rul
 
 A class made `final` can no longer be subclassed, including by a module the scan did not see, so use `--aggressive` with `--verify` and review the diff. Members reported as missing `final` in a class that is not reported are left to edit by hand.
 
+### Opt-in: `unused`
+
+`--rule unused` removes the declarations reported as `unused`. It never applies by default: `fix` without `--rule` leaves them alone.
+
+A declaration used only in the `#if` clauses of another platform or configuration looks unused to a scan that did not build it, so the rule needs a scan of every variant that ships: [`variants`](configuration.md) set to `auto` or to a list of variants. The variants are scanned together, so a declaration is reported only when it is unused in every one of them. The rule is refused with `variants: default`, when a variant could not be built (its SDK is not installed), and when the scan did not build the variants itself (`--skip-build`, `--index-store-path`, `--generic-project-config`). `--allow-partial-variants` lifts the refusal; the removals can then break the variants that were not scanned.
+
+A declaration is removed when all of these hold:
+
+- Its kind is a function, method, subscript, computed property, type, typealias, enum case or associated type, or it is a stored property:
+  - without an attribute, so without a property wrapper;
+  - with no initializer, or a literal one (number, string without interpolation, boolean, `nil`, array or dictionary of literals);
+  - without an initializer if it is `static` or `class`;
+  - not in a struct whose memberwise initializer is used, nor in a type that may synthesize `Equatable`, `Hashable` or `Codable` from its stored properties.
+- It is not `override`, `dynamic`, `@objc` (or exposed to Objective-C), `@main`, `@_cdecl`, `@_silgen_name`, an Interface Builder or `@NSManaged` member, and it carries no attribute of `retain_attributes`. A type that contains such a member is kept too.
+- It is not a case of a `CaseIterable` or `Codable` enum, nor a case whose removal would change the raw value of a later case.
+- Nothing kept references it or one of its members: a declaration that only removed code references goes in the same run.
+- No kept declaration overrides it or implements it, and it does not implement a kept protocol requirement.
+- Every extension of the type, and of the types nested in it, is in the results and is removed with it, in the same edit set.
+
+Members of a removed type go with it. Each declaration is removed with its doc comment, its attributes and one trailing newline. A declaration that shares its line with others (`case a, b`, `var a = 1, b = 2`) is kept. When a removal is skipped, for example because its file has uncommitted changes, the declarations that depend on it are kept as well.
+
+The summary lists each removal, and each kept result with its reason, with its [output v2 id](output-formats.md):
+
+```
+Would apply 3 fixes in 1 file, skipped 1.
+  unused: 3, skipped 1 ('dynamic' declaration 1)
+  would remove unused 'Dead' at A.swift:1:8 [p2_...]
+```
+
+Removing a declaration can make others unused: scan again to remove them.
+
+Reflection is invisible to every scan: a type created with `NSClassFromString`, a property read through `Mirror` or key-value coding (`value(forKey:)`, `#keyPath`), or a symbol looked up with `dlsym` can be reported as unused and removed. Use `--verify`, run the tests, and review the diff before committing.
+
 ## Options
 
 - **`--apply`**: write the fixes. Each file is written atomically, and only if it still holds the content the edits were made on.
@@ -54,6 +88,7 @@ A class made `final` can no longer be subclassed, including by a module the scan
 - **`--rule <rule>`**: only apply this rule; repeat the option to apply several.
 - **`--include <glob>`**: only fix the files that match the glob, relative to `--project-root`; repeat the option to give several.
 - **`--allow-dirty`**: also fix files with uncommitted changes, and projects outside a git repository.
+- **`--allow-partial-variants`**: allow `--rule unused` after a scan that did not cover every variant.
 
 ## Safety
 
@@ -65,4 +100,4 @@ A class made `final` can no longer be subclassed, including by a module the scan
 - Only the files that version control can restore are edited. Files with uncommitted changes, untracked files included, are refused unless `--allow-dirty` is given, and so are symbolic links, files outside the repository of the project and files of a submodule or nested repository. git is run with an argument array, never through a shell.
 - The file is parsed as the bytes on disk, so a byte order mark does not shift the edits.
 
-The analyses have known false positives, for example a redundant `public` that a client module outside the scan needs, so build (or pass `--verify`) and review the changes before committing them. Removing unused declarations is not part of this command.
+The analyses have known false positives, for example a redundant `public` that a client module outside the scan needs, so build (or pass `--verify`) and review the changes before committing them. Removing unused declarations is opt-in, with `--rule unused`.
