@@ -392,6 +392,7 @@ final class ConfigurationV2Test: XCTestCase {
         XCTAssertEqual(configuration.reportExclude, [
             .pattern(root.appending("Old/**:unused").string),
             .scoped(path: root.appending("Kit/**").string, kinds: ["unused.function"]),
+            .pattern(Configuration.buildPluginOutputsGlob),
         ])
         XCTAssertEqual(configuration.reportInclude, [root.appending("Sources/**").string, "/abs/**"])
 
@@ -517,6 +518,31 @@ final class ConfigurationV2Test: XCTestCase {
             XCTAssertEqual(Set(v2.indexExclude), Set(v1.indexExclude), yaml)
             XCTAssertTrue(Set(v2.indexExclude).isSuperset(of: Configuration().$indexExclude.defaultValue), yaml)
         }
+    }
+
+    func testMigratedConfigWithCLIReportExcludeKeepsTheDefault() throws {
+        for yaml in ["report_exclude: [\"**/Gen/**\"]\n", "skip_build: true\n"] {
+            let migrated = try Configuration.migratedToV2(file: write(yaml))
+            XCTAssertFalse(migrated.contains(Configuration.buildPluginOutputsGlob), migrated)
+
+            let v1 = try loadV1(yaml)
+            let v2 = try loadV2(migrated)
+            for configuration in [v1, v2] {
+                configuration.apply(\.$reportExclude, [.pattern("**/CLI/**")])
+            }
+            XCTAssertEqual(v2.reportExclude, v1.reportExclude, yaml)
+            XCTAssertEqual(v2.reportExclude.last, .pattern(Configuration.buildPluginOutputsGlob), yaml)
+        }
+    }
+
+    func testPrintedReportExcludeKeepsTheDefaultOnce() throws {
+        let expected: [ReportExcludeEntry] = [.pattern("**/Gen/**"), .pattern(Configuration.buildPluginOutputsGlob)]
+
+        let v1 = try loadV1("report_exclude: [\"**/Gen/**\"]\n")
+        XCTAssertEqual(try loadV1(v1.effectiveYAML(all: false)).reportExclude, expected)
+
+        let v2 = try loadV2("version: 2\nexclude: {report: [\"**/Gen/**\"]}\n")
+        XCTAssertEqual(try loadV2(v2.effectiveYAML(all: false)).reportExclude, expected)
     }
 
     func testMigrateWrapsAListKeyWrittenAsAScalar() throws {

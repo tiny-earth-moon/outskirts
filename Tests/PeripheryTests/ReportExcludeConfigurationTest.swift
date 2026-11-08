@@ -30,16 +30,17 @@ final class ReportExcludeConfigurationTest: XCTestCase {
             .pattern("**/Generated/*.swift"),
             .scoped(path: "**/SharedKit/**", kinds: ["unused.function", "unused.var.parameter"]),
             .pattern("**/Other/*.swift:unused.var,redundantProtocol"),
+            .pattern(Configuration.buildPluginOutputsGlob),
         ])
 
         let rules = try ReportExcludeRule.resolve(configuration)
-        XCTAssertEqual(rules.map(\.kinds), [nil, ["unused.function", "unused.var.parameter"], ["unused.var", "redundantProtocol"]])
+        XCTAssertEqual(rules.map(\.kinds), [nil, ["unused.function", "unused.var.parameter"], ["unused.var", "redundantProtocol"], nil])
     }
 
     func testColonInGlobIsNotSplit() throws {
         let configuration = Configuration()
         configuration.reportExclude = [.pattern("Sources/a:b.swift"), .pattern("Sources/*:*")]
-        XCTAssertEqual(try ReportExcludeRule.resolve(configuration).map(\.kinds), [nil, nil])
+        XCTAssertEqual(try ReportExcludeRule.resolve(configuration).map(\.kinds), [nil, nil, nil])
     }
 
     func testUnknownKindIsAnError() throws {

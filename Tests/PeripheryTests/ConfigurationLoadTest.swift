@@ -168,7 +168,7 @@ final class ConfigurationLoadTest: XCTestCase {
         XCTAssertEqual(configuration.excludeTargets, ["Demo"])
         XCTAssertEqual(configuration.retainFiles, ["**/Unused.swift"])
         XCTAssertEqual(configuration.indexStorePath, [FilePath(".build/out")])
-        XCTAssertEqual(configuration.reportExclude, [.pattern("**/Generated/*.swift")])
+        XCTAssertEqual(configuration.reportExclude, [.pattern("**/Generated/*.swift"), .pattern(Configuration.buildPluginOutputsGlob)])
         XCTAssertTrue(configuration.indexExclude.contains("**/Vendor/**"))
         XCTAssertTrue(configuration.indexExclude.contains("**/SourcePackages/checkouts/**"))
     }
@@ -209,7 +209,7 @@ final class ConfigurationLoadTest: XCTestCase {
     func testInvalidReportExcludeWarnsAndKeepsTheDefault() throws {
         let (configuration, warnings, _) = try load("report_exclude: 5\n")
 
-        XCTAssertEqual(configuration.reportExclude, [])
+        XCTAssertEqual(configuration.reportExclude, [.pattern(Configuration.buildPluginOutputsGlob)])
         let warning = try onlyWarning(warnings)
         XCTAssertTrue(warning.contains("'report_exclude' expects"), warning)
         XCTAssertTrue(warning.hasSuffix("got the integer 5"), warning)
