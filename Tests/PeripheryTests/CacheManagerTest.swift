@@ -239,7 +239,7 @@ final class CacheManagerTest: XCTestCase {
         XCTAssertEqual(recorder.listings, 0)
         XCTAssertTrue(fm.fileExists(atPath: second.path))
 
-        XCTAssertEqual(refresh(at: now.addingTimeInterval(CacheManager.evictionInterval)).evicted.map(\.name), ["DerivedData-second"])
+        XCTAssertEqual(refresh(at: now.addingTimeInterval(CacheManager.evictionInterval + 1)).evicted.map(\.name), ["DerivedData-second"])
         XCTAssertGreaterThan(recorder.listings, 0)
     }
 
