@@ -272,6 +272,9 @@ public final class Configuration {
     /// the `xcode` format and left out of the `json` format.
     public var summary: Bool?
 
+    /// The entries of `overrides` of a configuration v2 file, in order: a later one wins over an earlier one.
+    public internal(set) var overrides: [ConfigurationOverride] = []
+
     public var hasNonDefaultValues: Bool {
         settings.contains(where: \.hasNonDefaultValue)
     }
@@ -292,12 +295,13 @@ public final class Configuration {
         self[keyPath: path].wrappedValue = value
     }
 
-    /// Whether some public declarations are retained, by `retain_public` or `retain_public_modules`.
+    /// Whether some public declarations are retained, by `retain_public`, `retain_public_modules` or `overrides`.
     public var retainsPublicDeclarations: Bool {
-        retainPublic || !retainPublicModules.isEmpty
+        retainPublic || !retainPublicModules.isEmpty || overrides.contains { $0.retainPublic == true }
     }
 
-    /// Whether the public declarations of a file compiled into the given modules are retained.
+    /// Whether the public declarations of a file compiled into the given modules are retained by the top-level
+    /// settings; `settings(forModules:path:)` applies the overrides too.
     public func retainsPublicDeclarations(inModules modules: Set<String>) -> Bool {
         retainPublic || retainPublicModules.contains(where: modules.contains)
     }

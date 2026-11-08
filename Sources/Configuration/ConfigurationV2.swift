@@ -5,6 +5,8 @@ import Yams
 /// value is optional, a value left out keeps the default. `ConfigurationKeyMapping` maps each one onto the setting it
 /// shares with the format 1.
 struct ConfigurationV2: Codable, Sendable {
+    var extends: Extends?
+    var overrides: [OverrideV2]?
     var rules: [RuleIdentifier: RuleState]?
     var retain: RetainSectionV2?
     var exclude: ExcludeSectionV2?
@@ -17,6 +19,28 @@ struct ConfigurationV2: Codable, Sendable {
 
     init(yaml: String) throws {
         self = try YAMLDecoder().decode(Self.self, from: yaml)
+    }
+
+    /// The files a file extends: one path or a list of paths, relative to the file that declares them.
+    struct Extends: Codable, Sendable {
+        var paths: [String]
+
+        init(from decoder: Decoder) throws {
+            if var list = try probeShape({ try decoder.unkeyedContainer() }) {
+                var paths: [String] = []
+                while !list.isAtEnd {
+                    paths.append(try list.decode(String.self))
+                }
+                self.paths = paths
+            } else {
+                paths = try [decoder.singleValueContainer().decode(String.self)]
+            }
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.unkeyedContainer()
+            try container.encode(contentsOf: paths)
+        }
     }
 
     /// Whether a rule is checked: `on` or `off`, or a boolean.
@@ -103,6 +127,25 @@ struct ConfigurationV2: Codable, Sendable {
         init(from decoder: Decoder) throws {
             self = try Self.decodeRawValue(from: decoder)
         }
+    }
+}
+
+/// Settings that apply to the declarations of the modules (target name globs) and files (path globs) an entry of
+/// `overrides` matches, instead of the top-level ones.
+struct OverrideV2: Codable, Sendable {
+    var modules: [String]?
+    var paths: [String]?
+    var retain: OverrideRetainV2?
+    var rules: [RuleIdentifier: ConfigurationV2.RuleState]?
+}
+
+struct OverrideRetainV2: Codable, Sendable {
+    var publicDeclarations: Bool?
+    var all: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case publicDeclarations = "public"
+        case all
     }
 }
 

@@ -106,7 +106,7 @@ final class UnconstructedEnumCaseMarker: SourceGraphMutator {
         }
 
         if [.public, .open].contains(enumDeclaration.accessibility.value),
-           configuration.retainsPublicDeclarations(inModules: enumDeclaration.location.file.modules)
+           configuration.settings(for: enumDeclaration).retainsPublic
         {
             return true
         }

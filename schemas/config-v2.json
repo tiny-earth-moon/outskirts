@@ -13,6 +13,104 @@
       "const": 2,
       "description": "Format of the configuration file."
     },
+    "extends": {
+      "description": "Configuration files with 'version: 2' whose values this file starts from, relative to this file. A later file overrides an earlier one, and this file overrides them all; their 'overrides' come first.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "overrides": {
+      "type": "array",
+      "description": "Settings for the declarations of some modules or files instead of the top-level ones; a later entry overrides an earlier one.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "modules"
+            ]
+          },
+          {
+            "required": [
+              "paths"
+            ]
+          }
+        ],
+        "properties": {
+          "modules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Target name globs: the entry applies to the declarations of these modules."
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Source file globs, relative to this file: the entry applies to the declarations of these files. With 'modules', both must match."
+          },
+          "retain": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "public": {
+                "type": "boolean",
+                "description": "Retain the public declarations, or stop retaining them."
+              },
+              "all": {
+                "type": "boolean",
+                "description": "Retain every declaration, as 'retain.files' does."
+              }
+            }
+          },
+          "rules": {
+            "type": "object",
+            "description": "Rules to turn off, or back on after an earlier entry turned them off; a rule off at the top level cannot be turned on.",
+            "additionalProperties": false,
+            "properties": {
+              "unused-import": {
+                "$ref": "#/definitions/ruleState"
+              },
+              "unused-parameter": {
+                "$ref": "#/definitions/ruleState"
+              },
+              "unassigned-optional": {
+                "$ref": "#/definitions/ruleState"
+              },
+              "redundant-public": {
+                "$ref": "#/definitions/ruleState"
+              },
+              "redundant-open": {
+                "$ref": "#/definitions/ruleState"
+              },
+              "missing-final": {
+                "$ref": "#/definitions/ruleState"
+              },
+              "redundant-access-level": {
+                "$ref": "#/definitions/ruleState"
+              },
+              "empty-extension": {
+                "$ref": "#/definitions/ruleState"
+              },
+              "superfluous-ignore": {
+                "$ref": "#/definitions/ruleState"
+              }
+            }
+          }
+        }
+      }
+    },
     "rules": {
       "type": "object",
       "description": "Rules to check, by id: on or off.",

@@ -2,6 +2,7 @@ import Configuration
 import FilenameMatcher
 import Foundation
 import Logger
+import SourceGraph
 import SystemPackage
 
 public final class OutputDeclarationFilter {
@@ -24,6 +25,15 @@ public final class OutputDeclarationFilter {
 
     public func filter(_ declarations: [ScanResult], with baseline: Baseline?) throws -> [ScanResult] {
         var declarations = declarations
+
+        // A rule an override turns off is not checked for the declarations it matches, as if it had found nothing.
+        if !configuration.overrides.isEmpty {
+            declarations = declarations.filter { result in
+                guard let rule = result.overridableRule else { return true }
+
+                return configuration.settings(for: result.declaration).isEnabled(rule)
+            }
+        }
 
         if let baseline {
             let matcher = BaselineMatcher(baseline, projectRoot: configuration.projectRoot)

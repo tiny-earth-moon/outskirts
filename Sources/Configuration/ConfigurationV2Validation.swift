@@ -43,8 +43,12 @@ enum ConfigurationV2Validation {
                 let codingPath = error.codingPath
                 problems.append(Problem(mark: mark(of: codingPath.map(Step.init), in: root), message: error.readableReason()))
 
-                // The entry holding the value is dropped, so that the next decoding reports the next problem.
-                let entry = codingPath.prefix { $0.intValue == nil }.map(\.stringValue)
+                // The entry holding the value is dropped, so that the next decoding reports the next problem. In
+                // `overrides`, only the entry of the override holding it.
+                let isOverride = codingPath.first?.stringValue == "overrides"
+                let entry = codingPath.enumerated()
+                    .prefix { $0.element.intValue == nil || (isOverride && $0.offset == 1) }
+                    .map { $0.element.intValue.map(String.init) ?? $0.element.stringValue }
                 guard !entry.isEmpty, let pruned = removing(entry[...], from: node) else { return (nil, problems) }
 
                 node = pruned
@@ -55,9 +59,20 @@ enum ConfigurationV2Validation {
         }
     }
 
-    /// Where the value at a dotted path of the document is, e.g. `retain.public`.
+    /// Where the value at a dotted path of the document is, e.g. `retain.public` or `overrides.0.modules`.
     static func mark(ofPath path: String, in root: Node) -> Mark? {
-        mark(of: path.split(separator: ".").map { .key(String($0)) }, in: root)
+        mark(of: path.split(separator: ".").map { Int($0).map { .index($0) } ?? .key(String($0)) }, in: root)
+    }
+
+    /// A dotted path as messages show it, with the index of a list entry in brackets: `overrides[0].modules`.
+    static func displayed(_ path: String) -> String {
+        path.split(separator: ".").reduce(into: "") { result, component in
+            if Int(component) != nil {
+                result += "[\(component)]"
+            } else {
+                result += result.isEmpty ? String(component) : ".\(component)"
+            }
+        }
     }
 
     // MARK: - Private
@@ -71,47 +86,70 @@ enum ConfigurationV2Validation {
         }
     }
 
-    private static let knownPaths = Set(ConfigurationKeyMapping.all.map(\.v2Path) + ConfigurationKeyMapping.v2OnlyPaths)
+    /// The keys of a document, or of an entry of `overrides`, and the paths that hold other keys, e.g. `retain`.
+    private struct Keys {
+        let known: Set<String>
+        let sections: Set<String>
 
-    /// The paths that hold other options, e.g. `retain`.
-    private static let sections = Set(knownPaths.flatMap { path in
-        let components = path.split(separator: ".")
-        return (1 ..< max(1, components.count)).map { components.prefix($0).joined(separator: ".") }
-    })
+        init(_ known: [String]) {
+            self.known = Set(known)
+            sections = Set(known.flatMap { path in
+                let components = path.split(separator: ".")
+                return (1 ..< max(1, components.count)).map { components.prefix($0).joined(separator: ".") }
+            })
+        }
+    }
 
-    private static func unknownKeys(in node: Node, prefix: [String]) -> [(path: [String], mark: Mark?, message: String)] {
+    private static let documentKeys = Keys(ConfigurationKeyMapping.all.map(\.v2Path) + ConfigurationKeyMapping.v2OnlyPaths)
+
+    private static let overrideKeys = Keys(ConfigurationKeyMapping.overridePaths)
+
+    /// The unknown keys under `node`, which sits at `prefix` in the document; the paths of `keys` start after the
+    /// first `depth` components of `prefix`, `overrides.<index>` for an override.
+    private static func unknownKeys(
+        in node: Node,
+        prefix: [String],
+        keys: Keys = documentKeys,
+        depth: Int = 0
+    ) -> [(path: [String], mark: Mark?, message: String)] {
         guard case let .mapping(mapping) = node else { return [] }
 
         return mapping.flatMap { key, value -> [(path: [String], mark: Mark?, message: String)] in
             let path = prefix + [name(of: key)]
-            let dotted = path.joined(separator: ".")
+            let relative = path.dropFirst(depth).joined(separator: ".")
 
-            if knownPaths.contains(dotted) {
+            if depth == 0, relative == "overrides", case let .sequence(entries) = value {
+                // A value that is not a list is reported by the decoder.
+                return entries.enumerated().flatMap { index, entry in
+                    unknownKeys(in: entry, prefix: path + ["\(index)"], keys: overrideKeys, depth: 2)
+                }
+            }
+            if keys.known.contains(relative) {
                 return []
             }
-            if sections.contains(dotted) {
+            if keys.sections.contains(relative) {
                 // A section that is not a mapping is reported by the decoder.
-                return unknownKeys(in: value, prefix: path)
+                return unknownKeys(in: value, prefix: path, keys: keys, depth: depth)
             }
 
-            let suggestion = closestPath(to: path).map { " (did you mean '\($0)'?)" } ?? ""
-            return [(path, key.mark, "unknown key '\(dotted)'\(suggestion)")]
+            let suggestion = closestPath(to: path, keys: keys, depth: depth).map { " (did you mean '\(displayed($0))'?)" } ?? ""
+            return [(path, key.mark, "unknown key '\(displayed(path.joined(separator: ".")))'\(suggestion)")]
         }
     }
 
-    /// The v2 path that an unknown key most likely stands for: the v2 path of a v1 key given at the top level, else the
+    /// The path that an unknown key most likely stands for: the v2 path of a v1 key given at the top level, else the
     /// closest key of the same section.
-    private static func closestPath(to path: [String]) -> String? {
+    private static func closestPath(to path: [String], keys: Keys, depth: Int) -> String? {
         guard let key = path.last else { return nil }
 
         let normalized = key.lowercased().replacingOccurrences(of: "-", with: "_")
-        let parent = path.dropLast().joined(separator: ".")
+        let parent = path.dropFirst(depth).dropLast().joined(separator: ".")
 
-        if parent.isEmpty, let mapping = ConfigurationKeyMapping.all.first(where: { $0.v1Key == normalized }) {
+        if depth == 0, parent.isEmpty, let mapping = ConfigurationKeyMapping.all.first(where: { $0.v1Key == normalized }) {
             return mapping.v2Path
         }
 
-        let siblings = knownPaths.union(sections).compactMap { candidate -> String? in
+        let siblings = keys.known.union(keys.sections).compactMap { candidate -> String? in
             let components = candidate.split(separator: ".").map(String.init)
             guard components.dropLast().joined(separator: ".") == parent else { return nil }
 
@@ -143,6 +181,8 @@ enum ConfigurationV2Validation {
             mapping.first { name(of: $0.key) == key }?.value
         case let (.sequence(sequence), .index(index)):
             sequence.indices.contains(index) ? sequence[index] : nil
+        case let (.mapping(mapping), .index(index)):
+            mapping.first { name(of: $0.key) == "\(index)" }?.value
         default:
             nil
         }
@@ -150,6 +190,21 @@ enum ConfigurationV2Validation {
 
     /// The node without the entry at the path, nil when there is no such entry.
     private static func removing(_ path: ArraySlice<String>, from node: Node) -> Node? {
+        if let key = path.first, let index = Int(key), case let .sequence(sequence) = node {
+            guard sequence.indices.contains(index) else { return nil }
+
+            var nodes = Array(sequence)
+            if path.count > 1 {
+                guard let pruned = removing(path.dropFirst(), from: nodes[index]) else { return nil }
+
+                nodes[index] = pruned
+            } else {
+                nodes.remove(at: index)
+            }
+
+            return .sequence(Node.Sequence(nodes, sequence.tag, sequence.style, sequence.mark))
+        }
+
         guard let key = path.first, case let .mapping(mapping) = node else { return nil }
 
         var found = false

@@ -20,29 +20,31 @@ final class PubliclyAccessibleRetainer: SourceGraphMutator {
             graph.declarations(ofKind: $0)
         }
 
-        let publicDeclarations = declarations.filter {
-            ($0.accessibility.value == .public || $0.accessibility.value == .open)
-                && configuration.retainsPublicDeclarations(inModules: $0.location.file.modules)
+        // The setting that retains each public declaration, nil when none does.
+        let publicDeclarations: [(declaration: Declaration, key: String)] = declarations.compactMap { declaration in
+            guard declaration.accessibility.value == .public || declaration.accessibility.value == .open,
+                  let key = configuration.settings(for: declaration).publicRetentionKey
+            else { return nil }
+
+            return (declaration, key)
         }
 
         // Only filter if noRetainSPI is configured (performance optimization)
-        let declarationsToRetain: [Declaration] = if configuration.noRetainSPI.isEmpty {
+        let declarationsToRetain = if configuration.noRetainSPI.isEmpty {
             publicDeclarations
         } else {
-            publicDeclarations.filter { decl in
-                decl.attributes.isDisjoint(with: noRetainSPIAttributes)
-            }
+            publicDeclarations.filter { $0.declaration.attributes.isDisjoint(with: noRetainSPIAttributes) }
         }
 
-        let reason = RetentionReason(Self.self, configuration.retainPublic ? "retain_public" : "retain_public_modules")
-        declarationsToRetain.forEach { graph.markRetained($0, reason: reason) }
+        for (declaration, key) in declarationsToRetain {
+            graph.markRetained(declaration, reason: RetentionReason(Self.self, key))
 
-        // Enum cases inherit the accessibility of the enum.
-        declarationsToRetain
-            .lazy
-            .filter { $0.kind == .enum }
-            .flatMap(\.declarations)
-            .filter { $0.kind == .enumelement }
-            .forEach { graph.markRetained($0, reason: RetentionReason(Self.self, "\(reason.detail ?? ""), case of a public enum")) }
+            // Enum cases inherit the accessibility of the enum.
+            if declaration.kind == .enum {
+                declaration.declarations
+                    .filter { $0.kind == .enumelement }
+                    .forEach { graph.markRetained($0, reason: RetentionReason(Self.self, "\(key), case of a public enum")) }
+            }
+        }
     }
 }
