@@ -46,7 +46,8 @@ enum UnifiedDiff {
     }
 
     private static func line(_ prefix: String, _ text: Substring) -> String {
-        text.hasSuffix("\n") ? prefix + text : prefix + text + "\n\\ No newline at end of file\n"
+        // A CRLF terminator is a single `Character`, which `hasSuffix("\n")` does not match.
+        text.last == "\n" || text.last == "\r\n" ? prefix + text : prefix + text + "\n\\ No newline at end of file\n"
     }
 
     private static func operations(from oldLines: [Substring], to newLines: [Substring]) -> [Operation] {

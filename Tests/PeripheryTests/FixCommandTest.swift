@@ -565,6 +565,26 @@ final class FixCommandTest: XCTestCase {
         XCTAssertEqual(try String(contentsOfFile: file.string, encoding: .utf8), source)
     }
 
+    func testDryRunDiffOfACRLFFileHasNoNoNewlineMarker() throws {
+        let source = "import A\r\nimport B\r\n\r\nfunc f() {}\r\n"
+        let plan = try planned(source, [target(.unusedImport, "B", .module, at: "import B", in: source)])
+
+        let diff = plan.diff(relativeTo: directory)
+        XCTAssertFalse(diff.contains("No newline at end of file"))
+        XCTAssertEqual(diff, "--- a/File.swift\n+++ b/File.swift\n@@ -1,4 +1,3 @@\n import A\r\n-import B\r\n \r\n func f() {}\r\n")
+    }
+
+    func testCRLFFileEditsKeepTheLineEndings() throws {
+        let source = "import A\r\nimport B\r\n\r\npublic class C {}\r\nfunc f(a: Int) {}\r\n"
+        let fixed = try fix(source, [
+            target(.unusedImport, "B", .module, at: "import B", in: source),
+            target(.missingFinal, "C", .class, at: "C {}", in: source),
+            target(.unusedParameter, "a", .varParameter, at: "a:", in: source),
+        ])
+
+        XCTAssertEqual(fixed, "import A\r\n\r\npublic final class C {}\r\nfunc f(a _: Int) {}\r\n")
+    }
+
     func testSecondRunProducesNoDiff() throws {
         let source = "/// Doc.\npublic func f(a: Int) {}\nextension Int {}\n"
         let targets = [
@@ -794,8 +814,9 @@ final class FixCommandTest: XCTestCase {
         }
 
         let prefix = source[..<range.lowerBound]
-        let line = prefix.count(where: { $0 == "\n" }) + 1
-        let lineStart = prefix.lastIndex(of: "\n").map { source.index(after: $0) } ?? source.startIndex
+        let isLineBreak: (Character) -> Bool = { $0 == "\n" || $0 == "\r\n" }
+        let line = prefix.count(where: isLineBreak) + 1
+        let lineStart = prefix.lastIndex(where: isLineBreak).map { source.index(after: $0) } ?? source.startIndex
         let column = source[lineStart ..< range.lowerBound].utf8.count + 1
         return FixTarget(rule: rule, name: name, kind: kind, file: file, line: line, column: column, accessibility: accessibility)
     }
