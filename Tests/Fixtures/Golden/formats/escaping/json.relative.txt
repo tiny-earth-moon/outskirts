@@ -1,0 +1,86 @@
+[
+  {
+    "accessibility" : "internal",
+    "attributes" : [
+
+    ],
+    "hints" : [
+      "unused"
+    ],
+    "ids" : [
+      "s:3Lib1VV2eeoiySbAC_ACtFZ"
+    ],
+    "kind" : "function.operator.infix",
+    "location" : "Project/Sources/My Lib, Extras/Operators.swift:4:17",
+    "modifiers" : [
+
+    ],
+    "modules" : [
+      "Lib"
+    ],
+    "name" : "==(_:_:)"
+  },
+  {
+    "accessibility" : "internal",
+    "attributes" : [
+
+    ],
+    "hints" : [
+      "unused"
+    ],
+    "ids" : [
+      "s:3Lib1VV1loiySbAC_ACtFZ"
+    ],
+    "kind" : "function.operator.infix",
+    "location" : "Project/Sources/My Lib, Extras/Operators.swift:8:17",
+    "modifiers" : [
+
+    ],
+    "modules" : [
+      "Lib"
+    ],
+    "name" : "<(_:_:)"
+  },
+  {
+    "accessibility" : "internal",
+    "attributes" : [
+
+    ],
+    "hints" : [
+      "unused"
+    ],
+    "ids" : [
+      "s:3Lib1VV2aaoiySbAC_ACtFZ"
+    ],
+    "kind" : "function.operator.infix",
+    "location" : "Project/Sources/My Lib, Extras/Operators.swift:12:17",
+    "modifiers" : [
+
+    ],
+    "modules" : [
+      "Lib"
+    ],
+    "name" : "&&(_:_:)"
+  },
+  {
+    "accessibility" : "internal",
+    "attributes" : [
+
+    ],
+    "hints" : [
+      "unused"
+    ],
+    "ids" : [
+      "s:3Lib1VV3mapyqd__qd__xXElF"
+    ],
+    "kind" : "function.method.instance",
+    "location" : "Project/Sources/My Lib, Extras/Operators.swift:16:10",
+    "modifiers" : [
+
+    ],
+    "modules" : [
+      "Lib"
+    ],
+    "name" : "map<T>(_:) \"quoted\" | piped"
+  }
+]

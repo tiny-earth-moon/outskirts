@@ -1,0 +1,4 @@
+::warning file=Project/Sources/My Lib%2C Extras/Operators.swift,line=4,col=17,title=unused::Unused function '==(_:_:)'
+::warning file=Project/Sources/My Lib%2C Extras/Operators.swift,line=8,col=17,title=unused::Unused function '<(_:_:)'
+::warning file=Project/Sources/My Lib%2C Extras/Operators.swift,line=12,col=17,title=unused::Unused function '&&(_:_:)'
+::warning file=Project/Sources/My Lib%2C Extras/Operators.swift,line=16,col=10,title=unused::Unused function 'map<T>(_:) "quoted" | piped'

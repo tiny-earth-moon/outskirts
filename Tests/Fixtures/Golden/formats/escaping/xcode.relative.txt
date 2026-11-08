@@ -1,0 +1,4 @@
+Project/Sources/My Lib, Extras/Operators.swift:4:17: warning: Unused function '==(_:_:)'
+Project/Sources/My Lib, Extras/Operators.swift:8:17: warning: Unused function '<(_:_:)'
+Project/Sources/My Lib, Extras/Operators.swift:12:17: warning: Unused function '&&(_:_:)'
+Project/Sources/My Lib, Extras/Operators.swift:16:10: warning: Unused function 'map<T>(_:) "quoted" | piped'
