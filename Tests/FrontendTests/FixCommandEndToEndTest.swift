@@ -349,6 +349,10 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertEqual(analysisDisabled.status, 0, analysisDisabled.stderr)
         XCTAssertFalse(analysisDisabled.stdout.contains("final class Box"), analysisDisabled.stdout)
 
+        let namedWithAnalysisDisabled = try run(["fix", "--aggressive", "--rule", "missing-final", "--variants", "auto"])
+        XCTAssertEqual(namedWithAnalysisDisabled.status, 0, namedWithAnalysisDisabled.stderr)
+        XCTAssertTrue(namedWithAnalysisDisabled.stderr.contains("'--rule missing-final' applies nothing: the missing-final analysis is turned off. Turn it on with '--enable-rule missing-final'."), namedWithAnalysisDisabled.stderr)
+
         let ruleWithoutFlag = try run(["fix", "--rule", "missing-final"])
         XCTAssertNotEqual(ruleWithoutFlag.status, 0)
         XCTAssertTrue(ruleWithoutFlag.stderr.contains("'missing-final' is a tier-2 rule, it requires '--aggressive'"), ruleWithoutFlag.stderr)

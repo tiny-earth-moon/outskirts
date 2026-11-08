@@ -34,7 +34,7 @@ The command takes every option of `scan` and reads the same configuration file, 
 | `superfluous-ignore` | `superfluousIgnoreCommand` | Remove the `periphery:ignore` or `outskirts:ignore` comment, and an `ignore:parameters` comment once every parameter it lists is reported. | `--superfluous-ignore-comments` |
 | `unused-parameter` | `unused` (parameter) | Rename the internal name to `_` and keep the argument label: `f(a: Int)` becomes `f(a _: Int)`, `f(_ a: Int)` becomes `f(_: Int)`. A subscript or operator parameter has no label, so `subscript(i: Int)` becomes `subscript(_: Int)`. | On by default. |
 
-A rule whose analysis is opt-in only applies when the analysis is enabled, on the command line or in the configuration file.
+A rule whose analysis is opt-in only applies when the analysis is enabled, on the command line or in the configuration file. A rule named with `--rule` whose analysis is turned off applies nothing, so `fix` warns and names the option that turns it on, for example `'--rule missing-final' applies nothing: the missing-final analysis is turned off. Turn it on with '--enable-rule missing-final'.`
 
 `redundant-public` only applies when `--rule redundant-public` names it, not by default nor with `--aggressive`: a `public` that the scanned code does not need may be the API of the project, used by clients outside the scan. For the same reason, unless `retain_public` is set, it is refused on the modules of a library product of a Swift package, with the reason `public API of a library product`: only the `public` of executable targets and of modules that no product exports is removed.
 

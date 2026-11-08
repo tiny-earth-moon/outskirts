@@ -89,6 +89,22 @@ final class FixCommandVerifyTest: XCTestCase {
         XCTAssertTrue(FixCommand.rebuiltBuilds(of: .xcode(projectPath: "App.xcodeproj"), configuration: xcode, builtVariants: []).hasPrefix("Rebuilt: the Staging configuration,"))
     }
 
+    // MARK: - Named rules
+
+    func testNamedRuleWithDisabledAnalysisWarns() {
+        let configuration = Configuration()
+        configuration.disableUnusedImportAnalysis = true
+
+        XCTAssertEqual(FixCommand.disabledRuleWarnings(for: [.missingFinal, .unusedParameter, .unusedImport, .missingFinal], configuration: configuration), [
+            "'--rule missing-final' applies nothing: the missing-final analysis is turned off. Turn it on with '--enable-rule missing-final'.",
+            "'--rule unused-import' applies nothing: the unused-import analysis is turned off. Turn it on with '--enable-rule unused-import'.",
+        ])
+
+        configuration.enableOpenFinalAnalysis = true
+        configuration.disableUnusedImportAnalysis = false
+        XCTAssertEqual(FixCommand.disabledRuleWarnings(for: [.missingFinal, .unusedImport], configuration: configuration), [])
+    }
+
     // MARK: - Private
 
     private struct Driver: ProjectDriver {

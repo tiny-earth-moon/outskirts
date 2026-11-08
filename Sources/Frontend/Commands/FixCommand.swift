@@ -64,6 +64,7 @@ struct FixCommand: ParsableCommand {
         let prepared = try scan.prepareScan(messagesToStderr: true)
         let configuration = prepared.configuration
         let logger = prepared.logger
+        Self.disabledRuleWarnings(for: rules, configuration: configuration).forEach { logger.warn($0) }
         if verify {
             try validateVerifiableBuild(configuration: configuration, project: prepared.project)
         }
@@ -125,6 +126,14 @@ struct FixCommand: ParsableCommand {
     /// The first rule given with `--rule` that needs a scan of all the code.
     private var completeScanRule: FixRule? {
         rules.first(where: \.requiresCompleteScan)
+    }
+
+    /// A warning for each rule named with `--rule` whose analysis is turned off, which therefore applies nothing.
+    static func disabledRuleWarnings(for rules: [FixRule], configuration: Configuration) -> [String] {
+        var named = Set<FixRule>()
+        return rules.filter { named.insert($0).inserted && !$0.isEnabled(in: configuration) }.map { rule in
+            "'--rule \(rule.rawValue)' applies nothing: the \(rule.rawValue) analysis is turned off. Turn it on with '--enable-rule \(rule.rawValue)'."
+        }
     }
 
     /// Why the scan of the project may leave out code that the rule needs to see, or nil.
