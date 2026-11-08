@@ -89,7 +89,7 @@ Relative paths of the file and of the command line are resolved from `--project-
 
 ## Format 2
 
-A file that declares `version: 2` uses the format 2: the options are grouped by section, the rules are turned on and off by their id, and every mistake is an error. A file without `version`, or with `version: 1`, is read as described above, unchanged. Moving to the format 2 is optional; `outskirts config migrate` writes the equivalent file for you.
+A file that declares `version: 2` uses the format 2: the options are grouped by section, the rules are turned on and off by their id, and every mistake is an error. A file without `version`, or with `version: 1`, is read as described above, unchanged. Moving to the format 2 is optional; `outskirts config migrate` writes the equivalent file for you. The format 2 is a 4.0 preview: opt-in in 3.x, 4.0 makes it the default. It also makes `--write-baseline` write the [v2 baseline](baselines.md#v2).
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/tiny-earth-moon/outskirts/master/schemas/config-v2.json
@@ -230,7 +230,6 @@ outskirts config migrate --apply    # writes it over the file
 | `retain_hashable_properties` | `retain.properties_of` | `Hashable` |
 | `baseline` | `baseline.path` |  |
 | `write_baseline` | `baseline.write` |  |
-| `baseline_format` | `baseline.format` |  |
 | `prune_baseline` | `baseline.prune` |  |
 | `strict_baseline` | `baseline.strict` |  |
 | `write_results` | `report.write` |  |

@@ -234,9 +234,6 @@ public final class Configuration {
     @Setting(key: "write_baseline", description: "Write the results to a baseline file, keeping the entries of baseline.", defaultValue: nil, convert: SettingConverter.filePath)
     public var writeBaseline: FilePath?
 
-    @Setting(key: "baseline_format", description: "Ids written by write_baseline: v1 the USRs of the declarations, v2 the ids of the output v2, which include the rule, so that a declaration baselined for one rule is still reported for another.", defaultValue: .default)
-    public var baselineFormat: BaselineFormat
-
     @Setting(key: "prune_baseline", description: "Rewrite the baseline file keeping only the entries that still match a result; requires baseline.", defaultValue: false)
     public var pruneBaseline: Bool
 
@@ -283,6 +280,11 @@ public final class Configuration {
 
     /// The format of the configuration file the last load read: 1 when none was read.
     public internal(set) var loadedVersion = 1
+
+    /// The format `--write-baseline` writes: `v2` when the loaded configuration file declares `version: 2`.
+    public var baselineFormat: BaselineFormat {
+        loadedVersion == 2 ? .v2 : .v1
+    }
 
     /// The entries of `overrides` of a configuration v2 file, in order: a later one wins over an earlier one.
     public internal(set) var overrides: [ConfigurationOverride] = []
@@ -374,7 +376,7 @@ public final class Configuration {
         $disableUpdateCheck, $strict, $exitCodes, $indexStorePath,
         $skipBuild, $skipSchemesValidation, $cleanBuild, $strictIndex, $quietIndexStore, $cacheMaxAgeDays, $cacheMaxSizeGB, $buildArguments, $variants, $xcodeListArguments, $relativeResults, $relativeResultsBase, $changedSince, $changedLines,
         $jsonPackageManifestPath, $retainCodableProperties, $retainEncodableProperties, $retainEquatableProperties,
-        $retainHashableProperties, $baseline, $writeBaseline, $baselineFormat, $pruneBaseline, $strictBaseline,
+        $retainHashableProperties, $baseline, $writeBaseline, $pruneBaseline, $strictBaseline,
         $writeResults, $skipStdoutResults, $genericProjectConfig,
         $retainSynthesizedUses, $retainAttributes, $detectUnusedAssetCatalogColors, $detectUnusedAssetCatalogImages,
         $detectUnusedMetalFunctions,

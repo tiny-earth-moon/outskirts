@@ -9,14 +9,13 @@ A baseline records results so that later scans do not report them again: new unu
 ## Options
 
 - **`--write-baseline <path>`** (`write_baseline`): write the results of the scan to `<path>`. The entries of the baseline given to `--baseline` are kept, and the current results are added.
-- **`--baseline-format v1|v2`** (`baseline_format`): the ids `--write-baseline` records, see [Formats](#formats). Default `v1`.
 - **`--baseline <path>`** (`baseline`): hide the results recorded in `<path>`. A relative path is resolved from `--project-root`.
 - **`--prune-baseline`** (`prune_baseline`): rewrite the file given to `--baseline`, keeping only the entries that still match a result. Requires `--baseline`.
 - **`--strict-baseline`** (`strict_baseline`): exit with status 1 if the baseline holds entries that no longer match any result. Requires `--baseline`.
 
 ## Formats
 
-Both formats are read, whatever `--baseline-format` says; it only chooses what `--write-baseline` writes.
+Both formats are read. `--write-baseline` writes `v2` when the configuration file declares `version: 2`, and `v1` otherwise.
 
 ### v1
 
@@ -26,7 +25,7 @@ The file is sorted, pretty-printed, newline-terminated JSON that gives each entr
 
 ### v2
 
-Since 3.22.0, opt-in with `--baseline-format v2`. The file holds the ids of the [`json-v2`](output-formats.md#json-v2) format, sorted:
+Since 3.22.0, written with a configuration file that declares `version: 2`. It is a 4.0 preview: opt-in in 3.x, 4.0 makes it the default. The file holds the ids of the [`json-v2`](output-formats.md#json-v2) format, sorted:
 
 ```json
 {
@@ -39,7 +38,7 @@ Since 3.22.0, opt-in with `--baseline-format v2`. The file holds the ids of the 
 
 These ids include the rule: a declaration baselined as redundant public is reported again once it becomes unused, where a `v1` baseline keeps hiding it. They hold no absolute path and no line number either, so they survive an edit above the declaration and another checkout.
 
-`--write-baseline` with `--baseline-format v2` converts a `v1` baseline given to `--baseline` through the results it hides; its entries that no longer match a result are dropped. The other way round works the same. `--prune-baseline` keeps the format of the file it rewrites.
+`--write-baseline` with a `version: 2` configuration converts a `v1` baseline given to `--baseline` through the results it hides; its entries that no longer match a result are dropped. The other way round works the same. `--prune-baseline` keeps the format of the file it rewrites.
 
 ## Baseline ratchet
 

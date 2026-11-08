@@ -4,29 +4,21 @@ import Logger
 import SourceGraph
 import SystemPackage
 
-class CsvFormatter: OutputFormatter {
-    /// Whether each row starts with the output v2 id and rule of its result.
-    class var includesOutputV2Identity: Bool {
-        false
-    }
-
+final class CsvFormatter: OutputFormatter {
     let configuration: Configuration
     let logger: Logger
     lazy var currentFilePath: FilePath = .current
 
-    required init(configuration: Configuration, logger: Logger) {
+    init(configuration: Configuration, logger: Logger) {
         self.logger = logger
         self.configuration = configuration
     }
 
     func format(_ results: [ScanResult], colored _: Bool) -> String? {
-        let header = "Kind,Name,Modifiers,Attributes,Accessibility,IDs,Location,Hints"
-        var lines = [Self.includesOutputV2Identity ? "ID,Rule," + header : header]
+        var lines = ["Kind,Name,Modifiers,Attributes,Accessibility,IDs,Location,Hints"]
 
         for result in results {
-            var identities = Self.includesOutputV2Identity ? outputV2Identities(of: result)[...] : []
             let line = format(
-                identity: identities.popFirst(),
                 kind: declarationKind(from: result.declaration),
                 name: result.declaration.name,
                 modifiers: result.declaration.modifiers,
@@ -42,7 +34,6 @@ class CsvFormatter: OutputFormatter {
             case let .redundantProtocol(references, inherited):
                 for ref in sortedReferences(references) {
                     let line = format(
-                        identity: identities.popFirst(),
                         kind: ref.declarationKind.rawValue,
                         name: ref.name,
                         modifiers: [],
@@ -65,7 +56,6 @@ class CsvFormatter: OutputFormatter {
     // MARK: - Private
 
     private func format(
-        identity: (id: String, rule: RuleIdentifier)?,
         kind: String,
         name: String,
         modifiers: Set<String>,
@@ -79,8 +69,7 @@ class CsvFormatter: OutputFormatter {
         let joinedAttributes = attributes.sorted().joined(separator: "|")
         let joinedUsrs = usrs.sorted().joined(separator: "|")
         let path = locationDescription(location)
-        let identityFields = identity.map { [$0.id, $0.rule.rawValue] } ?? []
-        return (identityFields + [
+        return [
             kind,
             name,
             joinedModifiers,
@@ -89,7 +78,7 @@ class CsvFormatter: OutputFormatter {
             joinedUsrs,
             path,
             hint ?? "",
-        ]).map(escape).joined(separator: ",")
+        ].map(escape).joined(separator: ",")
     }
 
     private func escape(_ field: String) -> String {
@@ -98,12 +87,5 @@ class CsvFormatter: OutputFormatter {
         }
 
         return "\"\(field.replacingOccurrences(of: "\"", with: "\"\""))\""
-    }
-}
-
-/// `csv-v2`: the `csv` format, each row preceded by the output v2 id and rule of its result.
-final class CsvV2Formatter: CsvFormatter {
-    override static var includesOutputV2Identity: Bool {
-        true
     }
 }

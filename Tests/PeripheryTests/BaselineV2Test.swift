@@ -51,6 +51,15 @@ final class BaselineV2Test: XCTestCase {
         XCTAssertEqual(filter.staleBaselineEntries, [stale])
     }
 
+    func testBaselineWrittenForTheConfigurationFormat_isReadBack() throws {
+        let v2 = try roundTrip(written(from: [redundantPublic()], format: .v2))
+        let v1 = try roundTrip(written(from: [redundantPublic()], format: .v1))
+
+        XCTAssertEqual(v2, .outputV2(ids: [OutputV2Id.id(of: redundantPublic())]))
+        XCTAssertEqual(v1.format, .v1)
+        XCTAssertEqual(v1.usrs, ["s:3Lib6helperyyF"])
+    }
+
     // MARK: - File
 
     func testVersionTwoFile_holdsTheVersionAndTheSortedIds() throws {
