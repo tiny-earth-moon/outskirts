@@ -360,7 +360,10 @@ final class SwiftIndexer: Indexer {
 
             if let platformConditionalNameCollector {
                 let names = platformConditionalNameCollector.names
-                addToGraph(names) { $0.addPlatformConditionalNames($1, in: sourceFile) }
+                let collected = platformConditionalNameCollector.collected
+                if !collected.isEmpty {
+                    graph.withLock { $0.addPlatformConditionalNames(collected, in: sourceFile) }
+                }
 
                 if !names.isEmpty, !configuration.explain.isEmpty {
                     let sites = platformConditionalNameCollector.sites.mapValues { sites in

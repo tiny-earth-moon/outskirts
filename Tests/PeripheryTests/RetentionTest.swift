@@ -557,6 +557,34 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    /// A platform conditional block calls initializers, subscripts, operators and `callAsFunction` without writing
+    /// their name, and the witnesses of a conformance its extension declares without naming them.
+    func testRetainsUnnamedUsesInPlatformConditionalBlocks() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureUnnamedUseType")) {
+                self.assertReferenced(.functionConstructor("init(value:)"))
+                self.assertReferenced(.functionSubscript("subscript(_:)"))
+                self.assertReferenced(.functionMethodInstance("callAsFunction()"))
+            }
+            assertReferenced(.struct("FixtureUnnamedUseDistractor")) {
+                self.assertNotReferenced(.functionConstructor("init(value:)"))
+                self.assertNotReferenced(.functionSubscript("subscript(_:)"))
+                self.assertNotReferenced(.functionMethodInstance("callAsFunction()"))
+            }
+            assertReferenced(.struct("FixtureUnnamedUseOperand")) {
+                self.assertReferenced(.functionOperatorInfix("<~>(_:_:)"))
+                self.assertNotReferenced(.functionOperatorInfix("<~~>(_:_:)"))
+            }
+            assertReferenced(.struct("FixtureUnnamedUseConformer")) {
+                self.assertReferenced(.functionMethodInstance("fixtureUnnamedUseRequirement()"))
+                self.assertNotReferenced(.functionMethodInstance("fixtureUnnamedUseNonRequirement()"))
+            }
+            assertReferenced(.struct("FixtureUnnamedUseNonConformer")) {
+                self.assertNotReferenced(.functionMethodInstance("fixtureUnnamedUseRequirement()"))
+            }
+        }
+    }
+
     func testDoesNotRetainDeclarationsOnlyNamedInPlatformConditionalBlocks() {
         analyze(retainPublic: true) {
             // A conformance extension, a declared function, protocol and typealias only write their own name.

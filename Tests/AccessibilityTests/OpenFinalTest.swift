@@ -21,6 +21,27 @@ final class OpenFinalTest: SPMSourceGraphTestCase {
         assertNotMissingFinal(.class("OpenFinalCrossModuleSubclass"))
     }
 
+    /// A subclass and an override written in a platform conditional clause that was not compiled are not in the index.
+    func testOpenClassSubclassedCrossModuleOnOtherPlatform() {
+        analyze()
+
+        assertNotRedundantOpenAccessibility(.class("OpenFinalClassSubclassedOnOtherPlatform")) {
+            self.assertNotRedundantOpenAccessibility(.functionMethodInstance("openFinalOverriddenOnOtherPlatform()"))
+            self.assertRedundantOpenAccessibility(.functionMethodInstance("openFinalNotOverriddenOnOtherPlatform()"))
+            self.assertNotMissingFinal(.functionMethodInstance("openFinalOverriddenOnOtherPlatform()"))
+        }
+        assertNotMissingFinal(.class("OpenFinalClassSubclassedOnOtherPlatform"))
+    }
+
+    func testInternalClassSubclassedOnOtherPlatform() {
+        analyze()
+
+        assertNotMissingFinal(.class("OpenFinalInternalClassSubclassedOnOtherPlatform")) {
+            self.assertNotMissingFinal(.functionMethodInstance("openFinalInternalOverriddenOnOtherPlatform()"))
+            self.assertMissingFinal(.functionMethodInstance("openFinalInternalNotOverriddenOnOtherPlatform()"))
+        }
+    }
+
     func testOpenClassNeverSubclassed() {
         analyze()
 
