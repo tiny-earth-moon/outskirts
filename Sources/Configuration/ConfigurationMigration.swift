@@ -26,7 +26,8 @@ public extension Configuration {
         }
 
         var warnings: [String] = []
-        try Configuration().load(from: path) { warnings.append($0) }
+        let v1 = Configuration()
+        try v1.load(from: path) { warnings.append($0) }
         guard warnings.isEmpty else {
             throw PeripheryError.usageError("Fix the configuration before migrating it:\n" + warnings.joined(separator: "\n"))
         }
@@ -39,10 +40,16 @@ public extension Configuration {
         comments.header.insert(v2SchemaComment, at: 0)
         let migrated = try ConfigurationV2Writer.render(entries, comments: comments)
 
+        let v2 = Configuration()
         do {
-            try Configuration().loadV2(yaml: migrated, path: path)
+            try v2.loadV2(yaml: migrated, path: path)
         } catch let error as ConfigurationFileError {
             throw PeripheryError.usageError("The migrated configuration does not load, please report it:\n" + error.problems.joined(separator: "\n"))
+        }
+
+        let differences = ConfigurationMigration.differences(v1: v1, anchoredTo: projectRoot, v2: v2)
+        guard differences.isEmpty else {
+            throw PeripheryError.usageError("The migrated configuration differs from \(path.string), please report it:\n" + differences.joined(separator: "\n"))
         }
 
         return migrated
@@ -73,6 +80,39 @@ enum ConfigurationMigration {
         }
 
         return values
+    }
+
+    /// The settings that a v1 configuration and its migration set differently, the v1 globs anchored to `root` as v2
+    /// anchors its globs to the directory of the file. `index_exclude` is compared as a set, and the platform
+    /// conditional retention by the retention it resolves to.
+    static func differences(v1: Configuration, anchoredTo root: FilePath, v2: Configuration) -> [String] {
+        let anchor = { (glob: String) in Configuration.anchor(glob, to: root) }
+        v1.indexExclude = v1.indexExclude.map(anchor)
+        v1.reportInclude = v1.reportInclude.map(anchor)
+        v1.retainFiles = v1.retainFiles.map(anchor)
+        v1.localizedStringCatalogExclude = v1.localizedStringCatalogExclude.map(anchor)
+        v1.reportExclude = v1.reportExclude.map { entry in
+            switch entry {
+            case let .pattern(glob): .pattern(anchor(glob))
+            case let .scoped(path, kinds): .scoped(path: anchor(path), kinds: kinds)
+            case .malformed: entry
+            }
+        }
+
+        func effective(_ configuration: Configuration) -> [String: String] {
+            Dictionary(uniqueKeysWithValues: configuration.settings.map { setting in
+                if ["disable_platform_conditional_retention", "platform_conditional_retention"].contains(setting.key) {
+                    return (setting.key, "\(configuration.resolvedPlatformConditionalRetention)")
+                }
+                if setting.key == "index_exclude", let globs = setting.wrappedValue as? [String] {
+                    return (setting.key, "\(Set(globs).sorted())")
+                }
+                return (setting.key, "\(setting.wrappedValue)")
+            })
+        }
+
+        let (lhs, rhs) = (effective(v1), effective(v2))
+        return lhs.keys.sorted().filter { lhs[$0] != rhs[$0] }.map { "\($0): \(lhs[$0] ?? "") became \(rhs[$0] ?? "")" }
     }
 
     /// Rewrites a glob relative to `root` as relative to `directory`; a glob that starts with `/` or `*` is kept, as v2

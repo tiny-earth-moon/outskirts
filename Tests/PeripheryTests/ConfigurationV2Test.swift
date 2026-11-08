@@ -530,6 +530,26 @@ final class ConfigurationV2Test: XCTestCase {
         }
     }
 
+    func testMigrateKeepsEveryMappedV1KeyEquivalent() throws {
+        let configuration = Configuration()
+        for key in Set(ConfigurationKeyMapping.all.map(\.v1Key)).sorted() {
+            let setting = try XCTUnwrap(configuration.settings.first { $0.key == key }, key)
+            let value = switch setting.kind {
+            case .bool: "true"
+            case .boolOrStringList: "[Kit]"
+            case .int: "3"
+            case .stringList, .pathList: "[\"**/Value\"]"
+            case .string, .path: "value"
+            case let .enumeration(cases): "\"\(cases.last ?? "")\""
+            case .reportExclude: "[\"**/Legacy/**\"]"
+            case .buildVariants: "auto"
+            }
+            let file = try write("\(key): \(value)\n")
+            let migrated = try Configuration.migratedToV2(file: file)
+            XCTAssertEqual(try migratedEffective(migrated), try anchoredV1Effective(file), key)
+        }
+    }
+
     func testMigrateAnchorsTheGlobsRelativeToTheFile() throws {
         let root = FilePath(directory.path)
         let file = try write("report_include: [Sources/**, \"**/Kit/**\"]\n", named: "config/outskirts.yml")
