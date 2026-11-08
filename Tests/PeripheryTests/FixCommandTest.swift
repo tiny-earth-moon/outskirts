@@ -497,13 +497,24 @@ final class FixCommandTest: XCTestCase {
     func testOverlappingEditsAreRefusedAndNestedEditsCollapse() {
         let outer = SourceEdit(range: 0 ..< 10)
         let nested = SourceEdit(range: 2 ..< 4, replacement: "x")
-        let crossing = SourceEdit(range: 8 ..< 12)
+        let crossing = SourceEdit(range: 8 ..< 12, replacement: "y")
         let separate = SourceEdit(range: 20 ..< 21)
 
         let resolution = EditResolution([0: [outer], 1: [nested], 2: [crossing], 3: [separate]])
 
         XCTAssertEqual(resolution.refusedOwners, [0, 2])
         XCTAssertEqual(resolution.edits, [nested, separate])
+    }
+
+    func testOverlappingDeletionsMergeIntoTheirUnion() {
+        let first = SourceEdit(range: 0 ..< 10)
+        let second = SourceEdit(range: 9 ..< 15)
+        let nested = SourceEdit(range: 11 ..< 12, replacement: "x")
+
+        let resolution = EditResolution([0: [first], 1: [second], 2: [nested]])
+
+        XCTAssertEqual(resolution.refusedOwners, [])
+        XCTAssertEqual(resolution.edits, [SourceEdit(range: 0 ..< 15)])
     }
 
     func testInsertionAtTheStartOfADeletionIsAppliedBeforeIt() {
