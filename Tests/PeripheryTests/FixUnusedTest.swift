@@ -158,6 +158,22 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         XCTAssertEqual(outcome.fixed, outcome.original)
     }
 
+    func testKeepsWhatUncoveredClausesReachWithoutNamingIt() throws {
+        let outcome = try removeUnused(readsConditionalClauses: true)
+
+        XCTAssertEqual(outcome.decisions, [
+            // Overridden in the clause.
+            "3 fixUnusedHook()": SkipReason.uncoveredConditionalName.description,
+            // Extended in the clause.
+            "6 FixUnusedOnlyExtendedInRelease": SkipReason.uncoveredConditionalName.description,
+            // A conformance added in the clause uses it.
+            "9 description": SkipReason.uncoveredConditionalType.description,
+            // The clause may call it as `grid[1]`.
+            "13 subscript(_:)": SkipReason.implicitMemberWithUncoveredCode.description,
+            "16 fixUnusedNotReached()": "removed",
+        ])
+    }
+
     func testKeepsNamesWrittenInUncoveredConditionalClauses() throws {
         let outcome = try removeUnused(readsConditionalClauses: true)
 
@@ -189,12 +205,33 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         """
         let macOS: Set = [IndexVariant(triple: "arm64-apple-macosx15.0", isOptimized: false)]
 
-        XCTAssertEqual(
-            UncoveredConditionalNames.names(in: source, variants: macOS),
-            ["onLinux", "newSwift", "oldSwift", "withUIKit", "<+>"]
-        )
+        let read = UncoveredConditionalNames.read(source, variants: macOS)
+        XCTAssertEqual(read.names, ["onLinux", "newSwift", "oldSwift", "withUIKit", "value", "<+>"])
+        XCTAssertEqual(read.typeNames, [])
+        XCTAssertTrue(read.hasCode)
         // Without the triples of the file's builds, no clause is known to be compiled.
-        XCTAssertTrue(UncoveredConditionalNames.names(in: source, variants: []).contains("onMac"))
+        XCTAssertTrue(UncoveredConditionalNames.read(source, variants: []).names.contains("onMac"))
+    }
+
+    func testCollectsTheTypesAClauseDeclaresExtendsOrInheritsFrom() {
+        let source = """
+        #if os(macOS)
+            let compiled = 1
+        #endif
+        #if FLAG
+            final class Sub: Base, Proto {
+                @Wrapper var wrapped = 0
+                func generic<T: Constraint>(_: T) where T: Other {}
+            }
+            extension Outer.Inner {}
+        #endif
+        """
+        let read = UncoveredConditionalNames.read(source, variants: [IndexVariant(triple: "arm64-apple-macosx15.0", isOptimized: false)])
+
+        XCTAssertEqual(read.typeNames, ["Sub", "Base", "Proto", "Wrapper", "T", "Constraint", "Other", "Outer", "Inner"])
+        XCTAssertTrue(read.names.isSuperset(of: ["Sub", "wrapped", "generic", "Inner"]), "\(read.names)")
+        XCTAssertFalse(read.names.contains("compiled"))
+        XCTAssertFalse(UncoveredConditionalNames.read("#if os(macOS)\n    let compiled = 1\n#endif\n", variants: [IndexVariant(triple: "arm64-apple-macosx15.0", isOptimized: false)]).hasCode)
     }
 
     func testKeepsPublicDeclarationsUnlessIncluded() throws {

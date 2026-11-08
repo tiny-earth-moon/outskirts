@@ -42,6 +42,8 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case memberwiseInitializerUsed
     case synthesizedConformance
     case uncoveredConditionalName
+    case uncoveredConditionalType
+    case implicitMemberWithUncoveredCode
     case publicDeclaration
 
     public var description: String {
@@ -88,6 +90,8 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .memberwiseInitializerUsed: "the memberwise initializer of the struct is used"
         case .synthesizedConformance: "stored property of a type with a synthesized Equatable, Hashable or Codable conformance"
         case .uncoveredConditionalName: "name written in an #if clause that no scanned build compiled"
+        case .uncoveredConditionalType: "member of a type declared, extended or inherited from in an #if clause that no scanned build compiled"
+        case .implicitMemberWithUncoveredCode: "subscript, operator or implicitly called member, with code in an #if clause that no scanned build compiled"
         case .publicDeclaration: "public API, use --include-public"
         }
     }

@@ -19,7 +19,7 @@ import SwiftSyntax
 /// configuration compiles are collected exactly as without it.
 ///
 /// With `collectsEveryBlock`, the blocks whose conditions do not involve the platform are collected too, whole as
-/// they cannot be evaluated (custom flags, `DEBUG`, `swift()`, `compiler()`...), and operators count as names.
+/// they cannot be evaluated (custom flags, `DEBUG`, `swift()`, `compiler()`...).
 public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor {
     private static let platformConditions: Set<String> = ["os", "targetEnvironment", "arch", "canImport"]
 
@@ -34,6 +34,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     public private(set) var names: Set<String> = []
     /// The sites of each name, only collected when a location converter is given (for `--explain`).
     public private(set) var sites: [String: [Site]] = [:]
+    /// The clauses whose names were collected.
+    public private(set) var clauses: [IfConfigClauseSyntax] = []
 
     private let configurations: [PlatformBuildConfiguration]
     private let narrowsNestedBlocks: Bool
@@ -63,16 +65,22 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     public static func collect(
         from syntax: SourceFileSyntax,
         configurations: [PlatformBuildConfiguration] = [],
-        narrowsNestedBlocks: Bool = false,
-        collectsEveryBlock: Bool = false
+        narrowsNestedBlocks: Bool = false
     ) -> Set<String> {
-        let collector = PlatformConditionalNameCollector(
-            configurations: configurations,
-            narrowsNestedBlocks: narrowsNestedBlocks,
-            collectsEveryBlock: collectsEveryBlock
-        )
+        let collector = PlatformConditionalNameCollector(configurations: configurations, narrowsNestedBlocks: narrowsNestedBlocks)
         collector.walk(syntax)
         return collector.names
+    }
+
+    /// The clauses of every `#if` block, platform conditional or not, that none of the configurations may have
+    /// compiled: a block that cannot be narrowed to the clauses no configuration compiled is returned whole.
+    public static func uncompiledClauses(
+        from syntax: SourceFileSyntax,
+        configurations: [PlatformBuildConfiguration]
+    ) -> [IfConfigClauseSyntax] {
+        let collector = PlatformConditionalNameCollector(configurations: configurations, collectsEveryBlock: true)
+        collector.walk(syntax)
+        return collector.clauses
     }
 
     public func visit(_ node: IfConfigDeclSyntax) {
@@ -101,8 +109,9 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     private func collectNames(in clause: IfConfigClauseSyntax) {
         guard let elements = clause.elements else { return }
 
+        clauses.append(clause)
         for token in elements.tokens(viewMode: .sourceAccurate) {
-            if isNamedOperator(token) || (token.tokenKind.isIdentifier && isReference(token)) {
+            if token.tokenKind.isIdentifier, isReference(token) {
                 let name = token.identifier?.name ?? token.text
                 names.insert(name)
 
@@ -238,18 +247,6 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
             || parent.is(MemberTypeSyntax.self)
             || parent.is(MacroExpansionExprSyntax.self)
             || parent.is(MacroExpansionDeclSyntax.self)
-    }
-
-    /// Returns `true` for an operator used in an expression, when every block is collected.
-    private func isNamedOperator(_ token: TokenSyntax) -> Bool {
-        guard collectsEveryBlock else { return false }
-
-        switch token.tokenKind {
-        case .binaryOperator, .prefixOperator, .postfixOperator:
-            return true
-        default:
-            return false
-        }
     }
 
     private func isPlatformCondition(_ condition: ExprSyntax?) -> Bool {

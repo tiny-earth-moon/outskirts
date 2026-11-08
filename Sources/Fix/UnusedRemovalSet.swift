@@ -214,6 +214,12 @@ public struct UnusedRemovalSet {
         if eligibility.uncoveredNames.writtenName(of: declaration) != nil {
             return .uncoveredConditionalName
         }
+        if eligibility.uncoveredNames.reachingType(of: declaration) != nil {
+            return .uncoveredConditionalType
+        }
+        if eligibility.uncoveredNames.mayUseImplicitly(declaration) {
+            return .implicitMemberWithUncoveredCode
+        }
 
         if declaration.kind == .enumelement, let enumDecl = declaration.parent {
             if enumDecl.hasAttribute(named: "objc") {
