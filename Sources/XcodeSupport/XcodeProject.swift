@@ -20,6 +20,7 @@ public final class XcodeProject: XcodeProjectlike {
         loadedProjectPaths: inout Set<FilePath>,
         referencedBy refPath:
         FilePath,
+        xcodebuild: Xcodebuild,
         shell: Shell,
         logger: Logger
     ) throws {
@@ -28,7 +29,6 @@ public final class XcodeProject: XcodeProjectlike {
             return nil
         }
 
-        let xcodebuild = Xcodebuild(shell: shell, logger: logger)
         try self.init(
             path: path,
             loadedProjectPaths: &loadedProjectPaths,
@@ -76,6 +76,7 @@ public final class XcodeProject: XcodeProjectlike {
                         path: projectPath,
                         loadedProjectPaths: &loadedProjectPaths,
                         referencedBy: path,
+                        xcodebuild: xcodebuild,
                         shell: shell,
                         logger: logger
                     )

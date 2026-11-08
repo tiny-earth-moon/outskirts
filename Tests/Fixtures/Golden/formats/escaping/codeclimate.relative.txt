@@ -5,10 +5,11 @@
     ],
     "check_name" : "unused",
     "description" : "Unused function '==(_:_:)'",
-    "fingerprint" : "s:3Lib1VV2eeoiySbAC_ACtFZ",
+    "fingerprint" : "4826b17c85b6d40c0c7742c57d72ae9c7214145ae22bad3cc44d9ba13b3b3f82",
     "location" : {
       "lines" : {
-        "begin" : 4
+        "begin" : 4,
+        "end" : 4
       },
       "path" : "Project/Sources/My Lib, Extras/Operators.swift"
     },
@@ -21,10 +22,11 @@
     ],
     "check_name" : "unused",
     "description" : "Unused function '<(_:_:)'",
-    "fingerprint" : "s:3Lib1VV1loiySbAC_ACtFZ",
+    "fingerprint" : "83b0c7614824a3dd123175dc775762c1320cb1d66d6c316848e66e9f7557f36a",
     "location" : {
       "lines" : {
-        "begin" : 8
+        "begin" : 8,
+        "end" : 8
       },
       "path" : "Project/Sources/My Lib, Extras/Operators.swift"
     },
@@ -37,10 +39,11 @@
     ],
     "check_name" : "unused",
     "description" : "Unused function '&&(_:_:)'",
-    "fingerprint" : "s:3Lib1VV2aaoiySbAC_ACtFZ",
+    "fingerprint" : "a51e5214ea21e595885f9c3065466584d0577b95eeebd7fd68dd2d2b6c57a908",
     "location" : {
       "lines" : {
-        "begin" : 12
+        "begin" : 12,
+        "end" : 12
       },
       "path" : "Project/Sources/My Lib, Extras/Operators.swift"
     },
@@ -53,10 +56,11 @@
     ],
     "check_name" : "unused",
     "description" : "Unused function 'map<T>(_:) \"quoted\" | piped'",
-    "fingerprint" : "s:3Lib1VV3mapyqd__qd__xXElF",
+    "fingerprint" : "def4cb1ca1e297e7a29b493a3dc8c744eb283f29d8a38fd462e5f76979534140",
     "location" : {
       "lines" : {
-        "begin" : 16
+        "begin" : 16,
+        "end" : 16
       },
       "path" : "Project/Sources/My Lib, Extras/Operators.swift"
     },

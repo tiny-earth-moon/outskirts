@@ -183,7 +183,7 @@ var targets: [PackageDescription.Target] = [
             .target(name: "TestShared"),
             .target(name: "PeripheryKit"),
         ],
-        exclude: ["SPMProject", "SPMProjectMacOS", "SPMProjectMultiVariant"]
+        exclude: ["SPMProject", "SPMProjectBuildPlugin", "SPMProjectMacOS", "SPMProjectMultiVariant"]
     ),
     .testTarget(
         name: "AccessibilityTests",

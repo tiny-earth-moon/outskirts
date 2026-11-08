@@ -1,7 +1,8 @@
 import Foundation
 import Logger
-import Shared
+@testable import Shared
 import SystemPackage
+import TestShared
 @testable import XcodeSupport
 import XCTest
 
@@ -18,9 +19,9 @@ final class XcodebuildListDerivedDataTest: XCTestCase {
         }
     }
 
-    private func makeProject(shell: Shell) throws -> (Xcodebuild, XcodeProject) {
+    private func makeProject(shell: Shell, cacheDirectory: FilePath = TestCacheDirectory.path) throws -> (Xcodebuild, XcodeProject) {
         let logger = Logger(quiet: true, verbose: false, colorMode: .never)
-        let xcodebuild = Xcodebuild(shell: shell, logger: logger)
+        let xcodebuild = Xcodebuild(shell: shell, logger: logger, cacheDirectory: cacheDirectory)
         var loadedProjectPaths: Set<FilePath> = []
         let project = try XcodeProject(path: UIKitProjectPath, loadedProjectPaths: &loadedProjectPaths, xcodebuild: xcodebuild, shell: shell, logger: logger)
         return (xcodebuild, project)
@@ -38,15 +39,32 @@ final class XcodebuildListDerivedDataTest: XCTestCase {
         _ = try project.schemes(additionalArguments: [])
 
         let command = try listCommand(in: shell)
-        let cachePath = try Constants.cachePath().string
-        XCTAssertTrue(command.contains("-IDECustomDerivedDataLocation=\(cachePath)/DerivedData-"), command)
+        XCTAssertTrue(command.contains("-IDECustomDerivedDataLocation=\(TestCacheDirectory.path)/DerivedData-"), command)
         XCTAssertFalse(command.contains("'"), command)
-        XCTAssertTrue(cachePath.hasSuffix("/Library/Caches/com.github.tiny-earth-moon.outskirts"), cachePath)
+    }
+
+    func testListDerivedDataIsHeldAgainstEviction() throws {
+        let cache = FilePath(NSTemporaryDirectory()).appending("outskirts-list-cache-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(atPath: cache.string) }
+        let shell = RecordingShell()
+        let (xcodebuild, project) = try makeProject(shell: shell, cacheDirectory: cache)
+
+        _ = try project.schemes(additionalArguments: [])
+        let folder = try xcodebuild.derivedDataPath(for: project, schemes: [])
+        // Another scan sweeps the cache while this one still uses the folder of `-list`.
+        try FileManager.default.setAttributes([.modificationDate: Date.distantPast], ofItemAtPath: folder.string)
+        let result = CacheManager.evictStale(cacheDirectory: URL(fileURLWithPath: cache.string), maxAgeDays: 14, keeping: [])
+
+        XCTAssertTrue(result.evicted.isEmpty)
+        XCTAssertTrue(folder.exists)
     }
 
     func testCleanBuildRemovesTheDerivedDataUsedByList() throws {
+        // A cache of its own: other tests of the process hold the `-list` folder of the same project in the shared one.
+        let cache = FilePath(NSTemporaryDirectory()).appending("outskirts-list-cache-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(atPath: cache.string) }
         let shell = RecordingShell()
-        let (xcodebuild, project) = try makeProject(shell: shell)
+        let (xcodebuild, project) = try makeProject(shell: shell, cacheDirectory: cache)
 
         _ = try project.schemes(additionalArguments: [])
         let listCommand = try listCommand(in: shell)

@@ -44,9 +44,19 @@ extension OutputFormatter {
         inherited.isEmpty ? nil : inherited.sorted().joined(separator: ", ")
     }
 
-    /// The declaration USRs, sorted and dot-joined: a fingerprint stable across runs.
-    func usrFingerprint(of result: ScanResult) -> String {
-        result.declaration.usrs.sorted().joined(separator: ".")
+    /// The SHA-256 of the rule and the sorted result ids, computed like the SARIF fingerprint: stable across runs and
+    /// platforms, and distinct for two results of different rules on the same declaration.
+    func resultFingerprint(of result: ScanResult) -> String {
+        let input = ([describe(result.annotation)] + result.usrs.sorted()).joined(separator: "\n")
+        return SHA256.hexDigest(of: Data(input.utf8))
+    }
+
+    /// The last line of the declaration, `begin` when its extent is unknown or its location is overridden (the range
+    /// then lies in another file).
+    func endLine(of declaration: Declaration, begin: Int) -> Int {
+        guard declaration.commentCommands.locationOverride == nil, let end = declaration.range?.end.line else { return begin }
+
+        return end
     }
 
     /// References are held in a set, whose order changes from one process to the next. Output must not depend on it.

@@ -15,21 +15,27 @@ public final class SPMProjectDriver {
     private var packageDescription: PackageDescription?
     /// The builds of the `variants` setting, resolved once.
     private var resolvedVariants: [SPMBuildVariant]?
+    /// The scratch paths of this scan, locked so that concurrent scans never evict them.
+    private let cacheLease = CacheLease()
 
-    public convenience init(configuration: Configuration, shell: Shell, logger: Logger) throws {
+    /// The directory holding the scratch paths of the variants, the outskirts cache when nil.
+    private let cacheDirectory: FilePath?
+
+    public convenience init(configuration: Configuration, shell: Shell, logger: Logger, cacheDirectory: FilePath? = nil) throws {
         if !configuration.schemes.isEmpty {
             throw PeripheryError.usageError("The --schemes option has no effect with Swift Package Manager projects.")
         }
 
         let pkg = SPM.Package(configuration: configuration, shell: shell, logger: logger)
-        self.init(pkg: pkg, configuration: configuration, logger: logger, shell: shell)
+        self.init(pkg: pkg, configuration: configuration, logger: logger, shell: shell, cacheDirectory: cacheDirectory)
     }
 
-    init(pkg: SPM.Package, configuration: Configuration, logger: Logger, shell: Shell) {
+    init(pkg: SPM.Package, configuration: Configuration, logger: Logger, shell: Shell, cacheDirectory: FilePath? = nil) {
         self.pkg = pkg
         self.configuration = configuration
         self.logger = logger
         self.shell = shell
+        self.cacheDirectory = cacheDirectory
     }
 
     /// Why some builds of the `variants` setting were not scanned.
@@ -65,7 +71,7 @@ public final class SPMProjectDriver {
         }
 
         let platforms = configuration.variants == .auto ? try description().platforms : nil
-        let resolver = SPMVariantResolver(
+        var resolver = SPMVariantResolver(
             shell: shell,
             warn: { [unowned self] in
                 logger.warn($0)
@@ -74,6 +80,7 @@ public final class SPMProjectDriver {
             projectPath: pkg.path,
             buildArguments: configuration.buildArguments
         )
+        resolver.cacheDirectory = cacheDirectory
         let variants = try resolver.resolve(configuration.variants, platforms: platforms)
         if configuration.variants != .default {
             logger.contextualized(with: "spm:variants").debug("Variants: \(variants.map(\.name).joined(separator: ", "))")
@@ -103,7 +110,10 @@ extension SPMProjectDriver: ProjectDriver {
             // One build at a time: concurrent builds of the same package would multiply the memory needed.
             for variant in try variants() {
                 if configuration.cleanBuild {
-                    try pkg.clean(additionalArguments: variant.scratchPath.map { ["--scratch-path", $0.string] } ?? [])
+                    try clean(variant)
+                }
+                if let scratchPath = variant.scratchPath {
+                    holdCache(scratchPath, creating: true)
                 }
 
                 if configuration.outputFormat.supportsAuxiliaryOutput {
@@ -119,6 +129,22 @@ extension SPMProjectDriver: ProjectDriver {
                 builtVariantNames.append(variant.name)
             }
         }
+    }
+
+    /// The targets of the root package, by name and by module name: `swift package describe` leaves out the targets
+    /// of the dependencies, local ones included.
+    public func ownModules() throws -> Set<String>? {
+        try description().targets.reduce(into: []) { modules, target in
+            modules.insert(target.name)
+            modules.insert(target.c99name ?? target.name)
+        }
+    }
+
+    /// The module names of the targets of the library products of the root package.
+    public func libraryProductModules() throws -> Set<String>? {
+        let description = try description()
+        let libraryTargets = Set((description.products ?? []).filter(\.isLibrary).flatMap(\.targets))
+        return Set(description.targets.filter { libraryTargets.contains($0.name) }.map { $0.c99name ?? $0.name })
     }
 
     public func plan(logger: ContextualLogger) throws -> IndexPlan {
@@ -161,23 +187,47 @@ extension SPMProjectDriver: ProjectDriver {
 
     private func variantIndexStorePaths() throws -> Set<FilePath> {
         let variants = try variants()
+        for scratchPath in variants.compactMap(\.scratchPath) {
+            holdCache(scratchPath, creating: false)
+        }
         let stores = try variants.mapSet { try pkg.indexStorePath(additionalArguments: configuration.buildArguments + $0.arguments) }
         let scratchPaths = variants.compactMap(\.scratchPath)
 
         if !scratchPaths.isEmpty {
-            let evicted = try CacheManager.refresh(
+            CacheManager.refresh(
                 directories: scratchPaths.map { URL(fileURLWithPath: $0.string) },
                 projectPath: pkg.path.lexicallyNormalized().string,
                 maxAgeDays: configuration.cacheMaxAgeDays,
-                maxSizeGB: configuration.cacheMaxSizeGB
-            )
-            for entry in evicted {
-                let size = ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .file)
-                logger.info("Evicted unused build cache \(entry.name) (\(size))")
-            }
+                maxSizeGB: configuration.cacheMaxSizeGB,
+                cacheDirectory: cacheDirectory.map { URL(fileURLWithPath: $0.string) }
+            ).report(to: logger)
         }
 
         return stores
+    }
+
+    /// Cleans the build of a variant, unless another running scan uses its scratch path.
+    private func clean(_ variant: SPMBuildVariant) throws {
+        guard let scratchPath = variant.scratchPath else {
+            try pkg.clean()
+            return
+        }
+
+        let isCleaned = try CacheManager.whileUnused(URL(fileURLWithPath: scratchPath.string)) {
+            try pkg.clean(additionalArguments: ["--scratch-path", scratchPath.string])
+        }
+        if !isCleaned {
+            logger.warn("The scratch path '\(scratchPath)' is in use by another running scan, it is not cleaned.")
+        }
+    }
+
+    /// Holds a scratch path. A failure is a warning: the cache housekeeping never fails the scan.
+    private func holdCache(_ scratchPath: FilePath, creating: Bool) {
+        do {
+            try cacheLease.hold(URL(fileURLWithPath: scratchPath.string), creating: creating)
+        } catch {
+            logger.warn("Could not lock the build cache folder of this scan: \(error.localizedDescription)")
+        }
     }
 
     func expectedSourceFiles(from description: PackageDescription, excluding excludedTargets: Set<String>) -> [String: Set<FilePath>] {

@@ -22,6 +22,14 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case partialParameterIgnore
     case alreadyFinal
     case openClass
+    case uncoveredConditionalName
+    case uncoveredConditionalType
+    case implicitMemberWithUncoveredCode
+    case uncoveredConditionalCode
+    case partialScan(String)
+    case dependencyPackage
+    case libraryProduct
+    case openMember
     case outsideProject
     case ignoredByGit
     case gitFailed(String)
@@ -50,6 +58,14 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .partialParameterIgnore: "some ignored parameters are still unused"
         case .alreadyFinal: "already final"
         case .openClass: "open class"
+        case .uncoveredConditionalName: "name written in an #if clause that no scanned build compiled"
+        case .uncoveredConditionalType: "member of a type declared, extended or inherited from in an #if clause that no scanned build compiled"
+        case .implicitMemberWithUncoveredCode: "subscript, operator or implicitly called member, with code in an #if clause that no scanned build compiled"
+        case .uncoveredConditionalCode: "file with code in an #if clause that no scanned build compiled"
+        case let .partialScan(reason): "partial scan (\(reason)), use --allow-partial-scan"
+        case .dependencyPackage: "dependency package"
+        case .libraryProduct: "public API of a library product, clients outside the scan may use it"
+        case .openMember: "open member"
         case .outsideProject: "outside the project root"
         case .ignoredByGit: "ignored by git"
         case let .gitFailed(message): message

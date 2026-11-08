@@ -391,7 +391,7 @@ final class RedundantPublicAccessibilityTest: SPMSourceGraphTestCase {
         index()
 
         assertNotRedundantPublicAccessibility(.functionOperatorInfix("<(_:_:)"))
-        assertNotRedundantPublicAccessibility(.functionOperatorInfix("==(_:_:)"))
+        assertNotRedundantPublicAccessibility(.functionOperatorInfix("==(_:_:)", line: 9))
     }
 
     func testPublicTypeUsedAsPublicFunctionThrowType() {

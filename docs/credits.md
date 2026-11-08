@@ -6,7 +6,7 @@ description: outskirts continues Periphery, created by Ian Leitch. Attribution, 
 
 Periphery is the work of [Ian Leitch](https://github.com/ileitch) ([peripheryapp/periphery](https://github.com/peripheryapp/periphery), archived, MIT license). This fork is maintained by [tiny-earth-moon](https://github.com/tiny-earth-moon) since 2026-10-25 and renamed outskirts in 3.16.0 (2026-11); the project history, the issues and the credits below are unchanged. The original copyright notice is kept in [LICENSE.md](https://github.com/tiny-earth-moon/outskirts/blob/master/LICENSE.md).
 
-Issues in this repository are imported from the upstream tracker and from periphery-pro/issues, keeping the original reference and reporter.
+Issues in this repository are imported from the upstream trackers, keeping the original reference and reporter.
 
 ## External contributions
 

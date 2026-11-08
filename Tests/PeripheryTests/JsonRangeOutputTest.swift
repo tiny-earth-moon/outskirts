@@ -56,12 +56,22 @@ final class JsonRangeOutputTest: XCTestCase {
     }
 
     func testEveryOtherFormat_isUnchangedByTheRanges() throws {
-        // `json-v2` gives the end of the range as the end of the location.
-        for format in OutputFormat.allCases where ![.json, .jsonV2].contains(format) {
+        // `json-v2`, `codeclimate` and `gitlab-codequality` give the end of the range as the end of the location.
+        for format in OutputFormat.allCases where ![.json, .jsonV2, .codeclimate, .gitlabCodeQuality].contains(format) {
             let formatter = format.formatter.init(configuration: Configuration(), logger: logger)
             let withRanges = try formatter.format(results(withRanges: true), colored: false)
             let withoutRanges = try formatter.format(results(withRanges: false), colored: false)
             XCTAssertEqual(withRanges, withoutRanges, "\(format)")
+        }
+    }
+
+    func testCodeQualityFormats_endLinesAtTheRangeUnlessTheLocationIsOverridden() throws {
+        for format in [OutputFormat.codeclimate, .gitlabCodeQuality] {
+            let formatter = format.formatter.init(configuration: Configuration(), logger: logger)
+            let output = try XCTUnwrap(formatter.format(results(withRanges: true), colored: false))
+            let issues = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(output.utf8)) as? [[String: Any]])
+            let lines = issues.map { ($0["location"] as? [String: Any])?["lines"] as? [String: Int] }
+            XCTAssertEqual(lines, [["begin": 4, "end": 6], ["begin": 5, "end": 5], ["begin": 1, "end": 1], ["begin": 4, "end": 4]], "\(format)")
         }
     }
 }

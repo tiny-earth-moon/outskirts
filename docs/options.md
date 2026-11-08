@@ -86,7 +86,7 @@ Schemes to build; every target they build is scanned.
 
 Key `schemes` · list of strings · default empty.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Fixing results: Options](fixing-results.md#options), [Troubleshooting: A declaration used only by a target that was not built](troubleshooting.md#a-declaration-used-only-by-a-target-that-was-not-built).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Fixing results: Partial scans](fixing-results.md#partial-scans), [Fixing results: Options](fixing-results.md#options), [Troubleshooting: A declaration used only by a target that was not built](troubleshooting.md#a-declaration-used-only-by-a-target-that-was-not-built).
 
 ### `-- <args>`
 
@@ -126,7 +126,7 @@ Skip the project build step.
 
 Key `skip_build` · flag, `--no-skip-build` to switch off · default `false`.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Fixing results: Options](fixing-results.md#options), [Fixing results: Safety](fixing-results.md#safety).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Fixing results: Partial scans](fixing-results.md#partial-scans), [Fixing results: Options](fixing-results.md#options).
 
 ### `--skip-schemes-validation`
 
@@ -142,7 +142,7 @@ Index store paths, relative to the project root; implies skip_build.
 
 Key `index_store_path` · list of strings · default empty.
 
-See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Fixing results: Options](fixing-results.md#options).
+See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Fixing results: Partial scans](fixing-results.md#partial-scans).
 
 ### `--quiet-index-store`
 
@@ -178,11 +178,11 @@ Project configuration file for other build systems.
 
 Key `generic_project_config` · string · default none.
 
-See [Configuration: Paths](configuration.md#paths), [Fixing results: Options](fixing-results.md#options), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Configuration: Paths](configuration.md#paths), [Fixing results: Partial scans](fixing-results.md#partial-scans), [Fixing results: Options](fixing-results.md#options), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--cache-max-age-days`
 
-Age in days after which unused Xcode build caches are evicted at the end of a scan; 0 disables the age rule. Caches of projects that no longer exist are always evicted.
+Age in days after which unused Xcode build caches are evicted at the end of a scan, checked at most once an hour; 0 disables the age rule. Caches of projects that no longer exist are always evicted. A cache that another running scan uses is never evicted.
 
 Key `cache_max_age_days` · integer · default `14`.
 
@@ -190,7 +190,7 @@ See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [C
 
 ### `--cache-max-size-gb`
 
-Total size in gigabytes above which the least recently used Xcode build caches are evicted at the end of a scan; 0 disables the limit.
+Total size in gigabytes above which the least recently used Xcode build caches are evicted at the end of a scan, checked at most once an hour; 0 disables the limit. A cache that another running scan uses is never evicted.
 
 Key `cache_max_size_gb` · integer · default `20`.
 
@@ -204,7 +204,7 @@ Targets to exclude from indexing.
 
 Key `exclude_targets` · list of strings · default empty.
 
-See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Fixing results: Partial scans](fixing-results.md#partial-scans).
 
 ### `--exclude-tests`
 
@@ -212,11 +212,11 @@ Exclude test targets from indexing.
 
 Key `exclude_tests` · flag, `--no-exclude-tests` to switch off · default `false`.
 
-See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Fixing results: Partial scans](fixing-results.md#partial-scans).
 
 ### `--index-exclude`
 
-Source file globs to leave out of indexing, added to the default ones.
+Source file globs to leave out of indexing, added to the default ones; the defaults keep the code generated by SwiftPM build tool plugins indexed.
 
 Key `index_exclude` · list of strings · default `**/*?.build/**/*`, `**/SourcePackages/checkouts/**`.
 
@@ -224,9 +224,9 @@ See [Analysis: Unconstructed enum cases](analysis.md#unconstructed-enum-cases), 
 
 ### `--report-exclude`
 
-Source file globs to leave out of the results, optionally per result kind with '<glob>:kind1,kind2' or {path, kinds}; the files are still indexed.
+Source file globs to leave out of the results, optionally per result kind with '<glob>:kind1,kind2' or {path, kinds}, added to the default one (the code generated by SwiftPM build tool plugins); the files are still indexed.
 
-Key `report_exclude` · list of strings · default empty.
+Key `report_exclude` · list of strings · default `**/plugins/outputs/**`.
 
 See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Analysis: Asset catalog colors](analysis.md#asset-catalog-colors), [Analysis: Asset catalog images](analysis.md#asset-catalog-images), [Excluding files](excluding-files.md).
 
@@ -236,7 +236,7 @@ Source file globs to keep in the results; supersedes report_exclude; the other f
 
 Key `report_include` · list of strings · default empty.
 
-See [Excluding files: Including results](excluding-files.md#including-results), [Continuous integration: Pull request checks](ci.md#pull-request-checks), [Configuration: Paths](configuration.md#paths), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Excluding files: Excluding results](excluding-files.md#excluding-results), [Excluding files: Including results](excluding-files.md#including-results), [Continuous integration: Pull request checks](ci.md#pull-request-checks), [Configuration: Paths](configuration.md#paths).
 
 ### `--retain-files`
 
@@ -252,7 +252,7 @@ Report only the results in files that changed since this git ref: committed sinc
 
 Key `changed_since` · string · default none.
 
-See [Baselines: Baselines and pull requests](baselines.md#baselines-and-pull-requests), [Fixing results](fixing-results.md), [Output formats: Summary](output-formats.md#summary), [Roadmap: Published](roadmap.md#published).
+See [Baselines: Baselines and pull requests](baselines.md#baselines-and-pull-requests), [Fixing results](fixing-results.md), [Fixing results: Partial scans](fixing-results.md#partial-scans), [Output formats: Summary](output-formats.md#summary).
 
 ### `--changed-lines`
 
