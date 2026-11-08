@@ -431,6 +431,30 @@ final class FixCommandTest: XCTestCase {
         XCTAssertTrue(plan.changes.isEmpty)
     }
 
+    func testMissingFinalSkipsAClassWithAnOpenMember() throws {
+        let source = """
+        public class Lone {
+            open func f() {}
+        }
+        public class Extended {}
+        extension Extended {
+            open var v: Int { 0 }
+        }
+        public class Plain {
+            public func g() {}
+        }
+
+        """
+        let plan = try planned(source, [
+            target(.missingFinal, "Lone", .class, at: "Lone", in: source),
+            target(.missingFinal, "Extended", .class, at: "Extended {}", in: source),
+            target(.missingFinal, "Plain", .class, at: "Plain", in: source),
+        ])
+
+        XCTAssertEqual(plan.skipped.map { "\($0.target.name): \($0.reason)" }, ["Lone: open member", "Extended: open member"])
+        XCTAssertEqual(try apply(plan), source.replacingOccurrences(of: "public class Plain", with: "public final class Plain"))
+    }
+
     func testMissingFinalSecondRunProducesNoChange() throws {
         let source = "@MainActor public class A {\n    class B {}\n}\n"
         let targets = [

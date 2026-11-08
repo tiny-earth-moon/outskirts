@@ -78,12 +78,28 @@ struct EditBuilder {
         if modifiers.contains(where: { $0.name.tokenKind == .keyword(.open) }) {
             return .failure(.openClass)
         }
+        // A final class cannot have open members, declared in its body or in an extension of the file.
+        if hasOpenMember(classDecl) {
+            return .failure(.openMember)
+        }
 
         let accessIndex = modifiers.lastIndex { Self.accessKeywords.contains($0.name.tokenKind) }
         let followingIndex = accessIndex.map { $0 + 1 } ?? 0
         let insertionToken = followingIndex < modifiers.count ? modifiers[followingIndex].name : classDecl.classKeyword
         let offset = insertionToken.positionAfterSkippingLeadingTrivia.utf8Offset
         return .success([SourceEdit(range: offset ..< offset, replacement: "final ")])
+    }
+
+    private func hasOpenMember(_ classDecl: ClassDeclSyntax) -> Bool {
+        let name = classDecl.name.text
+        let extensions = source.tree.statements.compactMap { $0.item.as(ExtensionDeclSyntax.self) }
+            .filter { $0.extendedType.trimmedDescription.split(separator: ".").last.map(String.init) == name }
+        let memberBlocks = [classDecl.memberBlock] + extensions.map(\.memberBlock)
+        return memberBlocks.contains { block in
+            block.members.contains { member in
+                member.decl.asProtocol(WithModifiersSyntax.self)?.modifiers.contains { $0.name.tokenKind == .keyword(.open) } ?? false
+            }
+        }
     }
 
     private static let accessKeywords: Set<TokenKind> = [
