@@ -158,6 +158,14 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         XCTAssertEqual(outcome.fixed, outcome.original)
     }
 
+    func testKeepsTheDeclarationsOfAModuleTheProjectDoesNotDeclare() throws {
+        let dependency = try removeUnused(fixture: "testRemovesAFreeFunction", ownModules: ["App"])
+        XCTAssertEqual(dependency.decisions, ["4 fixUnusedFreeFunction()": SkipReason.dependencyPackage.description])
+
+        let own = try removeUnused(fixture: "testRemovesAFreeFunction", ownModules: ["FixUnusedFixtures"])
+        XCTAssertEqual(own.decisions, ["4 fixUnusedFreeFunction()": "removed"])
+    }
+
     func testKeepsWhatUncoveredClausesReachWithoutNamingIt() throws {
         let outcome = try removeUnused(readsConditionalClauses: true)
 
@@ -293,6 +301,7 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         scanRetainsPublic: Bool = true,
         fixRetainsPublic: Bool = false,
         includesPublic: Bool = false,
+        ownModules: Set<String>? = nil,
         readsConditionalClauses: Bool = false,
         including isIncluded: (ScanResult) -> Bool = { _ in true }
     ) throws -> Outcome {
@@ -308,7 +317,8 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
             graph: Self.graph,
             configuration: configuration,
             uncoveredNames: readsConditionalClauses ? UncoveredConditionalNames(graph: Self.graph) : UncoveredConditionalNames(names: []),
-            includesPublic: includesPublic
+            includesPublic: includesPublic,
+            ownModules: ownModules
         )
         let plan = makePlanner().plan([], removing: &removal)
 

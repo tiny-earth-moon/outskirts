@@ -42,12 +42,15 @@ public struct UnusedRemovalSet {
     ///   declarations they may reference.
     /// - Parameter includesPublic: whether `public` and `open` declarations may be removed, unless the configuration
     ///   retains them.
+    /// - Parameter ownModules: the modules of the targets the project builds, when the driver knows them: the files
+    ///   of other modules, such as a local dependency package, are not edited, as their own tests are not built.
     public init(
         results: [ScanResult],
         graph: SourceGraph,
         configuration: Configuration,
         uncoveredNames: UncoveredConditionalNames = UncoveredConditionalNames(names: []),
-        includesPublic: Bool = false
+        includesPublic: Bool = false,
+        ownModules: Set<String>? = nil
     ) throws {
         self.graph = graph
         let eligibility = Eligibility(
@@ -72,6 +75,8 @@ public struct UnusedRemovalSet {
         for (declaration, target) in unusedResults {
             if target.hasLocationOverride {
                 skipped.append((target, .locationOverride))
+            } else if let ownModules, declaration.location.file.modules.isDisjoint(with: ownModules) {
+                skipped.append((target, .dependencyPackage))
             } else if declaration.kind.isExtensionKind {
                 guard let extended = extendedTypes[declaration] else {
                     skipped.append((target, .unremovableKind))

@@ -107,7 +107,8 @@ struct FixCommand: ParsableCommand {
                 graph: output.graph,
                 configuration: configuration,
                 uncoveredNames: UncoveredConditionalNames(graph: output.graph),
-                includesPublic: includePublic
+                includesPublic: includePublic,
+                ownModules: output.driver.ownModules()
             )
             plan = planner.plan(targets, removing: &removal)
         }

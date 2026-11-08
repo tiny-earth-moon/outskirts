@@ -266,6 +266,38 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertTrue(flagWithoutRule.stderr.contains("'--allow-partial-scan' only applies to '--rule unused'"), flagWithoutRule.stderr)
     }
 
+    func testUnusedRuleKeepsTheFilesOfALocalDependencyPackage() throws {
+        try write("""
+        // swift-tools-version:5.9
+        import PackageDescription
+        let package = Package(name: "Core", products: [.library(name: "Core", targets: ["Core"])], targets: [
+            .target(name: "Core"),
+            .testTarget(name: "CoreTests", dependencies: ["Core"]),
+        ])
+        """, to: "Modules/Core/Package.swift")
+        let core = "public func coreValue() -> Int { 1 }\nfunc coreHelperForTests() -> Int { 2 }\n"
+        try write(core, to: "Modules/Core/Sources/Core/Core.swift")
+        try write("@testable import Core\nimport XCTest\n\nfinal class CoreTests: XCTestCase {\n    func testHelper() { XCTAssertEqual(coreHelperForTests(), 2) }\n}\n", to: "Modules/Core/Tests/CoreTests/CoreTests.swift")
+        try write("""
+        // swift-tools-version:5.9
+        import PackageDescription
+        let package = Package(name: "Fixture", dependencies: [.package(path: "Modules/Core")], targets: [
+            .target(name: "Helpers"),
+            .target(name: "Lib", dependencies: ["Helpers"]),
+            .executableTarget(name: "App", dependencies: ["Lib", .product(name: "Core", package: "Core")]),
+        ])
+        """, to: "Package.swift")
+        try write("import Core\nimport Lib\n\nprint(Widget().render(width: 1, 2), coreValue())\n", to: "Sources/App/main.swift")
+        try commitAll()
+
+        let output = try run(["fix", "--rule", "unused", "--variants", "auto"])
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        // The tests of the dependency use it, but only the root package is built.
+        XCTAssertTrue(output.stderr.contains("  skipped unused 'coreHelperForTests()' at Modules/Core/Sources/Core/Core.swift:2:6: dependency package"), output.stderr)
+        XCTAssertFalse(output.stdout.contains("coreHelperForTests"), output.stdout)
+    }
+
     // MARK: - Private
 
     private struct Output {

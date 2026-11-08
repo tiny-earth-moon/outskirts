@@ -45,6 +45,7 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case uncoveredConditionalType
     case implicitMemberWithUncoveredCode
     case publicDeclaration
+    case dependencyPackage
 
     public var description: String {
         switch self {
@@ -93,6 +94,7 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .uncoveredConditionalType: "member of a type declared, extended or inherited from in an #if clause that no scanned build compiled"
         case .implicitMemberWithUncoveredCode: "subscript, operator or implicitly called member, with code in an #if clause that no scanned build compiled"
         case .publicDeclaration: "public API, use --include-public"
+        case .dependencyPackage: "dependency package"
         }
     }
 }
