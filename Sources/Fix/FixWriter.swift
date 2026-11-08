@@ -78,8 +78,8 @@ public enum FixWriter {
 /// The files that `FixWriter.restore` wrote back, and those that changed after the fixes were written, which it
 /// leaves as they are.
 public struct FixRestoration: Equatable {
-    public internal(set) var restored: [FilePath] = []
-    public internal(set) var notRestored: [FilePath] = []
+    internal(set) var restored: [FilePath] = []
+    internal(set) var notRestored: [FilePath] = []
 
     /// What a failed verification did to the files: each restored file, and each file left as it is.
     public func summary(relativeTo root: FilePath, changeCount: Int) -> String {

@@ -1,5 +1,5 @@
 /// Why a result was not fixed.
-public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
+enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case locationMismatch
     case indexExcluded
     case generatedFile
@@ -51,7 +51,7 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case dependencyPackage
     case everyEnumCase
 
-    public var description: String {
+    var description: String {
         switch self {
         case .locationMismatch: "location mismatch"
         case .indexExcluded: "index-excluded file"

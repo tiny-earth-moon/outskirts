@@ -1,13 +1,13 @@
 import Foundation
 
 public enum UpdateNotice {
-    public static let repository = "tiny-earth-moon/outskirts"
+    static let repository = "tiny-earth-moon/outskirts"
 
     public static var latestReleaseURL: URL {
         URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
     }
 
-    public static func releaseNotesURL(tag: String) -> String {
+    static func releaseNotesURL(tag: String) -> String {
         "https://github.com/\(repository)/releases/tag/\(tag)"
     }
 

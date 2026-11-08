@@ -26,7 +26,7 @@ open class SetupGuideHelpers {
         self.logger = logger
     }
 
-    func display(options: [String]) {
+    final func display(options: [String]) {
         let maxPaddingCount = String(options.count).count
 
         for (index, option) in options.enumerated() {
@@ -36,7 +36,7 @@ open class SetupGuideHelpers {
         }
     }
 
-    public func select(single options: [String]) -> String {
+    public final func select(single options: [String]) -> String {
         display(options: options)
         print(logger.colorize("?", .boldYellow) + " Type the number for the option you wish to select")
         print(logger.colorize("=> ", .bold), terminator: "")
@@ -55,7 +55,7 @@ open class SetupGuideHelpers {
         return select(single: options)
     }
 
-    public func select(multiple options: [String]) -> SetupSelection {
+    public final func select(multiple options: [String]) -> SetupSelection {
         let helpMsg = " Delimit choices with a single space, e.g: 1 2 3"
 
         display(options: options)
@@ -85,7 +85,7 @@ open class SetupGuideHelpers {
         return select(multiple: options)
     }
 
-    public func selectBoolean() -> Bool {
+    public final func selectBoolean() -> Bool {
         print(
             "(" + logger.colorize("Y", .boldGreen) + ")es" +
                 "/" +

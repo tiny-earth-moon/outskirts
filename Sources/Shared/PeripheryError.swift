@@ -98,7 +98,7 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
     }
 
     /// The class of the failure, which gives its exit status. Every case is classified explicitly.
-    public var failureClass: FailureClass {
+    var failureClass: FailureClass {
         switch self {
         case .foundIssues, .staleBaselineEntries:
             .findings

@@ -67,11 +67,11 @@ public final class Declaration {
             protocolMemberKinds + [.varClass, .functionMethodClass, .associatedtype]
         }
 
-        public var isProtocolMemberKind: Bool {
+        var isProtocolMemberKind: Bool {
             Self.protocolMemberKinds.contains(self)
         }
 
-        public var isProtocolMemberConformingKind: Bool {
+        var isProtocolMemberConformingKind: Bool {
             Self.protocolMemberConformingKinds.contains(self)
         }
 
@@ -100,7 +100,7 @@ public final class Declaration {
             Set(Kind.allCases.filter(\.isExtensionKind))
         }
 
-        public var extendedKind: Kind? {
+        var extendedKind: Kind? {
             switch self {
             case .extensionClass:
                 .class
@@ -115,7 +115,7 @@ public final class Declaration {
             }
         }
 
-        public var extensionKind: Kind? {
+        var extensionKind: Kind? {
             switch self {
             case .class:
                 .extensionClass
@@ -142,7 +142,7 @@ public final class Declaration {
             isDiscreteConformableKind || isExtensionKind
         }
 
-        public var isDiscreteConformableKind: Bool {
+        var isDiscreteConformableKind: Bool {
             Self.discreteConformableKinds.contains(self)
         }
 
@@ -150,7 +150,7 @@ public final class Declaration {
             [.class, .struct, .enum]
         }
 
-        public var isConcreteTypeDeclarableKind: Bool {
+        var isConcreteTypeDeclarableKind: Bool {
             Self.concreteTypeDeclarableKinds.contains(self)
         }
 
@@ -274,7 +274,7 @@ public final class Declaration {
             .union(unusedParameters)
     }
 
-    public var immediateInheritedTypeReferences: Set<Reference> {
+    var immediateInheritedTypeReferences: Set<Reference> {
         let superclassReferences = related.filter { [.class, .struct, .protocol].contains($0.declarationKind) }
 
         // Inherited typealiases are References instead of a Related.
@@ -282,7 +282,7 @@ public final class Declaration {
         return superclassReferences.union(typealiasReferences)
     }
 
-    public var isComplexProperty: Bool {
+    var isComplexProperty: Bool {
         declarations.contains {
             if [
                 .functionAccessorWillset,
@@ -299,11 +299,11 @@ public final class Declaration {
         }
     }
 
-    public var isOverride: Bool {
+    var isOverride: Bool {
         modifiers.contains("override")
     }
 
-    public var relatedEquivalentReferences: [Reference] {
+    var relatedEquivalentReferences: [Reference] {
         related.filter { $0.declarationKind == kind && $0.name == name }
     }
 
@@ -392,7 +392,7 @@ extension Declaration: Comparable {
 
 public struct DeclarationAccessibility {
     public let value: Accessibility
-    public let isExplicit: Bool
+    let isExplicit: Bool
 
     public init(value: Accessibility, isExplicit: Bool) {
         self.value = value

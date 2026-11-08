@@ -18,7 +18,7 @@ import SwiftSyntax
 ///   when there is one.
 public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
     /// Type names whose values are created from a localization key when initialized from a string literal.
-    public static let localizedTypeNames = [
+    static let localizedTypeNames = [
         "LocalizedStringKey",
         "LocalizedStringResource",
         "LocalizationValue",

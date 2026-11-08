@@ -276,10 +276,10 @@ public final class Configuration {
     public var summary: Bool?
 
     /// The configuration files the last load read, the files a v2 file extends first.
-    public internal(set) var loadedFiles: [FilePath] = []
+    internal(set) var loadedFiles: [FilePath] = []
 
     /// The format of the configuration file the last load read: 1 when none was read.
-    public internal(set) var loadedVersion = 1
+    internal(set) var loadedVersion = 1
 
     /// The format `--write-baseline` writes: `v2` when the loaded configuration file declares `version: 2`.
     public var baselineFormat: BaselineFormat {
@@ -327,7 +327,7 @@ public final class Configuration {
         localizedStringCatalogExcludeMatchers = buildFilenameMatchers(with: localizedStringCatalogExclude)
     }
 
-    public var indexExcludeMatchers: [FilenameMatcher] = []
+    var indexExcludeMatchers: [FilenameMatcher] = []
     public var retainFilesMatchers: [FilenameMatcher] = []
     public var reportIncludeMatchers: [FilenameMatcher] = []
     public var localizedStringCatalogExcludeMatchers: [FilenameMatcher] = []

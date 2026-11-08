@@ -18,7 +18,7 @@ public enum Constants {
     }
 
     /// The cache directory used by releases that predate the rename.
-    public static func legacyCachePath(cachesDirectory: URL? = nil) throws -> FilePath {
+    static func legacyCachePath(cachesDirectory: URL? = nil) throws -> FilePath {
         let base = try resolveCachesDirectory(cachesDirectory)
         return FilePath(base.appendingPathComponent(legacyCacheDirectoryName).path)
     }

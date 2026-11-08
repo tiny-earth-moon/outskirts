@@ -11,7 +11,7 @@ public final class ParameterAttributeNameCollector: PeripherySyntaxNodeVisitor {
 
     public init() {}
 
-    public static func collect(from syntax: SourceFileSyntax) -> Set<String> {
+    static func collect(from syntax: SourceFileSyntax) -> Set<String> {
         let collector = ParameterAttributeNameCollector()
         collector.walk(syntax)
         return collector.names

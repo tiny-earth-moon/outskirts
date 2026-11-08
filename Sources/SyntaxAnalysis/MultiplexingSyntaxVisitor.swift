@@ -139,279 +139,279 @@ public extension PeripherySyntaxNodeVisitor {
 public class ForwardingSyntaxVisitor: SyntaxVisitor {
     private var visitors: [PeripherySyntaxNodeVisitor]
 
-    public init(visitors: [PeripherySyntaxNodeVisitor] = []) {
+    init(visitors: [PeripherySyntaxNodeVisitor] = []) {
         self.visitors = visitors
         super.init(viewMode: .sourceAccurate)
     }
 
     /// Adds a visitor that receives the nodes of the next walk.
     @discardableResult
-    public func add<T: PeripherySyntaxNodeVisitor>(_ visitor: T) -> T {
+    public final func add<T: PeripherySyntaxNodeVisitor>(_ visitor: T) -> T {
         visitors.append(visitor)
         return visitor
     }
 
-    override public func visit(_ node: IdentifierTypeSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: IdentifierTypeSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: SequenceExprSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: SequenceExprSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: InfixOperatorExprSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: InfixOperatorExprSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: SwitchCaseItemSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: SwitchCaseItemSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: MatchingPatternConditionSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: MatchingPatternConditionSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: ForStmtSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: ForStmtSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: CatchItemSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: CatchItemSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: IfConfigClauseSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: IfConfigClauseSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: ActorDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: ActorDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: ClassDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: ClassDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: ProtocolDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: ProtocolDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: StructDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: StructDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: EnumDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: EnumDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: EnumCaseDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: EnumCaseDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: ExtensionDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: ExtensionDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: InitializerDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: InitializerDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: DeinitializerDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: DeinitializerDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: SubscriptDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: SubscriptDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: VariableDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: VariableDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: TypeAliasDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: TypeAliasDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: AssociatedTypeDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: AssociatedTypeDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: MacroDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: MacroDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: OperatorDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: OperatorDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: PrecedenceGroupDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: PrecedenceGroupDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: ImportDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: ImportDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: OptionalBindingConditionSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: OptionalBindingConditionSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: AttributeSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: AttributeSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: DeclModifierSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: DeclModifierSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: StringLiteralExprSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: StringLiteralExprSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: FunctionParameterSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: FunctionParameterSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: ClosureParameterSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: ClosureParameterSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: KeyPathExprSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: KeyPathExprSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: ExpressionSegmentSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: ExpressionSegmentSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visit(_ node: IfConfigDeclSyntax) -> SyntaxVisitorContinueKind {
+    override public final func visit(_ node: IfConfigDeclSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
 
-    override public func visitPost(_ node: ActorDeclSyntax) {
+    override public final func visitPost(_ node: ActorDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: ClassDeclSyntax) {
+    override public final func visitPost(_ node: ClassDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: ProtocolDeclSyntax) {
+    override public final func visitPost(_ node: ProtocolDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: StructDeclSyntax) {
+    override public final func visitPost(_ node: StructDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: EnumDeclSyntax) {
+    override public final func visitPost(_ node: EnumDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: EnumCaseDeclSyntax) {
+    override public final func visitPost(_ node: EnumCaseDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: ExtensionDeclSyntax) {
+    override public final func visitPost(_ node: ExtensionDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: FunctionDeclSyntax) {
+    override public final func visitPost(_ node: FunctionDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: InitializerDeclSyntax) {
+    override public final func visitPost(_ node: InitializerDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: DeinitializerDeclSyntax) {
+    override public final func visitPost(_ node: DeinitializerDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: SubscriptDeclSyntax) {
+    override public final func visitPost(_ node: SubscriptDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: VariableDeclSyntax) {
+    override public final func visitPost(_ node: VariableDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: TypeAliasDeclSyntax) {
+    override public final func visitPost(_ node: TypeAliasDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: AssociatedTypeDeclSyntax) {
+    override public final func visitPost(_ node: AssociatedTypeDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: MacroDeclSyntax) {
+    override public final func visitPost(_ node: MacroDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: OperatorDeclSyntax) {
+    override public final func visitPost(_ node: OperatorDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: PrecedenceGroupDeclSyntax) {
+    override public final func visitPost(_ node: PrecedenceGroupDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: ImportDeclSyntax) {
+    override public final func visitPost(_ node: ImportDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: OptionalBindingConditionSyntax) {
+    override public final func visitPost(_ node: OptionalBindingConditionSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: FunctionCallExprSyntax) {
+    override public final func visitPost(_ node: FunctionCallExprSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
-    override public func visitPost(_ node: IfConfigDeclSyntax) {
+    override public final func visitPost(_ node: IfConfigDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 }

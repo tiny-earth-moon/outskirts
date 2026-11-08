@@ -7,14 +7,14 @@ import SystemPackage
 /// declaration, a move of the file's lines, and another checkout of the project.
 public enum SyntheticUsr {
     public static let localizedStringPrefix = "xcstrings:"
-    public static let metalFunctionPrefix = "metal:"
-    public static let missingMetalFunctionPrefix = "metal-missing:"
+    static let metalFunctionPrefix = "metal:"
+    static let missingMetalFunctionPrefix = "metal-missing:"
 
-    public static func moduleImport(_ module: String, in file: FilePath, projectRoot: FilePath) -> String {
+    static func moduleImport(_ module: String, in file: FilePath, projectRoot: FilePath) -> String {
         "import-\(module)-\(relativePath(of: file, to: projectRoot))"
     }
 
-    public static func emptyExtension(of typeName: String, in file: FilePath, projectRoot: FilePath) -> String {
+    static func emptyExtension(of typeName: String, in file: FilePath, projectRoot: FilePath) -> String {
         "empty-extension-\(typeName)-\(relativePath(of: file, to: projectRoot))"
     }
 
@@ -32,7 +32,7 @@ public enum SyntheticUsr {
 
     /// The id of the `occurrence`th result (counting from 1) that shares an id with others in a file. The first one
     /// keeps the plain id, so that adding another one after it does not change what a baseline recorded.
-    public static func numbered(_ usr: String, occurrence: Int) -> String {
+    static func numbered(_ usr: String, occurrence: Int) -> String {
         occurrence <= 1 ? usr : "\(usr)#\(occurrence)"
     }
 

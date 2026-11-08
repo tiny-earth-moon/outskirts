@@ -47,7 +47,7 @@ extension Location: CustomStringConvertible {
         descriptionInternal
     }
 
-    public var shortDescription: String {
+    var shortDescription: String {
         shortDescriptionInternal
     }
 }

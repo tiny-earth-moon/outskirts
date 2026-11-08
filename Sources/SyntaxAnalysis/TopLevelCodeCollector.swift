@@ -22,7 +22,7 @@ public struct TopLevelCodeRanges {
 
     let ranges: [Range]
 
-    public var isEmpty: Bool {
+    var isEmpty: Bool {
         ranges.isEmpty
     }
 

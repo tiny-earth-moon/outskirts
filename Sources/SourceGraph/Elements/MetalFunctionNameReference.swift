@@ -18,7 +18,7 @@ public struct MetalFunctionNameReference: Hashable {
 public struct MetalRuntimeLibrarySite: Hashable, Comparable {
     /// The creating call, e.g. `makeLibrary(source:)`.
     public let call: String
-    public let location: Location
+    let location: Location
 
     public init(call: String, location: Location) {
         self.call = call

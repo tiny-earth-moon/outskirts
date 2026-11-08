@@ -34,14 +34,14 @@ public struct AssetReference: Hashable {
     }
 
     public let name: String
-    public let source: ProjectFileKind
+    let source: ProjectFileKind
 
     /// Outlet property names referenced in Interface Builder (e.g., "button", "label").
-    public let outlets: [String]
+    let outlets: [String]
 
     /// Action selector names referenced in Interface Builder (e.g., "click:", "handleTap:").
-    public let actions: [String]
+    let actions: [String]
 
     /// User-defined runtime attribute key paths (IBInspectable, e.g., "cornerRadius", "borderColor").
-    public let runtimeAttributes: [String]
+    let runtimeAttributes: [String]
 }

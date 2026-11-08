@@ -5,21 +5,21 @@ import SystemPackage
 /// A result to fix, located by the position of its name as the scan reported it.
 public struct FixTarget: Hashable, Sendable {
     public let rule: FixRule
-    public let name: String
-    public let kind: Declaration.Kind
+    let name: String
+    let kind: Declaration.Kind
     public let file: FilePath
-    public let line: Int
-    public let column: Int
+    let line: Int
+    let column: Int
     /// The redundant access level, for `redundantAccessLevel`.
-    public let accessibility: Accessibility?
+    let accessibility: Accessibility?
     /// Whether the declaration carries an `override location=` comment, so its reported position is not its own.
-    public let hasLocationOverride: Bool
+    let hasLocationOverride: Bool
     /// The output v2 id of the result, which keys its edit; nil for a target that is not built from a result.
-    public let id: String?
+    let id: String?
     /// For `unused`, why the declaration may not be removed if it turns out to be a stored property.
-    public let storedPropertyRefusal: SkipReason?
+    let storedPropertyRefusal: SkipReason?
 
-    public init(
+    init(
         rule: FixRule,
         name: String,
         kind: Declaration.Kind,

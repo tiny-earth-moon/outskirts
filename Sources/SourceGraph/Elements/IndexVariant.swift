@@ -7,7 +7,7 @@ import Foundation
 public struct IndexVariant: Hashable, Comparable, CustomStringConvertible {
     public let triple: String
     /// `false` when the unit was compiled without optimization, as in a debug build.
-    public let isOptimized: Bool
+    let isOptimized: Bool
 
     public init(triple: String, isOptimized: Bool) {
         self.triple = triple
@@ -20,7 +20,7 @@ public struct IndexVariant: Hashable, Comparable, CustomStringConvertible {
 
     /// The platform names `@available` accepts that apply to this build, or `nil` when the triple is not an Apple
     /// platform known with certainty. A Mac Catalyst build is also an iOS build, as it inherits iOS availability.
-    public var availabilityPlatforms: Set<String>? {
+    var availabilityPlatforms: Set<String>? {
         let components = triple.split(separator: "-", omittingEmptySubsequences: false).map(String.init)
         guard components.count == 3 || components.count == 4, components[1] == "apple" else { return nil }
 
@@ -55,7 +55,7 @@ public struct IndexVariant: Hashable, Comparable, CustomStringConvertible {
     /// written in `#if` clauses no build compiled, whose names are retained.
     ///
     /// Never true with fewer than two builds, nor when one of them is not a known Apple platform.
-    public static func cover(unavailablePlatforms: Set<String>, in variants: Set<IndexVariant>) -> Bool {
+    static func cover(unavailablePlatforms: Set<String>, in variants: Set<IndexVariant>) -> Bool {
         guard !unavailablePlatforms.isEmpty else { return false }
 
         let platforms = variants.map(\.availabilityPlatforms)

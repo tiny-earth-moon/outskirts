@@ -26,9 +26,9 @@ final class AttributeRetainer: SourceGraphMutator {
 }
 
 public struct AttributeRetentionRule: Equatable {
-    public let attribute: String
+    let attribute: String
     /// `nil` retains every kind of declaration.
-    public let kinds: [String]?
+    let kinds: [String]?
 
     public func retains(_ declaration: Declaration) -> Bool {
         guard declaration.hasAttribute(named: attribute) else { return false }

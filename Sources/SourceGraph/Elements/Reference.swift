@@ -35,7 +35,7 @@ public final class Reference {
     public let declarationKind: Declaration.Kind
     public let name: String
     public var parent: Declaration?
-    public var references: Set<Reference> = []
+    var references: Set<Reference> = []
     public let usr: String
     public var role: Role = .unknown
 

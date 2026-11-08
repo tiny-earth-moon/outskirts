@@ -26,7 +26,7 @@ public final class SynthesizedUseCollector: PeripherySyntaxVisitor {
         self.init(sourceLocationBuilder: sourceLocationBuilder)
     }
 
-    public static func collect(
+    static func collect(
         from syntax: SourceFileSyntax,
         file: SourceFile,
         locationConverter: SourceLocationConverter

@@ -15,9 +15,9 @@ public enum WorkingTreeState: Sendable {
 
 /// When the index store and the scan read each file: a file modified since then may not match the results.
 public struct IndexDates: Sendable {
-    public let scanStartedAt: Date
+    let scanStartedAt: Date
     /// When the newest index store unit of each source file was written.
-    public let unitDates: [FilePath: Date]
+    let unitDates: [FilePath: Date]
 
     public init(scanStartedAt: Date, unitDates: [FilePath: Date]) {
         self.scanStartedAt = scanStartedAt
@@ -33,10 +33,10 @@ public struct IndexDates: Sendable {
 
 /// Turns results into edits of the original buffers, applying the safety rules.
 public struct FixPlanner {
-    public let workingTree: WorkingTreeState
+    let workingTree: WorkingTreeState
     /// Nil skips the check, for buffers that were not indexed.
-    public let indexDates: IndexDates?
-    public let isIndexExcluded: (FilePath) -> Bool
+    let indexDates: IndexDates?
+    let isIndexExcluded: (FilePath) -> Bool
 
     public init(workingTree: WorkingTreeState, indexDates: IndexDates?, isIndexExcluded: @escaping (FilePath) -> Bool) {
         self.workingTree = workingTree
@@ -190,21 +190,21 @@ private struct TargetPosition: Hashable {
 public struct FixPlan {
     public struct Change {
         public let path: FilePath
-        public let original: [UInt8]
-        public let fixed: [UInt8]
+        let original: [UInt8]
+        let fixed: [UInt8]
     }
 
-    public struct Skip {
-        public let target: FixTarget
-        public let reason: SkipReason
+    struct Skip {
+        let target: FixTarget
+        let reason: SkipReason
     }
 
     public internal(set) var changes: [Change] = []
     public internal(set) var applied: [FixTarget] = []
-    public internal(set) var skipped: [Skip] = []
+    internal(set) var skipped: [Skip] = []
 
     /// Records results that were skipped before planning, such as the unused declarations that are kept.
-    public mutating func addSkipped(_ skips: [(target: FixTarget, reason: SkipReason)]) {
+    mutating func addSkipped(_ skips: [(target: FixTarget, reason: SkipReason)]) {
         skipped += skips.map { Skip(target: $0.target, reason: $0.reason) }
     }
 

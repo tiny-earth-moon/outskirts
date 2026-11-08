@@ -10,18 +10,18 @@ public final class SourceGraph {
     public private(set) var redundantProtocols: [Declaration: (references: Set<Reference>, inherited: Set<Reference>)] = [:]
     /// Protocols that would be redundant were they not retained by an ignore comment.
     public private(set) var suppressedRedundantProtocols: Set<Declaration> = []
-    public private(set) var rootDeclarations: Set<Declaration> = []
+    private(set) var rootDeclarations: Set<Declaration> = []
     public private(set) var redundantPublicAccessibility: [Declaration: Set<String>] = [:]
     public private(set) var redundantOpenAccessibility: [Declaration: Set<String>] = [:]
     public private(set) var missingFinalDeclarations: Set<Declaration> = []
     public private(set) var redundantAccessLevel: [Declaration: RedundantAccessLevel] = [:]
     public private(set) var emptyExtensions: Set<Declaration> = []
-    public private(set) var rootReferences: Set<Reference> = []
+    private(set) var rootReferences: Set<Reference> = []
     public private(set) var allReferences: Set<Reference> = []
     public private(set) var retainedDeclarations: Set<Declaration> = []
     public private(set) var ignoredDeclarations: Set<Declaration> = []
-    public private(set) var assetReferences: Set<AssetReference> = []
-    public private(set) var mainAttributedDeclarations: Set<Declaration> = []
+    private(set) var assetReferences: Set<AssetReference> = []
+    private(set) var mainAttributedDeclarations: Set<Declaration> = []
     public private(set) var allReferencesByUsr: [String: Set<Reference>] = [:]
     public private(set) var indexedSourceFiles: [SourceFile] = []
     public private(set) var unusedModuleImports: Set<Declaration> = []
@@ -30,51 +30,51 @@ public final class SourceGraph {
     public private(set) var unassignedOptionalProperties: Set<Declaration> = []
     public private(set) var unconstructedEnumCases: Set<Declaration> = []
     /// The source files left out by `index_exclude`, only recorded for the unconstructed enum case analysis.
-    public private(set) var indexExcludedSourceFiles: Set<FilePath> = []
+    private(set) var indexExcludedSourceFiles: Set<FilePath> = []
     public private(set) var extensions: [Declaration: Set<Declaration>] = [:]
     public private(set) var commandIgnoredDeclarations: [Declaration: CommandIgnoreKind] = [:]
     public private(set) var functionsWithIgnoredParameters: Set<Declaration> = []
-    public private(set) var platformConditionalNames: Set<String> = []
-    public private(set) var parameterAttributeNames: Set<String> = []
-    public private(set) var platformConditionalNamesByFile: [SourceFile: Set<String>] = [:]
-    public private(set) var usedLocalizedStringKeys: Set<String> = []
+    private(set) var platformConditionalNames: Set<String> = []
+    private(set) var parameterAttributeNames: Set<String> = []
+    private(set) var platformConditionalNamesByFile: [SourceFile: Set<String>] = [:]
+    private(set) var usedLocalizedStringKeys: Set<String> = []
     /// Literal prefixes of keys built at runtime and looked up in the calling module's bundle, by module.
     public private(set) var runtimeLocalizedStringKeyPrefixesByModule: [String: Set<String>] = [:]
     /// Literal prefixes of keys built at runtime and looked up in an unknown bundle.
     public private(set) var runtimeLocalizedStringKeyPrefixes: Set<String> = []
     /// Call sites of keys built at runtime without a literal prefix, whose catalogue keys cannot be determined.
     public private(set) var unprefixedRuntimeLocalizedStringKeyLocations: Set<Location> = []
-    public private(set) var synthesizedUses: Set<SynthesizedUse> = []
+    private(set) var synthesizedUses: Set<SynthesizedUse> = []
     /// Locations of the property components of key paths that are not the argument of a `keyPath:` subscript.
-    public private(set) var keyPathComponentLocations: Set<Location> = []
+    private(set) var keyPathComponentLocations: Set<Location> = []
     public private(set) var unusedAssetCatalogSymbols: [Declaration: AssetCatalogSymbol] = [:]
     /// Strings that may name an asset catalog resource, from string literals, Interface Builder files and
     /// build settings.
-    public private(set) var assetCatalogNameReferences: Set<String> = []
+    private(set) var assetCatalogNameReferences: Set<String> = []
     /// Swift expressions that name a Metal function.
-    public private(set) var metalFunctionNameReferences: Set<MetalFunctionNameReference> = []
+    private(set) var metalFunctionNameReferences: Set<MetalFunctionNameReference> = []
     /// Swift calls that create a Metal library at run time (from source, a file, data or a binary archive).
-    public private(set) var metalRuntimeLibrarySites: Set<MetalRuntimeLibrarySite> = []
+    private(set) var metalRuntimeLibrarySites: Set<MetalRuntimeLibrarySite> = []
     /// The names at pattern positions that may refer to enum cases, collected while indexing.
-    public private(set) var enumCasePatternSites: [Location: EnumCasePatternSite] = [:]
+    private(set) var enumCasePatternSites: [Location: EnumCasePatternSite] = [:]
     /// The identifiers written in any clause of an `#if` block, collected while indexing.
-    public private(set) var enumCaseConditionalNames: Set<String> = []
+    private(set) var enumCaseConditionalNames: Set<String> = []
     /// Every Metal function name of the `.metal` files, including those of conditionally compiled blocks, which
     /// are never reported.
-    public private(set) var declaredMetalFunctionNames: Set<String> = []
+    private(set) var declaredMetalFunctionNames: Set<String> = []
     /// Whether the declared Metal function names are complete, so that a literal naming none of them can be
     /// reported: false when no `.metal` file was read, or when a macro may declare functions.
-    public private(set) var declaredMetalFunctionNamesAreComplete = false
+    private(set) var declaredMetalFunctionNamesAreComplete = false
     /// Swift literals naming a Metal function that no `.metal` file declares.
     public private(set) var missingMetalFunctions: Set<Declaration> = []
 
     /// Whether the graph records why declarations are retained or used, and why references are discarded, for
     /// `--explain`. Nothing is recorded otherwise, so a normal scan pays nothing.
-    public let recordsExplanations: Bool
+    let recordsExplanations: Bool
     public private(set) var retentionReasons: [Declaration: [RetentionReason]] = [:]
     public private(set) var discardedReferencesByUsr: [String: [DiscardedReference]] = [:]
     public private(set) var usePredecessors: [Declaration: UsePredecessor] = [:]
-    public private(set) var platformConditionalNameSites: [String: [PlatformConditionalNameSite]] = [:]
+    private(set) var platformConditionalNameSites: [String: [PlatformConditionalNameSite]] = [:]
     /// Source files without index data, by module (target), recorded only for `--explain`.
     public private(set) var unindexedSourceFilesByModule: [String: [FilePath]] = [:]
 
@@ -108,7 +108,7 @@ public final class SourceGraph {
         allDeclarations.subtracting(usedDeclarations)
     }
 
-    public func declarations(ofKind kind: Declaration.Kind) -> Set<Declaration> {
+    func declarations(ofKind kind: Declaration.Kind) -> Set<Declaration> {
         allDeclarationsByKind[kind] ?? []
     }
 
@@ -116,7 +116,7 @@ public final class SourceGraph {
         declarations(ofKinds: Array(kinds))
     }
 
-    public func declarations(ofKinds kinds: [Declaration.Kind]) -> Set<Declaration> {
+    func declarations(ofKinds kinds: [Declaration.Kind]) -> Set<Declaration> {
         kinds.flatMapSet { allDeclarationsByKind[$0, default: []] }
     }
 
@@ -185,7 +185,7 @@ public final class SourceGraph {
         _ = functionsWithIgnoredParameters.insert(declaration)
     }
 
-    public func markRetained(_ declaration: Declaration) {
+    func markRetained(_ declaration: Declaration) {
         if let parent = declaration.parent {
             for usr in declaration.usrs {
                 let reference = Reference(
@@ -241,7 +241,7 @@ public final class SourceGraph {
         }
     }
 
-    public func markRetained(_ declarations: Set<Declaration>) {
+    func markRetained(_ declarations: Set<Declaration>) {
         declarations.forEach { markRetained($0) }
     }
 
@@ -334,7 +334,7 @@ public final class SourceGraph {
         }
     }
 
-    public func add(_ reference: Reference, from declaration: Declaration) {
+    func add(_ reference: Reference, from declaration: Declaration) {
         if reference.kind == .related {
             _ = declaration.related.insert(reference)
         } else {
@@ -404,7 +404,7 @@ public final class SourceGraph {
         enumCaseConditionalNames.formUnion(conditionalNames)
     }
 
-    public func logMetalRuntimeLibrary(_ site: MetalRuntimeLibrarySite) {
+    func logMetalRuntimeLibrary(_ site: MetalRuntimeLibrarySite) {
         logger.debug("Metal library created at run time at \(site.location.file.path.string):\(site.location.line) (\(site.call)): literals naming unknown Metal functions are not reported")
     }
 
@@ -487,7 +487,7 @@ public final class SourceGraph {
         indexedModules.formUnion(modules)
     }
 
-    public func isModuleIndexed(_ module: String) -> Bool {
+    func isModuleIndexed(_ module: String) -> Bool {
         indexedModules.contains(module)
     }
 
@@ -495,13 +495,13 @@ public final class SourceGraph {
         moduleToExportingModules[module, default: []].formUnion(exportingModules)
     }
 
-    public func moduleExportsUnindexedModules(_ module: String) -> Bool {
+    func moduleExportsUnindexedModules(_ module: String) -> Bool {
         unindexedExportedModules.contains { unindexedModule in
             isModule(unindexedModule, exportedBy: module)
         }
     }
 
-    public func isModule(_ module: String, exportedBy exportingModule: String) -> Bool {
+    func isModule(_ module: String, exportedBy exportingModule: String) -> Bool {
         // Walk the modules exporting `module`, directly or transitively. System modules can export each other
         // (a Swift overlay and its Clang module share a name), so visited modules are tracked.
         var visited: Set<String> = [module]
@@ -546,12 +546,12 @@ public final class SourceGraph {
         }
     }
 
-    public func isSystemModuleIndexed(_ module: String) -> Bool {
+    func isSystemModuleIndexed(_ module: String) -> Bool {
         indexedSystemModules.contains(module)
     }
 
     /// The system modules that may declare the given USR, or `nil` when none is known.
-    public func systemModules(forUsr usr: String) -> Set<String>? {
+    func systemModules(forUsr usr: String) -> Set<String>? {
         let modules = systemModulesByUsr[usr, default: []].union(SystemModuleUsr.modules(in: usr))
         return modules.isEmpty ? nil : modules
     }

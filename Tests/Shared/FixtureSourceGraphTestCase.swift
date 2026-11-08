@@ -11,7 +11,7 @@ class FixtureSourceGraphTestCase: SPMSourceGraphTestCase {
     }
 
     @discardableResult
-    func analyze(
+    final func analyze(
         retainPublic: Bool = false,
         retainPublicModules: [String] = [],
         noRetainSPI: [String] = [],
