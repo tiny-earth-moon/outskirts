@@ -62,6 +62,9 @@
                     <state key="normal" title="Preposition"/>
                     <connections>
                         <action selector="clickFor:" destination="-1" eventType="touchUpInside" id="act-preposition"/>
+                        <action selector="firstResponderAction:" destination="-2" eventType="touchUpInside" id="act-first-responder"/>
+                        <action selector="didTapExplicit:" destination="-1" eventType="touchUpInside" id="act-objc-name"/>
+                        <action selector="clickTwice::" destination="-1" eventType="touchUpInside" id="act-two-unnamed"/>
                     </connections>
                 </button>
                 <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="XibViewController" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="ega-I7-Zu8">

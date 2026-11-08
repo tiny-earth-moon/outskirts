@@ -18,6 +18,9 @@ final class XibParser {
         // Build a map of element id -> customClass for resolving action destinations
         var idToCustomClass: [String: String] = [:]
         buildIdToCustomClassMap(from: structure.root, into: &idToCustomClass)
+        for id in firstResponderIds(in: structure.root) {
+            idToCustomClass[id] = AssetReference.firstResponderName
+        }
 
         // Collect all references with their outlets, actions, and runtime attributes
         var referencesByClass: [String: (outlets: Set<String>, actions: Set<String>, runtimeAttributes: Set<String>)] = [:]
@@ -67,6 +70,22 @@ final class XibParser {
         for child in element.children {
             collectNamedAssets(from: child, colors: colors, images: images, into: &names)
         }
+    }
+
+    /// The ids of the First Responder placeholders: `<placeholder placeholderIdentifier="IBFirstResponder">` (iOS)
+    /// and `<customObject customClass="FirstResponder">` (macOS).
+    private func firstResponderIds(in element: AEXMLElement) -> [String] {
+        var ids: [String] = []
+        if let id = element.attributes["id"],
+           element.attributes["placeholderIdentifier"] == "IBFirstResponder" ||
+           (element.name == "customObject" && element.attributes["customClass"] == "FirstResponder")
+        {
+            ids.append(id)
+        }
+        for child in element.children {
+            ids += firstResponderIds(in: child)
+        }
+        return ids
     }
 
     /// Builds a map of element id to customClass for resolving action destinations.
