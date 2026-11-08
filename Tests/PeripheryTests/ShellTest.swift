@@ -33,6 +33,25 @@ final class ShellTest: XCTestCase {
         }
     }
 
+    func testInvalidUTF8OnStderr_doesNotFailSuccessfulCommand() throws {
+        let shell = ShellImpl(logger: Logger(quiet: true, verbose: false, colorMode: .never))
+        let output = try shell.exec(["/bin/sh", "-c", "printf 'caf\\351' >&2; printf ok"])
+        XCTAssertEqual(output, "ok")
+    }
+
+    func testInvalidUTF8_failedCommandKeepsOutput() {
+        let shell = ShellImpl(logger: Logger(quiet: true, verbose: false, colorMode: .never))
+
+        XCTAssertThrowsError(try shell.exec(["/bin/sh", "-c", "printf 'caf\\351 broke' >&2; exit 3"])) { error in
+            guard case let PeripheryError.shellCommandFailed(_, status, output) = error else {
+                return XCTFail("Expected a shell command failure, received \(error)")
+            }
+
+            XCTAssertEqual(status, 3)
+            XCTAssertEqual(output, "caf\u{FFFD} broke")
+        }
+    }
+
     func testPassesArgumentsLiterallyWithoutAShell() throws {
         let shell = ShellImpl(logger: Logger(quiet: true, verbose: false, colorMode: .never))
         let marker = FileManager.default.temporaryDirectory.appendingPathComponent("periphery-shell-\(UUID().uuidString)")

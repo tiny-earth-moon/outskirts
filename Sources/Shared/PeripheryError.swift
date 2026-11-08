@@ -3,7 +3,6 @@ import SystemPackage
 
 public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
     case shellCommandFailed(cmd: [String], status: Int32, output: String)
-    case shellOutputEncodingFailed(cmd: [String], encoding: String.Encoding)
     case executableNotFound(name: String, searchPath: [String])
     case usageError(String)
     case notInGitWorkTree(path: String)
@@ -37,9 +36,6 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
         case let .shellCommandFailed(cmd, status, output):
             let joinedCmd = cmd.shellQuoted
             return "Shell command '\(joinedCmd)' returned exit status '\(status)':\n\(output)"
-        case let .shellOutputEncodingFailed(cmd, encoding):
-            let joinedCmd = cmd.shellQuoted
-            return "Shell command '\(joinedCmd)' output encoding to \(encoding) failed."
         case let .executableNotFound(name, searchPath):
             if name.isEmpty {
                 return "Cannot run an empty command."
@@ -112,7 +108,7 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
         case .usageError, .notInGitWorkTree, .unknownGitRef, .removedBazelOption, .invalidScheme, .guidedSetupError,
              .pathDoesNotExist, .changeCurrentDirectoryFailed:
             .configuration
-        case .shellCommandFailed, .shellOutputEncodingFailed, .executableNotFound, .underlyingError,
+        case .shellCommandFailed, .executableNotFound, .underlyingError,
              .sourceGraphIntegrityError, .updateCheckError, .xcodebuildNotConfigured, .packageError,
              .swiftVersionParseError, .swiftVersionUnsupportedError, .jsonDeserializationError, .indexStoreNotFound,
              .indexStoreNotFoundAfterSkippedBuild, .spmIndexStoreNotFound, .noIndexedSourceFiles, .outdatedIndexData,
