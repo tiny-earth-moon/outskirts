@@ -60,8 +60,11 @@ final class XcodebuildListDerivedDataTest: XCTestCase {
     }
 
     func testCleanBuildRemovesTheDerivedDataUsedByList() throws {
+        // A cache of its own: other tests of the process hold the `-list` folder of the same project in the shared one.
+        let cache = FilePath(NSTemporaryDirectory()).appending("outskirts-list-cache-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(atPath: cache.string) }
         let shell = RecordingShell()
-        let (xcodebuild, project) = try makeProject(shell: shell, cacheDirectory: TestCacheDirectory.path)
+        let (xcodebuild, project) = try makeProject(shell: shell, cacheDirectory: cache)
 
         _ = try project.schemes(additionalArguments: [])
         let listCommand = try listCommand(in: shell)
