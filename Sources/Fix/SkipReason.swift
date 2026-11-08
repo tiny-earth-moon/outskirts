@@ -48,6 +48,7 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case storedPropertyNotIncluded
     case frozenType
     case dependencyPackage
+    case everyEnumCase
 
     public var description: String {
         switch self {
@@ -99,6 +100,7 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .storedPropertyNotIncluded: "stored property, use --include-stored-properties"
         case .frozenType: "stored property of a @frozen type"
         case .dependencyPackage: "dependency package"
+        case .everyEnumCase: "every case of the enum would be removed"
         }
     }
 }

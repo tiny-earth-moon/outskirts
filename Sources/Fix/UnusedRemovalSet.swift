@@ -129,6 +129,9 @@ public struct UnusedRemovalSet {
         while !isStable {
             isStable = true
             removedExtensions = extensionCandidates.filter { isInRemovedDeclaration($0.value.extended) }.mapValues(\.target)
+            if keepCasesOfEnumsLeftEmpty() {
+                isStable = false
+            }
 
             for declaration in removed.keys.sorted(by: { Self.isOrdered(removed[$0]!, before: removed[$1]!) }) {
                 if let reason = blockingReason(of: declaration) {
@@ -143,6 +146,26 @@ public struct UnusedRemovalSet {
             skipped.append((candidate.target, .extendedTypeKept))
             extensionCandidates[declaration] = nil
         }
+    }
+
+    /// Keeps every case of a kept enum whose cases would all be removed: a `switch` over it would be left with only
+    /// `default`. Returns whether a case was kept.
+    private mutating func keepCasesOfEnumsLeftEmpty() -> Bool {
+        let removedCases = removed.keys.filter { $0.kind == .enumelement }
+        let enums = Set(removedCases.compactMap(\.parent)).filter { !isInRemovedDeclaration($0) }
+        var changed = false
+
+        for enumDecl in enums {
+            let cases = enumDecl.declarations.filter { $0.kind == .enumelement }
+            guard cases.allSatisfy({ removed[$0] != nil }) else { continue }
+
+            for enumCase in cases.sorted(by: { Self.isOrdered(removed[$0]!, before: removed[$1]!) }) {
+                skipped.append((removed[enumCase]!, .everyEnumCase))
+                removed[enumCase] = nil
+            }
+            changed = true
+        }
+        return changed
     }
 
     private func blockingReason(of declaration: Declaration) -> SkipReason? {

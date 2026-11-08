@@ -170,6 +170,16 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         XCTAssertEqual(included.decisions, ["4 unusedPadding": "removed", "10 unusedReserved": SkipReason.frozenType.description])
     }
 
+    func testKeepsEveryCaseOfAnEnumWhoseCasesAreAllUnused() throws {
+        let outcome = try removeUnused()
+
+        XCTAssertEqual(outcome.decisions, [
+            "2 firstUnused": SkipReason.everyEnumCase.description,
+            "3 secondUnused": SkipReason.everyEnumCase.description,
+        ])
+        XCTAssertEqual(outcome.fixed, outcome.original)
+    }
+
     func testKeepsTheDeclarationsOfAModuleTheProjectDoesNotDeclare() throws {
         let dependency = try removeUnused(fixture: "testRemovesAFreeFunction", ownModules: ["App"])
         XCTAssertEqual(dependency.decisions, ["4 fixUnusedFreeFunction()": SkipReason.dependencyPackage.description])
