@@ -98,7 +98,7 @@ struct FixCommand: ParsableCommand {
         try guarded.keepUncoveredConditionalUses(in: output.graph)
         let workingTree: WorkingTreeState = try allowDirty ? .ignored : GitWorkingTree.state(at: configuration.projectRoot)
         let indexDates = IndexDates(scanStartedAt: scanStartedAt, unitDates: output.unitDates)
-        let planner = FixPlanner(workingTree: workingTree, indexDates: indexDates, isIndexExcluded: configuration.isIndexExcluded)
+        let planner = FixPlanner(projectRoot: configuration.projectRoot, workingTree: workingTree, indexDates: indexDates, isIndexExcluded: configuration.isIndexExcluded)
         var plan = planner.plan(guarded.targets)
         plan.addSkipped(guarded)
 
