@@ -45,6 +45,7 @@ final class SarifFormatter: OutputFormatter {
     let configuration: Configuration
     let logger: Logger
     lazy var currentFilePath: FilePath = .current
+    private var sourceLines: [FilePath: [Data]] = [:]
 
     init(configuration: Configuration, logger: Logger) {
         self.logger = logger
@@ -130,8 +131,32 @@ final class SarifFormatter: OutputFormatter {
 
         return [
             "artifactLocation": ["uri": uri, "uriBaseId": Self.baseId],
-            "region": ["startLine": location.line, "startColumn": location.column],
+            "region": ["startLine": location.line, "startColumn": utf16Column(of: location)],
         ]
+    }
+
+    /// outskirts counts columns in UTF-8 bytes, SARIF in UTF-16 code units by default. The column is converted by
+    /// reading the line from the source file; when the file or the line cannot be read, the column is kept as is.
+    private func utf16Column(of location: Location) -> Int {
+        let path = location.file.path
+        let lines: [Data]
+        if let cached = sourceLines[path] {
+            lines = cached
+        } else {
+            let data = FileManager.default.contents(atPath: path.string) ?? Data()
+            lines = data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false).map { Data($0) }
+            sourceLines[path] = lines
+        }
+
+        guard location.line >= 1, location.line <= lines.count, location.column >= 1 else { return location.column }
+
+        let line = lines[location.line - 1]
+        let prefix = line.prefix(location.column - 1)
+        guard prefix.count == location.column - 1, let text = String(data: prefix, encoding: .utf8) else {
+            return location.column
+        }
+
+        return text.utf16.count + 1
     }
 
     private func fingerprint(ruleId: String, ids: Set<String>) -> String {

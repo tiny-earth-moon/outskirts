@@ -137,6 +137,29 @@ final class SarifFormatterTest: XCTestCase {
         }
     }
 
+    func testSarifOutput_countsColumnsInUTF16CodeUnits() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("Widget.swift")
+        // "Wïdget" and "Ünïcode" take more UTF-8 bytes than UTF-16 code units; "😀" takes 4 bytes and 2 units.
+        try Data("import Foundation\npublic class Wïdget: Ünïcode_Proto { /* 😀 */ let x = 1 }\n".utf8).write(to: url)
+        let file = SourceFile(path: FilePath(url.path), modules: ["Lib"])
+        // Byte columns of `Ünïcode_Proto` (23) and of `x` (56).
+        let conformance = Declaration(name: "Ünïcode_Proto", kind: .protocol, usrs: ["s:P"], location: Location(file: file, line: 2, column: 23))
+        let property = Declaration(name: "x", kind: .varInstance, usrs: ["s:x"], location: Location(file: file, line: 2, column: 56))
+
+        let results = try XCTUnwrap(log(format([
+            ScanResult(declaration: conformance, annotation: .unused),
+            ScanResult(declaration: property, annotation: .unused),
+        ]))["runs"] as? [[String: Any]])?.first?["results"] as? [[String: Any]]
+        let columns = try XCTUnwrap(results).map { result in
+            (((result["locations"] as? [[String: Any]])?.first?["physicalLocation"] as? [String: Any])?["region"] as? [String: Any])?["startColumn"] as? Int
+        }
+
+        XCTAssertEqual(columns, [22, 51])
+    }
+
     func testSarifRules_linkToADocumentedSectionOfTheSite() throws {
         let run = try XCTUnwrap((log(format([]))["runs"] as? [[String: Any]])?.first)
         let rules = try XCTUnwrap(((run["tool"] as? [String: Any])?["driver"] as? [String: Any])?["rules"] as? [[String: Any]])
