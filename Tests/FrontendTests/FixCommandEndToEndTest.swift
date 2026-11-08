@@ -298,6 +298,150 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertFalse(output.stdout.contains("coreHelperForTests"), output.stdout)
     }
 
+    // MARK: - Iterate
+
+    /// The helper is only called in a release clause of the dead type, so the first pass keeps it.
+    private static let cascade = """
+    struct DeadType {
+        func deadMember() -> Int {
+            #if !DEBUG
+                deadHelper()
+            #else
+                1
+            #endif
+        }
+    }
+
+    extension DeadType {
+        func deadExtensionMember() {}
+    }
+
+    func deadHelper() -> Int { 2 }
+
+    """
+
+    private static let iterate = ["fix", "--rule", "unused", "--variants", "auto", "--apply", "--iterate"]
+
+    func testIterateRemovesACascadeInTwoPassesAndStopsWhenNothingIsLeft() throws {
+        try write(Self.cascade, to: "Sources/Lib/Dead.swift")
+        try commitAll()
+
+        let output = try run(Self.iterate)
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        let passes = output.stderr.components(separatedBy: "Pass ").dropFirst().map { "Pass " + $0 }
+        XCTAssertEqual(passes.count, 3, output.stderr)
+        guard passes.count == 3 else { return }
+
+        // The file written by the first pass has uncommitted changes, which the second pass may still edit.
+        XCTAssertTrue(passes[0].hasPrefix("Pass 1 of at most 5:"), passes[0])
+        XCTAssertTrue(passes[0].contains("\nApplied 2 fixes in 1 file, skipped 2.\n"), passes[0])
+        XCTAssertTrue(passes[0].contains("  skipped unused 'deadHelper()' at Sources/Lib/Dead.swift:15:6: name written in an #if clause"), passes[0])
+        XCTAssertTrue(passes[0].contains("The project builds with the fixes."), passes[0])
+        XCTAssertTrue(passes[1].hasPrefix("Pass 2 of at most 5:"), passes[1])
+        XCTAssertTrue(passes[1].contains("\nApplied 1 fix in 1 file, skipped 1.\n"), passes[1])
+        XCTAssertTrue(passes[1].contains("  removed unused 'deadHelper()' at Sources/Lib/Dead.swift:1:6 [p2_"), passes[1])
+        XCTAssertTrue(passes[1].contains("The project builds with the fixes."), passes[1])
+        XCTAssertTrue(passes[2].hasPrefix("Pass 3 of at most 5:"), passes[2])
+        XCTAssertTrue(passes[2].contains("\nApplied 0 fixes in 0 files, skipped 1.\n"), passes[2])
+        XCTAssertTrue(passes[2].contains("Nothing left to fix after 3 passes: 3 fixes in 1 file."), passes[2])
+        XCTAssertEqual(try read("Sources/Lib/Dead.swift"), "")
+        XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.library)
+    }
+
+    func testIterateStopsAtTheLimitOfPasses() throws {
+        // Each helper is only called in a release clause of the previous one, so each pass frees one more.
+        let chain = (1 ... 6).map { level in
+            "func chain\(level)() -> Int {\n    #if !DEBUG\n        chain\(level + 1)()\n    #else\n        0\n    #endif\n}\n"
+        }
+        try write(Self.cascade.replacingOccurrences(of: "deadHelper()\n", with: "chain1()\n") + chain.joined(separator: "\n") + "\nfunc chain7() -> Int { 7 }\n", to: "Sources/Lib/Dead.swift")
+        try commitAll()
+
+        let output = try run(Self.iterate)
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        XCTAssertTrue(output.stderr.contains("Pass 5 of at most 5:\n"), output.stderr)
+        XCTAssertFalse(output.stderr.contains("Pass 6"), output.stderr)
+        // Without '--verify', every pass is still rebuilt before the next one.
+        XCTAssertEqual(output.stderr.components(separatedBy: "The project builds with the fixes.").count - 1, 5, output.stderr)
+        XCTAssertTrue(output.stderr.contains("Stopped at the limit of 5 passes: 7 fixes in 1 file. The last pass still fixed something: run the command again to fix what it left."), output.stderr)
+        let fixed = try read("Sources/Lib/Dead.swift")
+        XCTAssertFalse(fixed.contains("DeadType"), fixed)
+        XCTAssertFalse(fixed.contains("func chain4()"), fixed)
+        XCTAssertTrue(fixed.contains("func chain5() -> Int {"), fixed)
+    }
+
+    func testIterateUndoesOnlyThePassWhoseVerificationFails() throws {
+        try write(Self.cascade, to: "Sources/Lib/Dead.swift")
+        // The only other caller of the helper is excluded from the index, so the second pass removes it.
+        try write("func excludedClient() -> Int { deadHelper() }\n", to: "Sources/Lib/Excluded.swift")
+        try commitAll()
+
+        let output = try run(Self.iterate + ["--index-exclude", "Sources/Lib/Excluded.swift", "--allow-partial-scan"])
+
+        XCTAssertNotEqual(output.status, 0, output.stderr)
+        XCTAssertTrue(output.stderr.contains("Pass 1 of at most 5:\n"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("\nApplied 2 fixes in 1 file"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("Pass 2 of at most 5:\n"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("\nApplied 1 fix in 1 file"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("The build failed after the fixes were applied"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("The fixes break the build, restored 1 of 1 file:\n  restored Sources/Lib/Dead.swift\nPass 2 is undone. The fixes of pass 1 are kept: 2 fixes in 1 file."), output.stderr)
+        XCTAssertFalse(output.stderr.contains("Pass 3"), output.stderr)
+        let kept = try read("Sources/Lib/Dead.swift")
+        XCTAssertFalse(kept.contains("DeadType"), kept)
+        XCTAssertTrue(kept.contains("func deadHelper() -> Int { 2 }"), kept)
+    }
+
+    func testIterateOptionsAreRefusedOutsideTheirScope() throws {
+        for (arguments, message) in [
+            (["--rule", "unused", "--iterate"], "'--iterate' scans again the files that each pass wrote, it requires '--apply'"),
+            (["--apply", "--iterate"], "'--iterate' only applies to '--rule unused'"),
+            // '--iterate' verifies every pass, so it needs a build it can run again.
+            (["--rule", "unused", "--apply", "--iterate", "--skip-build"], "'--iterate' rebuilds the project after each pass, but the build is skipped"),
+        ] {
+            let refused = try run(["fix"] + arguments)
+            XCTAssertNotEqual(refused.status, 0, arguments.joined(separator: " "))
+            XCTAssertTrue(refused.stderr.contains(message), refused.stderr)
+        }
+    }
+
+    /// The macOS + iOS package whose code is only used under `#if os(iOS)` still builds for both platforms.
+    func testIterateKeepsTheMultiVariantPackageBuildingOnEveryPlatform() throws {
+        let sdk = try execute(URL(fileURLWithPath: "/usr/bin/env"), ["xcrun", "--sdk", "iphonesimulator", "--show-sdk-path"])
+        try XCTSkipIf(sdk.status != 0, "The iOS simulator SDK is not installed: \(sdk.stderr)")
+
+        try FileManager.default.removeItem(at: package)
+        try FileManager.default.copyItem(
+            at: URL(fileURLWithPath: ProjectRootPath.appending("Tests/SPMTests/SPMProjectMultiVariant").string),
+            to: package
+        )
+        let copiedBuild = package.appendingPathComponent(".build")
+        if FileManager.default.fileExists(atPath: copiedBuild.path) {
+            try FileManager.default.removeItem(at: copiedBuild)
+        }
+        try write(".build/\n", to: ".gitignore")
+        try git("init", "-q")
+        try commitAll()
+
+        let output = try run(Self.iterate)
+
+        XCTAssertEqual(output.status, 0, output.stderr)
+        XCTAssertTrue(output.stderr.contains("  removed unused 'phoneNeverCalled()' at Sources/Kit/InBlock.swift:2:10 [p2_"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("Nothing left to fix after"), output.stderr)
+        let inBlock = try read("Sources/Kit/InBlock.swift")
+        XCTAssertFalse(inBlock.contains("phoneNeverCalled"), inBlock)
+        XCTAssertTrue(inBlock.contains("func phoneCalled()"), inBlock)
+        XCTAssertTrue(try read("Sources/Kit/SameName.swift").contains("struct Alpha {\n    func draw()"))
+        XCTAssertTrue(try read("Sources/Kit/ImportOnly.swift").hasPrefix("import Util\n"))
+
+        let sdkPath = sdk.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        for arguments in [[], ["--triple", "arm64-apple-ios18.0-simulator", "--sdk", sdkPath]] {
+            let scratch = package.appendingPathComponent(".build/check-\(arguments.isEmpty ? "macos" : "ios")").path
+            let build = try execute(URL(fileURLWithPath: "/usr/bin/env"), ["swift", "build", "--package-path", package.path, "--scratch-path", scratch] + arguments)
+            XCTAssertEqual(build.status, 0, "swift build \(arguments.joined(separator: " ")):\n\(build.stdout.suffix(2000))\n\(build.stderr.suffix(2000))")
+        }
+    }
+
     // MARK: - Private
 
     private struct Output {
