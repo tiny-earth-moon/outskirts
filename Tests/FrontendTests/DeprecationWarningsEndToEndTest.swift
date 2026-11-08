@@ -59,10 +59,12 @@ final class DeprecationWarningsEndToEndTest: XCTestCase {
 
     // MARK: - Private
 
+    /// The toolchain deprecation warning depends on the Swift version running the tests, not on the options.
     private func warnings(in stderr: String) -> [String] {
         stderr.split(separator: "\n").compactMap { line in
             line.hasPrefix("warning: ") ? String(line.dropFirst("warning: ".count)) : nil
         }
+        .filter { !($0.hasPrefix("Swift ") && $0.contains(" is deprecated: ")) }
     }
 
     private func run(_ arguments: [String]) throws -> String {
