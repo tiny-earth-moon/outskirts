@@ -147,8 +147,16 @@ An opt-in, versioned document that [`schemas/output-v2.json`](https://github.com
       "id" : "p2_…",
       "rule" : "unused",
       "message" : "Unused class 'Widget'",
-      "location" : { "path" : "Sources/Lib/Widget.swift", "line" : 3, "column" : 14, "endLine" : 9, "endColumn" : 2 },
-      "declaration" : { "name" : "Widget", "kind" : "class", "accessibility" : "internal", "modules" : ["Lib"], "usrs" : ["s:3Lib6WidgetC"] },
+      "location" : {
+        "path" : "Sources/Lib/Widget.swift",
+        "line" : 3, "column" : 14,
+        "endLine" : 9, "endColumn" : 2
+      },
+      "declaration" : {
+        "name" : "Widget", "kind" : "class",
+        "accessibility" : "internal",
+        "modules" : ["Lib"], "usrs" : ["s:3Lib6WidgetC"]
+      },
       "asset" : null,
       "variants" : [],
       "related" : [],
