@@ -52,7 +52,7 @@ A class made `final` can no longer be subclassed, including by a module the scan
 
 `--rule unused` removes the declarations reported as `unused`. It never applies by default: `fix` without `--rule` leaves them alone.
 
-A declaration used only in the `#if` clauses of another platform or configuration looks unused to a scan that did not build it, so the rule needs a scan of every variant that ships: [`variants`](configuration.md) set to `auto` or to a list of variants. The variants are scanned together, so a declaration is reported only when it is unused in every one of them. The rule is refused with `variants: default`, when a variant could not be built (its SDK is not installed, or `auto` has no build for a declared platform such as Mac Catalyst or DriverKit), and when this run did not build the variants itself (`--skip-build`, `--index-store-path`, `--generic-project-config`). `--allow-partial-variants` lifts the refusal; the removals can then break the variants that were not scanned.
+A declaration used only in the `#if` clauses of another platform or configuration looks unused to a scan that did not build it, so the rule needs a scan of every variant that ships: [`variants`](configuration.md) set to `auto` or to a list of variants. The variants are scanned together, so a declaration is reported only when it is unused in every one of them. The rule is refused with `variants: default`, when a variant could not be built (its SDK is not installed, or `auto` has no build for a declared platform such as Mac Catalyst or DriverKit), and when this run did not build the variants itself (`--skip-build`, `--index-store-path`, `--generic-project-config`). `--allow-partial-scan` lifts the refusal; the removals can then break the variants that were not scanned.
 
 The variants only cover the platforms: each is built in the debug configuration, with the build arguments of the scan. The code of an `#if` clause that no scanned build compiled, such as `#if !DEBUG`, a custom flag, `swift()`, `compiler()`, `canImport()`, or the `os()`, `arch()` or `targetEnvironment()` of a platform that was not built, is invisible to the index, so the rule reads it broadly instead of resolving it:
 
@@ -66,7 +66,7 @@ An Xcode project is only built for the schemes of `--schemes`, in the Debug conf
 
 For a Swift package, only the root package is built: a local dependency inside the project root (`.package(path:)`) is scanned, but its own test targets are not, so its files are never edited and its declarations are kept with the reason `dependency package`.
 
-A file left out of the scan may use the declarations it removes, so the rule is also refused when `index_exclude` (beyond its default globs), `exclude_tests` or `exclude_targets` is set. `--allow-partial-scan` lifts this refusal and the Xcode one; it is a separate flag from `--allow-partial-variants`, as each accepts a different risk. `report_exclude`, `report_include`, the baseline and `--changed-since` only narrow the results: the files they hide are still scanned, so their references still count.
+A file left out of the scan may use the declarations it removes, so the rule is also refused when `index_exclude` (beyond its default globs), `exclude_tests` or `exclude_targets` is set. `--allow-partial-scan` lifts this refusal too: it is the single flag that lifts every coverage refusal of the rule, and each refusal names its reason. `report_exclude`, `report_include`, the baseline and `--changed-since` only narrow the results: the files they hide are still scanned, so their references still count.
 
 A `public` or `open` declaration, or a case or requirement of a public enum or protocol, may be used by a module outside the scan, so it is kept unless `--include-public` is given. Even then, the declarations that `retain_public`, `retain_public_modules` or an override retains are kept.
 
@@ -131,8 +131,7 @@ Use `--verify`, run the tests, and review the diff before committing.
 - **`--rule <rule>`**: only apply this rule; repeat the option to apply several.
 - **`--include <glob>`**: only fix the files that match the glob, relative to `--project-root`; repeat the option to give several.
 - **`--allow-dirty`**: also fix files with uncommitted changes, and projects outside a git repository.
-- **`--allow-partial-variants`**: allow `--rule unused` after a scan that did not cover every variant.
-- **`--allow-partial-scan`**: allow `--rule unused` on an Xcode project, whose scan only builds the listed schemes in Debug, or when `index_exclude`, `exclude_tests` or `exclude_targets` leaves code out of the scan.
+- **`--allow-partial-scan`**: allow `--rule unused` after a scan that did not cover all the code: `variants: default`, a variant that was not built, an Xcode project (only the listed schemes in Debug), or `index_exclude`, `exclude_tests` or `exclude_targets`.
 - **`--include-public`**: with `--rule unused`, also remove `public` and `open` declarations, unless `retain_public`, `retain_public_modules` or an override retains them.
 - **`--include-stored-properties`**: with `--rule unused`, also remove stored instance properties, which changes the memory layout of their type; never those of a `@frozen` type.
 - **`--iterate`**: with `--rule unused` and `--apply`, verify each pass as `--verify` does, then scan again and fix what it left, until a pass fixes nothing, a build fails or 5 passes are done.

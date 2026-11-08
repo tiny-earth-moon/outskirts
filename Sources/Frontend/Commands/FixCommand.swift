@@ -33,10 +33,7 @@ struct FixCommand: ParsableCommand {
     @Flag(help: "Also fix files that have uncommitted changes, or that are not in a git repository")
     var allowDirty: Bool = false
 
-    @Flag(help: "Allow '--rule unused' after a scan that did not cover every variant ('variants: default', or a variant that could not be built)")
-    var allowPartialVariants: Bool = false
-
-    @Flag(help: "Allow '--rule unused' on an Xcode project, whose scan only builds the listed schemes in Debug, or when index_exclude, exclude_tests or exclude_targets leaves code out of the scan")
+    @Flag(help: "Allow '--rule unused' after a scan that did not cover all the code: 'variants: default', a variant that was not built, an Xcode project (only the listed schemes in Debug), or index_exclude, exclude_tests or exclude_targets")
     var allowPartialScan: Bool = false
 
     @Flag(help: "With '--rule unused', also remove public and open declarations, unless retain_public or retain_public_modules applies")
@@ -70,9 +67,6 @@ struct FixCommand: ParsableCommand {
         if !aggressive, let rule = rules.first(where: \.isAggressive) {
             throw ValidationError("'\(rule.rawValue)' is a tier-2 rule, it requires '--aggressive'")
         }
-        if allowPartialVariants, !removesUnused {
-            throw ValidationError("'--allow-partial-variants' only applies to '--rule unused'")
-        }
         if allowPartialScan, !removesUnused {
             throw ValidationError("'--allow-partial-scan' only applies to '--rule unused'")
         }
@@ -97,8 +91,8 @@ struct FixCommand: ParsableCommand {
         if verify || iterate {
             try validateVerifiableBuild(configuration: configuration, project: prepared.project)
         }
-        if removesUnused, !allowPartialVariants, configuration.variants == .default {
-            throw PeripheryError.usageError("'--rule unused' removes declarations, which is only safe once every variant that ships is scanned: code used only in another platform's '#if' clauses would break. Set 'variants' to 'auto' or to a list of variants, or pass '--allow-partial-variants'.")
+        if removesUnused, !allowPartialScan, configuration.variants == .default {
+            throw PeripheryError.usageError("'--rule unused' removes declarations, which is only safe once every variant that ships is scanned: code used only in another platform's '#if' clauses would break. Set 'variants' to 'auto' or to a list of variants, or pass '--allow-partial-scan'.")
         }
         if removesUnused, !allowPartialScan, let refusal = Self.partialScanRefusal(of: prepared.project.kind, configuration: configuration) {
             throw PeripheryError.usageError(refusal)
@@ -260,13 +254,13 @@ struct FixCommand: ParsableCommand {
 
     /// The removals are only safe when the index holds every variant the configuration declares.
     private func validateVariantCoverage(of driver: ProjectDriver) throws {
-        guard !allowPartialVariants else { return }
+        guard !allowPartialScan else { return }
 
         if !driver.skippedVariants.isEmpty {
-            throw PeripheryError.usageError("'--rule unused' needs a scan of every variant, but some were not built:\n\(driver.skippedVariants.joined(separator: "\n"))\nInstall the missing SDKs, or pass '--allow-partial-variants'.")
+            throw PeripheryError.usageError("'--rule unused' needs a scan of every variant, but some were not built:\n\(driver.skippedVariants.joined(separator: "\n"))\nInstall the missing SDKs, or pass '--allow-partial-scan'.")
         }
         if driver.builtVariants.isEmpty {
-            throw PeripheryError.usageError("'--rule unused' needs a scan of every variant, but this scan did not build its variants ('--skip-build', '--index-store-path' or a generic project). Let outskirts build the variants, or pass '--allow-partial-variants'.")
+            throw PeripheryError.usageError("'--rule unused' needs a scan of every variant, but this scan did not build its variants ('--skip-build', '--index-store-path' or a generic project). Let outskirts build the variants, or pass '--allow-partial-scan'.")
         }
     }
 
