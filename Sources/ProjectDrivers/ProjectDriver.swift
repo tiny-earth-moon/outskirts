@@ -8,6 +8,8 @@ public protocol ProjectDriver {
     func plan(logger: ContextualLogger) throws -> IndexPlan
     /// The names of the builds scanned together when the `variants` setting is not `default`, empty otherwise.
     var builtVariants: [String] { get }
+    /// Why some builds of the `variants` setting were not scanned, such as an SDK that is not installed.
+    var skippedVariants: [String] { get }
 }
 
 public extension ProjectDriver {
@@ -18,6 +20,10 @@ public extension ProjectDriver {
     }
 
     var builtVariants: [String] {
+        []
+    }
+
+    var skippedVariants: [String] {
         []
     }
 }

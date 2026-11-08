@@ -102,6 +102,13 @@
             self.shell = shell
         }
 
+        /// Why some builds of the `variants` setting were not scanned.
+        public var skippedVariants: [String] {
+            skippedVariantMessages
+        }
+
+        private var skippedVariantMessages: [String] = []
+
         /// The names of the builds scanned together, empty with `variants: default`.
         public var builtVariants: [String] {
             guard configuration.variants != .default else { return [] }
@@ -118,7 +125,10 @@
             let resolver = XcodeVariantResolver(
                 shell: shell,
                 logger: variantLogger,
-                warn: { [logger] in logger.warn($0) },
+                warn: { [unowned self] in
+                    logger.warn($0)
+                    skippedVariantMessages.append($0)
+                },
                 buildArguments: configuration.buildArguments
             )
             let variants = try resolver.resolve(configuration.variants) {
