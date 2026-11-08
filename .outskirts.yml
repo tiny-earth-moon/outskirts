@@ -1,5 +1,8 @@
 # Self-scan of this package, run in CI with `outskirts scan --strict`.
 retain_hashable_properties: true
+enable_redundant_public_members: true
+enable_open_final_analysis: true
+enable_redundant_access_level_analysis: true
 report_exclude:
   # Fixture projects scanned by the tests: their unused code is what the tests expect outskirts to find.
   - Tests/SPMTests/SPMProject*/**
