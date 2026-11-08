@@ -132,10 +132,12 @@ public final class ShellImpl: Shell {
         // Decoded leniently: a stray non UTF-8 byte, such as a Latin-1 path in a compiler warning, must neither
         // fail a successful command nor hide the output of a failed one.
         if let stdoutData = try results.withLock({ try $0[0].get() }) {
+            // swiftlint:disable:next optional_data_string_conversion
             standardOutput = String(decoding: stdoutData, as: UTF8.self)
         }
 
         if let stderrData = try results.withLock({ try $0[1].get() }) {
+            // swiftlint:disable:next optional_data_string_conversion
             standardError = String(decoding: stderrData, as: UTF8.self)
         }
 
