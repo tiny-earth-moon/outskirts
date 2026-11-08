@@ -225,6 +225,20 @@ final class CacheManagerTest: XCTestCase {
         XCTAssertTrue(fm.fileExists(atPath: live.path))
     }
 
+    func testProjectOnMissingVolume_isNotOrphan() throws {
+        let unmounted = try makeDerivedData("DerivedData-unmounted", ageDays: 1)
+        let unmountedOld = try makeDerivedData("DerivedData-unmounted-old", ageDays: 30)
+        let project = "/Volumes/outskirts-unmounted-\(UUID().uuidString)/App.xcodeproj"
+        try CacheManager.recordProject(project, in: unmounted)
+        try CacheManager.recordProject(project, in: unmountedOld)
+        try fm.setAttributes([.modificationDate: Date().addingTimeInterval(-30 * 86400)], ofItemAtPath: unmountedOld.path)
+
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: nil).evicted
+
+        XCTAssertEqual(evicted.map(\.name), ["DerivedData-unmounted-old"])
+        XCTAssertTrue(fm.fileExists(atPath: unmounted.path))
+    }
+
     func testEvict_folderWithoutSidecarFollowsAgeRule() throws {
         let recent = try makeDerivedData("DerivedData-recent", ageDays: 1)
         let old = try makeDerivedData("DerivedData-old", ageDays: 30)

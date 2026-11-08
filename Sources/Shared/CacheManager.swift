@@ -323,12 +323,18 @@ public enum CacheManager {
         return true
     }
 
-    /// Whether the folder records a project path that no longer exists. A folder without a sidecar is never an orphan.
+    /// Whether the folder records a project path that no longer exists. A folder without a sidecar is never an orphan,
+    /// nor is one whose project is on a volume that is not mounted: the age and size rules apply to it.
     private static func isOrphan(_ directory: URL, fileManager: FileManager) -> Bool {
         let sidecar = directory.appendingPathComponent(projectSidecarName)
         guard let data = fileManager.contents(atPath: sidecar.path),
               let path = String(data: data, encoding: .utf8), !path.isEmpty else { return false }
 
+        let components = URL(fileURLWithPath: path).pathComponents
+        if components.count > 2, components[1] == "Volumes",
+           !fileManager.fileExists(atPath: "/Volumes/\(components[2])") {
+            return false
+        }
         return !fileManager.fileExists(atPath: path)
     }
 
