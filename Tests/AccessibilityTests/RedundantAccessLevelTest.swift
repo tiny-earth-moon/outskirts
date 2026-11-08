@@ -87,7 +87,7 @@ final class RedundantAccessLevelTest: SPMSourceGraphTestCase {
         assertRedundantAccessLevel(.functionMethodInstance("ralFileprivateInPrivateExtension()"))
         assertNotRedundantAccessLevel(.functionMethodInstance("ralPrivateInFileprivateExtension()"))
         assertRedundantAccessLevel(.functionMethodInstance("ralPublicInPublicProtocolExtension()"))
-        assertNotRedundantAccessLevel(.functionMethodInstance("ralProtocolRequirement()"))
+        assertNotRedundantAccessLevel(.functionMethodInstance("ralProtocolRequirement()", line: 93))
         assertRedundantAccessLevel(.functionMethodInstance("ralInternalInExternalTypeExtension()"))
     }
 

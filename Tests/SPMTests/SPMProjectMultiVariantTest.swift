@@ -12,9 +12,10 @@
     /// Scans the union of a macOS and an iOS simulator index store of the same package.
     final class SPMProjectMultiVariantTest: SPMSourceGraphTestCase {
         private static var macOSPlan: IndexPlan!
-        /// The plan scanning both stores, nil when the iOS simulator store could not be built.
+        /// The plan scanning both stores, nil when the iOS simulator SDK is not installed.
         private static var unionPlan: IndexPlan?
         private static var unionSkipReason = ""
+        private static var unionError: Error?
 
         override static func setUp() {
             super.setUp()
@@ -22,15 +23,24 @@
             build(projectPath: SPMProjectMultiVariantPath)
             macOSPlan = plan
 
+            let sdk: String
+            do {
+                sdk = try shell.exec(["xcrun", "--sdk", "iphonesimulator", "--show-sdk-path"])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            } catch {
+                unionSkipReason = "The iOS simulator SDK is not installed: \(error)"
+                return
+            }
+
             SPMProjectMultiVariantPath.chdir {
                 do {
-                    let iOSStore = try buildIOSSimulatorStore()
+                    let iOSStore = try buildIOSSimulatorStore(sdk: sdk)
                     let configuration = Configuration()
                     configuration.indexStorePath = Array(macOSPlan.indexStorePaths) + [iOSStore]
                     let driver = try SPMProjectDriver(configuration: configuration, shell: shell, logger: logger)
                     unionPlan = try driver.plan(logger: logger.contextualized(with: "index"))
                 } catch {
-                    unionSkipReason = "The iOS simulator index store could not be built: \(error)"
+                    unionError = error
                 }
             }
         }
@@ -124,6 +134,17 @@
             XCTAssertTrue(triples.contains { $0.contains("apple-ios") && $0.hasSuffix("-simulator") }, "\(triples)")
         }
 
+        func testUnionPlanFailsInsteadOfSkippingWhenTheUnionCannotBePlanned() {
+            struct PlanFailure: Error {}
+            let savedError = Self.unionError
+            defer { Self.unionError = savedError }
+            Self.unionError = PlanFailure()
+
+            XCTAssertThrowsError(try unionPlan()) { error in
+                XCTAssertTrue(error is PlanFailure, "\(error)")
+            }
+        }
+
         // MARK: - Private
 
         private func configuration(_ retention: PlatformConditionalRetention?) -> Configuration {
@@ -141,14 +162,15 @@
         }
 
         private func unionPlan() throws -> IndexPlan {
+            if let error = Self.unionError {
+                throw error
+            }
             guard let plan = Self.unionPlan else { throw XCTSkip(Self.unionSkipReason) }
 
             return plan
         }
 
-        private static func buildIOSSimulatorStore() throws -> FilePath {
-            let sdk = try shell.exec(["xcrun", "--sdk", "iphonesimulator", "--show-sdk-path"])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+        private static func buildIOSSimulatorStore(sdk: String) throws -> FilePath {
             let scratchPath = FilePath(NSTemporaryDirectory()).appending("outskirts-multi-variant-ios").string
             let arguments = ["--scratch-path", scratchPath, "--triple", "arm64-apple-ios18.0-simulator", "--sdk", sdk]
             try shell.exec(["swift", "build"] + arguments)
