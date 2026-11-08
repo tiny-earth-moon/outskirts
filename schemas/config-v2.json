@@ -508,17 +508,13 @@
           "enum": [
             "xcode",
             "csv",
-            "csv-v2",
             "json",
             "json-v2",
             "checkstyle",
-            "checkstyle-v2",
             "codeclimate",
-            "codeclimate-v2",
             "github-actions",
             "github-markdown",
             "gitlab-codequality",
-            "gitlab-codequality-v2",
             "sarif",
             "agent"
           ],

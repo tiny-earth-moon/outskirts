@@ -616,7 +616,7 @@ See [Framework conventions and retention: Retaining by attribute](framework-conv
 
 Output format of the results.
 
-Key `format` · one of `xcode`, `csv`, `csv-v2`, `json`, `json-v2`, `checkstyle`, `checkstyle-v2`, `codeclimate`, `codeclimate-v2`, `github-actions`, `github-markdown`, `gitlab-codequality`, `gitlab-codequality-v2`, `sarif`, `agent` · default `xcode`.
+Key `format` · one of `xcode`, `csv`, `json`, `json-v2`, `checkstyle`, `codeclimate`, `github-actions`, `github-markdown`, `gitlab-codequality`, `sarif`, `agent` · default `xcode`.
 
 See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Results and messages](getting-started.md#results-and-messages), [Configuration: Command line and file](configuration.md#command-line-and-file), [Output formats](output-formats.md).
 
@@ -728,7 +728,7 @@ Ids written by write_baseline: v1 the USRs of the declarations, v2 the ids of th
 
 Key `baseline_format` · one of `v1`, `v2` · default `v1`.
 
-See [Baselines: Options](baselines.md#options), [Baselines: Formats](baselines.md#formats), [Baselines: v2](baselines.md#v2), [Output formats: json-v2](output-formats.md#json-v2).
+See [Baselines: Options](baselines.md#options), [Baselines: Formats](baselines.md#formats), [Baselines: v2](baselines.md#v2), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--prune-baseline`
 
