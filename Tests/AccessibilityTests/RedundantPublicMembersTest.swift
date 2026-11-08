@@ -31,7 +31,7 @@ final class RedundantPublicMembersTest: SPMSourceGraphTestCase {
 
         assertNotRedundantPublicAccessibility(.functionMethodInstance("rpmRequirement()", line: 17))
         assertNotRedundantPublicAccessibility(.varInstance("rpmRequirementProperty", line: 18))
-        assertNotRedundantPublicAccessibility(.varInstance("description"))
+        assertNotRedundantPublicAccessibility(.varInstance("description", line: 19))
         assertNotRedundantPublicAccessibility(.functionOperatorInfix("==(_:_:)", line: 22))
         assertNotRedundantPublicAccessibility(.functionConstructor("init(from:)"))
     }
