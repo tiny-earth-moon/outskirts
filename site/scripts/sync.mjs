@@ -129,7 +129,7 @@ function option(key, property, references) {
   facts.push(describeType(property, flag));
   facts.push(`default ${describeDefault(property)}`);
   const description = property.description.replace(/\s*\(command line: --[a-z-]+\)/, "").trim();
-  const extra = key === "color" ? " `--no-color` is a hidden alias of `--color never`." : "";
+  const extra = key === "color" ? " `--no-color` is a deprecated hidden alias of `--color never`: it still works and prints a deprecation warning." : "";
   const since = SINCE[key] ? [`Since ${SINCE[key]}.`, ""] : [];
   return [heading, "", ...since, `${description}${extra}`, "", `${facts.join(" · ")}.`, "", ...seeAlso(references, [flag, key].filter(Boolean))];
 }

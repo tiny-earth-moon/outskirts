@@ -670,11 +670,11 @@ See [Getting started: Results and messages](getting-started.md#results-and-messa
 
 ### `--color`
 
-Colored output mode. `--no-color` is a hidden alias of `--color never`.
+Colored output mode. `--no-color` is a deprecated hidden alias of `--color never`: it still works and prints a deprecation warning.
 
 Key `color` · one of `auto`, `always`, `never` · default `auto`.
 
-See [Output formats: xcode](output-formats.md#xcode).
+See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x), [Output formats: xcode](output-formats.md#xcode).
 
 ### `--strict`
 

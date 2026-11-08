@@ -119,7 +119,7 @@ struct ScanCommand: ParsableCommand {
         configuration.apply(\.$externalTestCaseClasses, given(retentionOptions.externalTestCaseClasses))
         configuration.apply(\.$verbose, miscellaneousOptions.verbose)
         configuration.apply(\.$quiet, miscellaneousOptions.quiet)
-        configuration.apply(\.$color, miscellaneousOptions.noColor ? .never : miscellaneousOptions.color)
+        configuration.apply(\.$color, miscellaneousOptions.givenColor)
         configuration.apply(\.$disableUpdateCheck, miscellaneousOptions.disableUpdateCheck)
         configuration.apply(\.$strict, resultsOptions.strict)
         configuration.apply(\.$exitCodes, resultsOptions.exitCodes)
@@ -256,6 +256,9 @@ struct ScanCommand: ParsableCommand {
 
         let logger = Logger(configuration: configuration, messagesToStderr: messagesToStderr)
         configurationWarnings.forEach { logger.warn($0) }
+        if miscellaneousOptions.noColor {
+            logger.warn(MiscellaneousOptions.noColorDeprecationWarning)
+        }
         ScanPreflight.applyOutputFormatRequirements(to: configuration, logger: logger)
         ScanPreflight.warnAboutIgnoredSummary(of: configuration, logger: logger)
         logger.contextualized(with: "version").debug(PeripheryVersion)
