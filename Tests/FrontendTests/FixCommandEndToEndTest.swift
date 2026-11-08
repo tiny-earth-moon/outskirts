@@ -223,10 +223,11 @@ final class FixCommandEndToEndTest: XCTestCase {
         let defaultRules = try run(["fix", "--variants", "auto"])
         XCTAssertEqual(defaultRules.status, 0, defaultRules.stderr)
         XCTAssertFalse(defaultRules.stdout.contains("DeadType"), defaultRules.stdout)
+        XCTAssertTrue(refused.stderr.contains("or pass '--allow-partial-scan'."), refused.stderr)
 
-        let flagWithoutRule = try run(["fix", "--allow-partial-variants"])
-        XCTAssertNotEqual(flagWithoutRule.status, 0)
-        XCTAssertTrue(flagWithoutRule.stderr.contains("'--allow-partial-variants' only applies to '--rule unused'"), flagWithoutRule.stderr)
+        let removedFlag = try run(["fix", "--rule", "unused", "--allow-partial-variants"])
+        XCTAssertNotEqual(removedFlag.status, 0)
+        XCTAssertTrue(removedFlag.stderr.contains("--allow-partial-variants"), removedFlag.stderr)
     }
 
     func testUnusedRuleRemovesATypeWithItsExtensionAfterAScanOfEveryVariant() throws {
