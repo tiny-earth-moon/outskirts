@@ -23,7 +23,7 @@ final class CodeClimateFormatter: OutputFormatter {
 
             let lines: [AnyHashable: Any] = [
                 "begin": location.line,
-                "end": result.declaration.range?.end.line ?? location.line,
+                "end": endLine(of: result.declaration, begin: location.line),
             ]
 
             let locationDict: [AnyHashable: Any] = [

@@ -51,6 +51,14 @@ extension OutputFormatter {
         return SHA256.hexDigest(of: Data(input.utf8))
     }
 
+    /// The last line of the declaration, `begin` when its extent is unknown or its location is overridden (the range
+    /// then lies in another file).
+    func endLine(of declaration: Declaration, begin: Int) -> Int {
+        guard declaration.commentCommands.locationOverride == nil, let end = declaration.range?.end.line else { return begin }
+
+        return end
+    }
+
     /// References are held in a set, whose order changes from one process to the next. Output must not depend on it.
     func sortedReferences(_ references: Set<Reference>) -> [Reference] {
         references.sorted {
