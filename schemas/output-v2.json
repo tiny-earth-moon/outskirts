@@ -1,0 +1,322 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/tiny-earth-moon/outskirts/master/schemas/output-v2.json",
+  "title": "outskirts results, format 2",
+  "description": "Report written by 'outskirts scan --format json-v2'. Paths are relative to the project root, results are sorted by path, line, column, rule and id.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "tool",
+    "run",
+    "results",
+    "summary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "tool": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "outskirts"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "projectRoot",
+        "variants",
+        "timings",
+        "files"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "projectRoot": {
+          "type": "string",
+          "description": "Absolute path of the project root, which every path of the report is relative to."
+        },
+        "variants": {
+          "type": "array",
+          "description": "The build variants the scan built, empty when it built the default one only.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "timings": {
+          "type": "object",
+          "description": "Durations of the scan phases in seconds, keyed by phase. Empty for now.",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "files": {
+          "type": "object",
+          "description": "Digest of every file a result or a related result is in, keyed by path; null for a file that could not be read.",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/result"
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "total",
+        "byRule"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The number of results, related results excluded."
+        },
+        "byRule": {
+          "type": "object",
+          "description": "The number of results of each rule that has any, related results excluded.",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "id": {
+      "type": "string",
+      "description": "'p2_' followed by the lowercase base32 SHA-256 of the rule and an identity that holds neither an absolute path nor a line number.",
+      "pattern": "^p2_[a-z2-7]{52}$"
+    },
+    "rule": {
+      "enum": [
+        "unused",
+        "unused-import",
+        "unused-parameter",
+        "unused-localized-string",
+        "unused-asset-color",
+        "unused-asset-image",
+        "assign-only-property",
+        "unassigned-optional",
+        "redundant-protocol",
+        "redundant-conformance",
+        "redundant-public",
+        "redundant-open",
+        "missing-final",
+        "redundant-access-level",
+        "empty-extension",
+        "superfluous-ignore"
+      ]
+    },
+    "location": {
+      "type": "object",
+      "required": [
+        "path",
+        "line",
+        "column",
+        "endLine",
+        "endColumn"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "endLine": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Last line of the declaration, null when its extent is unknown."
+        },
+        "endColumn": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Column just after the last character of the declaration, in UTF-8 bytes, null when its extent is unknown."
+        }
+      }
+    },
+    "declaration": {
+      "type": "object",
+      "required": [
+        "name",
+        "kind",
+        "accessibility",
+        "modules",
+        "usrs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "accessibility": {
+          "type": "string"
+        },
+        "modules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "usrs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "asset": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "name",
+        "paths"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Name of the asset, null when the generated symbol names no asset of the catalogs."
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "related": {
+      "type": "object",
+      "description": "A conformance to a redundant protocol, with its conforming type.",
+      "required": [
+        "id",
+        "rule",
+        "message",
+        "location",
+        "declaration"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "rule": {
+          "const": "redundant-conformance"
+        },
+        "message": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/definitions/location"
+        },
+        "declaration": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/declaration"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "id",
+        "rule",
+        "message",
+        "location",
+        "declaration",
+        "asset",
+        "variants",
+        "related",
+        "fixable"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "rule": {
+          "$ref": "#/definitions/rule"
+        },
+        "message": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/definitions/location"
+        },
+        "declaration": {
+          "$ref": "#/definitions/declaration"
+        },
+        "asset": {
+          "$ref": "#/definitions/asset"
+        },
+        "variants": {
+          "type": "array",
+          "description": "The variants the result was found in, empty when it holds for every variant of the run.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/related"
+          }
+        },
+        "fixable": {
+          "type": "boolean",
+          "description": "Whether 'outskirts fix' can apply the result."
+        }
+      }
+    }
+  }
+}

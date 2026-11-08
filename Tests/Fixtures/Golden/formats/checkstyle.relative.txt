@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<checkstyle version="4.3">
+	<file name="DerivedSources/GeneratedAssetSymbols.swift">
+		<error line="3" column="16" severity="warning" message="Unused asset catalog color &apos;AccentColor&apos; (Project/App/Assets.xcassets/AccentColor.colorset)"/>
+	</file>
+	<file name="Project/Sources/Demo/Extras.swift">
+		<error line="2" column="8" severity="warning" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="4" column="8" severity="warning" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+	</file>
+	<file name="Project/Sources/Demo/Marker.swift">
+		<error line="1" column="10" severity="warning" message="Redundant protocol &apos;Marker&apos; (never used as an existential type)"/>
+	</file>
+	<file name="Project/Sources/Demo/main.swift">
+		<error line="6" column="8" severity="warning" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="7" column="8" severity="warning" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="8" column="8" severity="warning" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="9" column="8" severity="warning" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="10" column="8" severity="warning" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+		<error line="13" column="8" severity="warning" message="Redundant protocol conformance &apos;Marker&apos; (replace with &apos;Base&apos;)"/>
+	</file>
+	<file name="Project/Sources/Lib/Helper.swift">
+		<error line="5" column="13" severity="warning" message="Redundant public accessibility for function &apos;helper()&apos; (not used outside of Alpha, Zeta)"/>
+	</file>
+	<file name="Project/Sources/Lib/Widget.swift">
+		<error line="3" column="14" severity="warning" message="Unused class &apos;Widget&apos;"/>
+	</file>
+</checkstyle>

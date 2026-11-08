@@ -97,6 +97,45 @@ final class FormatterTests: XCTestCase {
         XCTAssertEqual(output + "\n", expected, "The \(format) output differs from \(url.path)", file: file, line: line)
     }
 
+    /// Every format released before the output v2, with absolute and relative paths. The formats that require
+    /// relative paths have no absolute variant.
+    private static let pinnedFormats: [OutputFormat] = [
+        .xcode, .csv, .json, .checkstyle, .codeclimate, .githubActions, .githubMarkdown, .gitlabCodeQuality, .sarif, .agent,
+    ]
+
+    private func assertMatchesSnapshot(_ format: OutputFormat, relativeResults: Bool, file: StaticString = #filePath, line: UInt = #line) throws {
+        // A fixed root rather than the working directory, which `sarif` writes into its report.
+        let checkout = FilePath("/Checkout")
+        root = relativeResults || format.requiresRelativePaths ? checkout.string : ""
+        let configuration = Configuration()
+        configuration.relativeResults = relativeResults
+        let formatter = format.formatter.init(configuration: configuration, logger: logger)
+        formatter.currentFilePath = checkout
+        let output = try XCTUnwrap(formatter.format(results(), colored: false), file: file, line: line)
+        let directory = goldenDirectory.appendingPathComponent("formats")
+        let url = directory.appendingPathComponent("\(format.rawValue).\(relativeResults ? "relative" : "absolute").txt")
+
+        if ProcessInfo.processInfo.environment["PERIPHERY_UPDATE_GOLDEN"] != nil {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try Data((output + "\n").utf8).write(to: url)
+        }
+
+        let expected = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertEqual(output + "\n", expected, "The \(format) output differs from \(url.path)", file: file, line: line)
+    }
+
+    func testEveryFormat_withRelativeResults_matchesItsSnapshot() throws {
+        for format in Self.pinnedFormats {
+            try assertMatchesSnapshot(format, relativeResults: true)
+        }
+    }
+
+    func testEveryFormat_withAbsoluteResults_matchesItsSnapshot() throws {
+        for format in Self.pinnedFormats where !format.requiresRelativePaths {
+            try assertMatchesSnapshot(format, relativeResults: false)
+        }
+    }
+
     func testJsonOutput_matchesTheGoldenFile() throws {
         try assertMatchesGolden(.json, named: "json.json")
     }

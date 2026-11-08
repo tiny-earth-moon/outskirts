@@ -316,6 +316,7 @@ struct ScanCommand: ParsableCommand {
         let outputFormat = configuration.outputFormat
         let formatter = outputFormat.formatter.init(configuration: configuration, logger: logger)
         (formatter as? AgentFormatter)?.maxResults = resultsOptions.maxResults
+        (formatter as? JsonV2Formatter)?.variants = scanOutput.driver.builtVariants
         let colored = outputFormat.supportsColoredOutput && logger.isColoredOutputEnabled
 
         let printsToStdout = Self.shouldPrintToStdout(configuration: configuration, resultCount: filteredResults.count)

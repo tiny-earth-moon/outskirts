@@ -12,12 +12,19 @@ public protocol OutputFormatter: AnyObject {
     /// Whether the output only makes sense with paths relative to the project root, whatever `relativeResults` says.
     static var requiresRelativePaths: Bool { get }
 
+    /// Whether paths are relative to the project root, whatever `relativeResultsBase` says.
+    static var pathsAreRootRelative: Bool { get }
+
     init(configuration: Configuration, logger: Logger)
     func format(_ results: [ScanResult], colored: Bool) throws -> String?
 }
 
 public extension OutputFormatter {
     static var requiresRelativePaths: Bool {
+        false
+    }
+
+    static var pathsAreRootRelative: Bool {
         false
     }
 }
@@ -134,7 +141,9 @@ extension OutputFormatter {
 
     /// The directory that result paths are made relative to: `relative_results_base`, or the project root.
     var relativeResultsBase: FilePath {
-        configuration.relativeResultsBase?.makeAbsolute(relativeTo: currentFilePath) ?? currentFilePath
+        guard !Self.pathsAreRootRelative, let base = configuration.relativeResultsBase else { return currentFilePath }
+
+        return base.makeAbsolute(relativeTo: currentFilePath)
     }
 
     func outputPath(_ location: Location) -> FilePath {
@@ -209,6 +218,8 @@ public extension OutputFormat {
             CodeClimateFormatter.self
         case .json:
             JsonFormatter.self
+        case .jsonV2:
+            JsonV2Formatter.self
         case .checkstyle:
             CheckstyleFormatter.self
         case .githubActions:

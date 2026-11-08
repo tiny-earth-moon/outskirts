@@ -1,0 +1,373 @@
+{
+  "$schema" : "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs" : [
+    {
+      "originalUriBaseIds" : {
+        "%SRCROOT%" : {
+          "uri" : "file:///Checkout/"
+        }
+      },
+      "results" : [
+        {
+          "level" : "warning",
+          "locations" : [
+            {
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Lib/Widget.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 14,
+                  "startLine" : 3
+                }
+              }
+            }
+          ],
+          "message" : {
+            "text" : "Unused class 'Widget'"
+          },
+          "partialFingerprints" : {
+            "peripheryResult/v1" : "063c2693e0ad329d5a02c7fc2d4eb36d0b7433ba3e6c2e840c2ae0bffffcd989"
+          },
+          "properties" : {
+            "accessibility" : "internal",
+            "kind" : "class",
+            "modules" : [
+              "Lib"
+            ]
+          },
+          "ruleId" : "unused",
+          "ruleIndex" : 0
+        },
+        {
+          "level" : "warning",
+          "locations" : [
+            {
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Demo/Marker.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 10,
+                  "startLine" : 1
+                }
+              }
+            }
+          ],
+          "message" : {
+            "text" : "Redundant protocol 'Marker' (never used as an existential type)"
+          },
+          "partialFingerprints" : {
+            "peripheryResult/v1" : "faa24b26a09dd2f6093102cfdde41a4feb896971c7fcd72dda5445456fb57d5d"
+          },
+          "properties" : {
+            "accessibility" : "internal",
+            "kind" : "protocol",
+            "modules" : [
+              "Demo"
+            ]
+          },
+          "relatedLocations" : [
+            {
+              "id" : 1,
+              "message" : {
+                "text" : "Redundant protocol conformance 'Marker' (replace with 'Base')"
+              },
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Demo/Extras.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 8,
+                  "startLine" : 2
+                }
+              }
+            },
+            {
+              "id" : 2,
+              "message" : {
+                "text" : "Redundant protocol conformance 'Marker' (replace with 'Base')"
+              },
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Demo/Extras.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 8,
+                  "startLine" : 4
+                }
+              }
+            },
+            {
+              "id" : 3,
+              "message" : {
+                "text" : "Redundant protocol conformance 'Marker' (replace with 'Base')"
+              },
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Demo/main.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 8,
+                  "startLine" : 6
+                }
+              }
+            },
+            {
+              "id" : 4,
+              "message" : {
+                "text" : "Redundant protocol conformance 'Marker' (replace with 'Base')"
+              },
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Demo/main.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 8,
+                  "startLine" : 7
+                }
+              }
+            },
+            {
+              "id" : 5,
+              "message" : {
+                "text" : "Redundant protocol conformance 'Marker' (replace with 'Base')"
+              },
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Demo/main.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 8,
+                  "startLine" : 8
+                }
+              }
+            },
+            {
+              "id" : 6,
+              "message" : {
+                "text" : "Redundant protocol conformance 'Marker' (replace with 'Base')"
+              },
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Demo/main.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 8,
+                  "startLine" : 9
+                }
+              }
+            },
+            {
+              "id" : 7,
+              "message" : {
+                "text" : "Redundant protocol conformance 'Marker' (replace with 'Base')"
+              },
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Demo/main.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 8,
+                  "startLine" : 10
+                }
+              }
+            },
+            {
+              "id" : 8,
+              "message" : {
+                "text" : "Redundant protocol conformance 'Marker' (replace with 'Base')"
+              },
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Demo/main.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 8,
+                  "startLine" : 13
+                }
+              }
+            }
+          ],
+          "ruleId" : "redundantProtocol",
+          "ruleIndex" : 4
+        },
+        {
+          "level" : "warning",
+          "locations" : [
+            {
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/Lib/Helper.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 13,
+                  "startLine" : 5
+                }
+              }
+            }
+          ],
+          "message" : {
+            "text" : "Redundant public accessibility for function 'helper()' (not used outside of Alpha, Zeta)"
+          },
+          "partialFingerprints" : {
+            "peripheryResult/v1" : "378ec8505118088a398c7f85f67792d870f9e5ac9b25669c1f2b466fbd96631c"
+          },
+          "properties" : {
+            "accessibility" : "public",
+            "kind" : "function.free",
+            "modules" : [
+              "Lib"
+            ]
+          },
+          "ruleId" : "redundantPublicAccessibility",
+          "ruleIndex" : 5
+        },
+        {
+          "level" : "warning",
+          "locations" : [
+            {
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "DerivedSources/GeneratedAssetSymbols.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 16,
+                  "startLine" : 3
+                }
+              }
+            }
+          ],
+          "message" : {
+            "text" : "Unused asset catalog color 'AccentColor' (Project/App/Assets.xcassets/AccentColor.colorset)"
+          },
+          "partialFingerprints" : {
+            "peripheryResult/v1" : "51d95641399e12a553d6a3a0385c925a1c55aa14abb38980228afb9fb5a3ad7e"
+          },
+          "properties" : {
+            "accessibility" : "internal",
+            "kind" : "var.static",
+            "modules" : [
+              "App"
+            ]
+          },
+          "ruleId" : "unusedAssetCatalogColor",
+          "ruleIndex" : 11
+        }
+      ],
+      "tool" : {
+        "driver" : {
+          "informationUri" : "https://github.com/tiny-earth-moon/outskirts",
+          "name" : "outskirts",
+          "rules" : [
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#unused-declarations",
+              "id" : "unused",
+              "shortDescription" : {
+                "text" : "The declaration is never referenced"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#assign-only-properties",
+              "id" : "assignOnlyProperty",
+              "shortDescription" : {
+                "text" : "The property is assigned, but never read"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#unassigned-optional-properties",
+              "id" : "unassignedOptionalProperty",
+              "shortDescription" : {
+                "text" : "The optional property is never assigned and is always nil"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#unconstructed-enum-cases",
+              "id" : "enumCaseNeverConstructed",
+              "shortDescription" : {
+                "text" : "The enum case is only matched in patterns and never constructed"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#redundant-protocols",
+              "id" : "redundantProtocol",
+              "shortDescription" : {
+                "text" : "The protocol is never used as an existential type"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#redundant-public-accessibility",
+              "id" : "redundantPublicAccessibility",
+              "shortDescription" : {
+                "text" : "The declaration is public but not used outside of its module"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#open-and-final",
+              "id" : "redundantOpenAccessibility",
+              "shortDescription" : {
+                "text" : "The declaration is open but never subclassed or overridden outside of its module"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#open-and-final",
+              "id" : "missingFinal",
+              "shortDescription" : {
+                "text" : "The class or member could be final"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#redundant-access-levels",
+              "id" : "redundantAccessLevel",
+              "shortDescription" : {
+                "text" : "The access level is already the default in its context"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#empty-extensions",
+              "id" : "emptyExtension",
+              "shortDescription" : {
+                "text" : "The extension declares nothing"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#superfluous-ignore-comments",
+              "id" : "superfluousIgnoreCommand",
+              "shortDescription" : {
+                "text" : "The ignore comment is on a declaration that is referenced"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#asset-catalog-colors",
+              "id" : "unusedAssetCatalogColor",
+              "shortDescription" : {
+                "text" : "The asset catalog color is never referenced"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#asset-catalog-images",
+              "id" : "unusedAssetCatalogImage",
+              "shortDescription" : {
+                "text" : "The asset catalog image is never referenced"
+              }
+            }
+          ],
+          "version" : "3.21.0"
+        }
+      }
+    }
+  ],
+  "version" : "2.1.0"
+}

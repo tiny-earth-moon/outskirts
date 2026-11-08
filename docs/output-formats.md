@@ -11,6 +11,7 @@ Select a format with `--format` (`format` in the configuration file). The defaul
 | `xcode` | Xcode build log and terminal, with colors | `--relative-results` |
 | `csv` | Spreadsheets and scripts | `--relative-results` |
 | `json` | Scripts, e.g. `jq` | `--relative-results` |
+| `json-v2` | Scripts and tools that need stable ids, opt-in | always |
 | `checkstyle` | Tools that read Checkstyle XML | `--relative-results` |
 | `github-markdown` | Pull request comments and job summaries | `--relative-results` |
 | `github-actions` | GitHub Actions annotations | always |
@@ -126,6 +127,56 @@ outskirts scan --format json \
   | jq '[.[] | select(.kind == "class"
       or .kind == "struct" or .kind == "enum")]'
 ```
+
+## json-v2
+
+An opt-in, versioned document that [`schemas/output-v2.json`](https://github.com/tiny-earth-moon/outskirts/blob/master/schemas/output-v2.json) describes. `json` and the other formats are unchanged.
+
+```json
+{
+  "schemaVersion" : 2,
+  "tool" : { "name" : "outskirts", "version" : "3.22.0" },
+  "run" : {
+    "projectRoot" : "/work/project",
+    "variants" : [],
+    "timings" : {},
+    "files" : { "Sources/Lib/Widget.swift" : "sha256:…" }
+  },
+  "results" : [
+    {
+      "id" : "p2_…",
+      "rule" : "unused",
+      "message" : "Unused class 'Widget'",
+      "location" : {
+        "path" : "Sources/Lib/Widget.swift",
+        "line" : 3, "column" : 14,
+        "endLine" : 9, "endColumn" : 2
+      },
+      "declaration" : {
+        "name" : "Widget", "kind" : "class",
+        "accessibility" : "internal",
+        "modules" : ["Lib"], "usrs" : ["s:3Lib6WidgetC"]
+      },
+      "asset" : null,
+      "variants" : [],
+      "related" : [],
+      "fixable" : false
+    }
+  ],
+  "summary" : { "total" : 1, "byRule" : { "unused" : 1 } }
+}
+```
+
+- Paths are always relative to the project root, `--relative-results` and `--relative-to` aside; `run.projectRoot` gives the root.
+- `rule` is one of the 16 rule ids the schema lists, the same as the `rules` of a configuration file in format 2. An unconstructed enum case and a missing Metal function have no rule of their own and use `unused`; `message` tells them apart.
+- `id` is `p2_` followed by the lowercase base32 SHA-256 of the rule and an identity that holds neither an absolute path nor a line number: the USRs of the declaration, which for an import, an empty extension, a String Catalog key or a parameter hold the module and the file, the catalog and the key, or the function and the parameter name. It survives an edit above the declaration and another checkout, and differs between two rules on one declaration.
+- `location` points at the name of the declaration; `endLine` and `endColumn` give the end of the declaration as `range.end` does in `json`, null when it is unknown.
+- A redundant protocol is one result, whose conformances are listed under `related` with the rule `redundant-conformance`, their own `id`, and the conforming type as `declaration`.
+- `fixable` says whether [`outskirts fix`](fixing-results.md) can apply the result. `variants` is empty when the result holds for every variant the scan built, which `run.variants` lists.
+- `run.files` maps every file that holds a result to its SHA-256, null when it cannot be read. `run.timings` is empty for now.
+- Results are sorted by path, line, column, rule and id. `summary` counts them by rule, related results excluded.
+
+The location string of `json` is `.results[] | "\(.location.path):\(.location.line):\(.location.column)"` with `jq`.
 
 ## csv
 

@@ -84,6 +84,7 @@
         "xcode",
         "csv",
         "json",
+        "json-v2",
         "checkstyle",
         "codeclimate",
         "github-actions",
