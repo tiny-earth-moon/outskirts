@@ -19,17 +19,15 @@ final class EntryPointAttributeRetainer: SourceGraphMutator {
     // MARK: - Private
 
     private func retainAttributedTypes() {
-        graph
-            .declarations(ofKinds: [.class, .struct, .enum])
-            .lazy
-            .filter { $0.hasAttribute(in: Self.entryPointAttributes) }
-            .forEach {
-                retainEntryPoint($0)
+        for declaration in graph.declarations(ofKinds: [.class, .struct, .enum])
+            where declaration.hasAttribute(in: Self.entryPointAttributes)
+        {
+            retainEntryPoint(declaration)
 
-                if $0.hasAttribute(named: "main") {
-                    retainMainFunction(in: $0)
-                }
+            if declaration.hasAttribute(named: "main") {
+                retainMainFunction(in: declaration)
             }
+        }
     }
 
     /// `@main` can be applied to an extension of the entry point type. Extensions are folded into the extended type,
@@ -64,10 +62,30 @@ final class EntryPointAttributeRetainer: SourceGraphMutator {
         return "@\(attribute ?? "main") entry point"
     }
 
-    /// @main requires a static main() function.
+    /// @main requires a static main() function. When the type does not declare one, it is provided by an extension
+    /// of a protocol it conforms to, or by a superclass.
     private func retainMainFunction(in declaration: Declaration) {
-        declaration.declarations
-            .filter { $0.kind == .functionMethodStatic && $0.name == "main()" }
-            .forEach { graph.markRetained($0, reason: RetentionReason(Self.self, "static main() of a @main entry point")) }
+        for candidate in [declaration] + graph.inheritedDeclarations(of: declaration) {
+            let mainFunctions = ([candidate] + protocolExtensions(of: candidate)).flatMap { Self.mainFunctions(in: $0) }
+            guard !mainFunctions.isEmpty else { continue }
+
+            for function in mainFunctions {
+                graph.markRetainedWithAncestors(function, reason: RetentionReason(Self.self, "static main() of a @main entry point"))
+            }
+            return
+        }
+    }
+
+    /// Protocol extensions are not folded into the protocol, which references them instead.
+    private func protocolExtensions(of declaration: Declaration) -> [Declaration] {
+        guard declaration.kind == .protocol else { return [] }
+
+        return declaration.references
+            .filter { $0.declarationKind == .extensionProtocol }
+            .compactMap { graph.declaration(withUsr: $0.usr) }
+    }
+
+    private static func mainFunctions(in declaration: Declaration) -> [Declaration] {
+        declaration.declarations.filter { $0.kind == .functionMethodStatic && $0.name == "main()" }
     }
 }

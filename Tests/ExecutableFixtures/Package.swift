@@ -13,6 +13,7 @@ let package = Package(
         ),
         .executableTarget(name: "TopLevelCodeScript"),
         .executableTarget(name: "EntryPointExtension"),
+        .executableTarget(name: "EntryPointProtocolMain"),
         .target(name: "RetainPublicLib"),
         .executableTarget(
             name: "RetainPublicApp",
