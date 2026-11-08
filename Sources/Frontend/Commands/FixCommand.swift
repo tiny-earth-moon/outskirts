@@ -79,7 +79,7 @@ struct FixCommand: ParsableCommand {
         let targets = selectTargets(from: reported, configuration: configuration)
         let workingTree: WorkingTreeState = try allowDirty ? .ignored : GitWorkingTree.state(at: configuration.projectRoot)
         let indexDates = IndexDates(scanStartedAt: scanStartedAt, unitDates: output.unitDates)
-        let planner = FixPlanner(workingTree: workingTree, indexDates: indexDates, isIndexExcluded: configuration.isIndexExcluded)
+        let planner = FixPlanner(projectRoot: configuration.projectRoot, workingTree: workingTree, indexDates: indexDates, isIndexExcluded: configuration.isIndexExcluded)
         let plan = planner.plan(targets)
 
         if apply {

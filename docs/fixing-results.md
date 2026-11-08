@@ -53,7 +53,7 @@ A class made `final` can no longer be subclassed, including by a module the scan
 - **`--aggressive`**: also apply the tier-2 rules.
 - **`--rule <rule>`**: only apply this rule; repeat the option to apply several.
 - **`--include <glob>`**: only fix the files that match the glob, relative to `--project-root`; repeat the option to give several.
-- **`--allow-dirty`**: also fix files with uncommitted changes, and projects outside a git repository.
+- **`--allow-dirty`**: also fix files with uncommitted changes, and projects outside a git repository. Files whose real path is outside the project root are still refused, including a file reached through a linked directory.
 
 ## Safety
 
@@ -62,7 +62,7 @@ A class made `final` can no longer be subclassed, including by a module the scan
 - An edit nested in another collapses into it, for example a redundant `public` on an empty extension that is removed. Overlapping deletions merge into one; other edits that overlap without nesting are refused.
 - Always skipped: files excluded from indexing, generated files (build folders, `GeneratedAssetSymbols.swift`, `GeneratedStringSymbols_*`, macro expansion buffers, or a header comment that says the file is generated), results with an `override location=` comment, and `@_exported`, `public`, `@testable` and conditional (`#if`) imports.
 - Files modified after their index store unit was written, or after the scan started, are refused, since they may no longer match the results; with `--skip-build` or `--index-store-path`, rebuild first.
-- Only the files that version control can restore are edited. Files with uncommitted changes, untracked files included, are refused unless `--allow-dirty` is given, and so are symbolic links, files outside the repository of the project and files of a submodule or nested repository. git is run with an argument array, never through a shell.
+- Only the files that version control can restore are edited. Files with uncommitted changes, untracked files included, are refused unless `--allow-dirty` is given, and so are symbolic links, files outside the repository of the project (outside the project root with `--allow-dirty` or without git, following linked directories) and files of a submodule or nested repository. A file is only written at the real path checked when the fixes were planned. git is run with an argument array, never through a shell.
 - The file is parsed as the bytes on disk, so a byte order mark does not shift the edits.
 
 The analyses have known false positives, for example a redundant `public` that a client module outside the scan needs, so build (or pass `--verify`) and review the changes before committing them. Removing unused declarations is not part of this command.

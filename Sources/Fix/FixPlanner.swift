@@ -33,12 +33,15 @@ public struct IndexDates: Sendable {
 
 /// Turns results into edits of the original buffers, applying the safety rules.
 public struct FixPlanner {
+    /// The real path of the project root: without a git working tree to confine the edits, no file outside it is edited.
+    let projectRoot: String
     let workingTree: WorkingTreeState
     /// Nil skips the check, for buffers that were not indexed.
     let indexDates: IndexDates?
     let isIndexExcluded: (FilePath) -> Bool
 
-    public init(workingTree: WorkingTreeState, indexDates: IndexDates?, isIndexExcluded: @escaping (FilePath) -> Bool) {
+    public init(projectRoot: FilePath, workingTree: WorkingTreeState, indexDates: IndexDates?, isIndexExcluded: @escaping (FilePath) -> Bool) {
+        self.projectRoot = RealPath.resolve(projectRoot.string)
         self.workingTree = workingTree
         self.indexDates = indexDates
         self.isIndexExcluded = isIndexExcluded
@@ -109,7 +112,7 @@ public struct FixPlanner {
 
         let fixed = resolution.apply(to: bytes)
         if fixed != bytes {
-            plan.changes.append(.init(path: file, original: bytes, fixed: fixed))
+            plan.changes.append(.init(path: file, realPath: RealPath.resolve(file.string), original: bytes, fixed: fixed))
         }
     }
 
@@ -148,13 +151,14 @@ public struct FixPlanner {
     }
 
     /// Only the files that git can restore are edited: tracked by the working tree itself, not by a submodule or a
-    /// nested repository, and without uncommitted changes.
+    /// nested repository, and without uncommitted changes. Without a working tree, the real path, which follows every
+    /// linked directory, must be in the project root.
     private func workingTreeRefusal(_ file: FilePath) -> SkipReason? {
         switch workingTree {
         case .ignored:
-            return nil
+            return RealPath.resolve(file.string).hasPrefix(projectRoot + "/") ? nil : .outsideProject
         case .notARepository:
-            return .notInGitRepository
+            return RealPath.resolve(file.string).hasPrefix(projectRoot + "/") ? .notInGitRepository : .outsideProject
         case let .repository(topLevel, uncommitted):
             let realPath = RealPath.resolve(file.string)
             guard realPath.hasPrefix(topLevel + "/") else { return .outsideRepository }
@@ -190,6 +194,8 @@ private struct TargetPosition: Hashable {
 public struct FixPlan {
     public struct Change {
         let path: FilePath
+        /// The real path of the file when the edits were planned: the file is written there only.
+        let realPath: String
         let original: [UInt8]
         let fixed: [UInt8]
     }
