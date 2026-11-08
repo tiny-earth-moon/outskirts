@@ -6,7 +6,9 @@ import SystemPackage
 
 class CsvFormatter: OutputFormatter {
     /// Whether each row starts with the output v2 id and rule of its result.
-    class var includesOutputV2Identity: Bool { false }
+    class var includesOutputV2Identity: Bool {
+        false
+    }
 
     let configuration: Configuration
     let logger: Logger
@@ -101,5 +103,7 @@ class CsvFormatter: OutputFormatter {
 
 /// `csv-v2`: the `csv` format, each row preceded by the output v2 id and rule of its result.
 final class CsvV2Formatter: CsvFormatter {
-    override class var includesOutputV2Identity: Bool { true }
+    override static var includesOutputV2Identity: Bool {
+        true
+    }
 }

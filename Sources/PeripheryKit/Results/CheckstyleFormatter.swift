@@ -13,7 +13,9 @@ class CheckstyleFormatter: OutputFormatter {
     }
 
     /// Whether each error holds the output v2 id of its result and its rule as `source`.
-    class var includesOutputV2Identity: Bool { false }
+    class var includesOutputV2Identity: Bool {
+        false
+    }
 
     let configuration: Configuration
     let logger: Logger
@@ -68,5 +70,7 @@ class CheckstyleFormatter: OutputFormatter {
 /// `checkstyle-v2`: the `checkstyle` format, each error with the rule of its result as `source` and its output v2 id
 /// as `id`.
 final class CheckstyleV2Formatter: CheckstyleFormatter {
-    override class var includesOutputV2Identity: Bool { true }
+    override static var includesOutputV2Identity: Bool {
+        true
+    }
 }

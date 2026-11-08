@@ -7,7 +7,9 @@ class CodeClimateFormatter: OutputFormatter {
     static let requiresRelativePaths = true
 
     /// Whether each issue holds the output v2 id and rule of its result, the id also being its fingerprint.
-    class var includesOutputV2Identity: Bool { false }
+    class var includesOutputV2Identity: Bool {
+        false
+    }
 
     let configuration: Configuration
     let logger: Logger
@@ -64,5 +66,7 @@ class CodeClimateFormatter: OutputFormatter {
 /// `codeclimate-v2`: the `codeclimate` format, each issue with the output v2 `id` and `rule` of its result, and the id as
 /// its fingerprint.
 final class CodeClimateV2Formatter: CodeClimateFormatter {
-    override class var includesOutputV2Identity: Bool { true }
+    override static var includesOutputV2Identity: Bool {
+        true
+    }
 }
