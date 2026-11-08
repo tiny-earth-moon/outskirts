@@ -203,6 +203,11 @@ public struct FixPlan {
     public internal(set) var applied: [FixTarget] = []
     public internal(set) var skipped: [Skip] = []
 
+    /// Records results that were skipped before planning, such as the unused declarations that are kept.
+    public mutating func addSkipped(_ skips: [(target: FixTarget, reason: SkipReason)]) {
+        skipped += skips.map { Skip(target: $0.target, reason: $0.reason) }
+    }
+
     /// The unified diff of every change, with paths relative to the given directory.
     public func diff(relativeTo root: FilePath) -> String {
         changes.map { change in
@@ -222,13 +227,26 @@ public struct FixPlan {
 
         lines += ruleBreakdown()
 
+        // Each removed declaration is listed with its output v2 id, so that a reviewed removal can be traced back.
+        let removals = applied.filter { $0.rule == .unused }.sorted { ($0.file.string, $0.line, $0.column) < ($1.file.string, $1.line, $1.column) }
+        for target in removals {
+            let location = "\(target.file.relativePath(from: root)):\(target.line):\(target.column)"
+            lines.append("  \(applying ? "removed" : "would remove") unused '\(target.name)' at \(location)\(Self.idSuffix(of: target))")
+        }
+
         let sortedSkips = skipped.sorted { ($0.target.file.string, $0.target.line, $0.target.column) < ($1.target.file.string, $1.target.line, $1.target.column) }
         for skip in sortedSkips {
             let target = skip.target
             let location = "\(target.file.relativePath(from: root)):\(target.line):\(target.column)"
-            lines.append("  skipped \(target.rule.rawValue) '\(target.name)' at \(location): \(skip.reason)")
+            lines.append("  skipped \(target.rule.rawValue) '\(target.name)' at \(location): \(skip.reason)\(Self.idSuffix(of: target))")
         }
         return lines.joined(separator: "\n")
+    }
+
+    private static func idSuffix(of target: FixTarget) -> String {
+        guard target.rule == .unused, let id = target.id else { return "" }
+
+        return " [\(id)]"
     }
 
     /// One line per rule, in the order of `FixRule`: the applied count, then the skipped count with each reason.

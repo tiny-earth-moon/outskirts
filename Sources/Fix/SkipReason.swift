@@ -22,6 +22,34 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case partialParameterIgnore
     case alreadyFinal
     case openClass
+    case unremovableKind
+    case excludedModifier(String)
+    case excludedAttribute(String)
+    case retainedAttribute
+    case containsExcludedDeclaration
+    case caseIterableEnumCase
+    case codableEnumCase
+    case implicitRawValues
+    case severalCases
+    case referencedByKeptCode
+    case requirementImplementedElsewhere
+    case mayDriveAssociatedTypeInference
+    case relatedToKeptCode
+    case extensionKept
+    case extendedTypeKept
+    case attributedStoredProperty
+    case nonLiteralInitializer
+    case staticInitializer
+    case memberwiseInitializerUsed
+    case synthesizedConformance
+    case uncoveredConditionalName
+    case uncoveredConditionalType
+    case implicitMemberWithUncoveredCode
+    case publicDeclaration
+    case storedPropertyNotIncluded
+    case frozenType
+    case dependencyPackage
+    case everyEnumCase
 
     public var description: String {
         switch self {
@@ -47,6 +75,34 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .partialParameterIgnore: "some ignored parameters are still unused"
         case .alreadyFinal: "already final"
         case .openClass: "open class"
+        case .unremovableKind: "kind not removed by fix"
+        case let .excludedModifier(modifier): "'\(modifier)' declaration"
+        case let .excludedAttribute(attribute): "'@\(attribute)' declaration"
+        case .retainedAttribute: "attribute listed in retain_attributes"
+        case .containsExcludedDeclaration: "contains an @objc, dynamic, retained or ignored member"
+        case .caseIterableEnumCase: "case of a CaseIterable enum"
+        case .codableEnumCase: "case of a Codable enum"
+        case .implicitRawValues: "later cases have implicit raw values"
+        case .severalCases: "declaration with several cases"
+        case .referencedByKeptCode: "referenced by code that is kept"
+        case .requirementImplementedElsewhere: "protocol requirement implemented by kept code"
+        case .mayDriveAssociatedTypeInference: "requirement or witness of a protocol with an associated type, may drive associated type inference"
+        case .relatedToKeptCode: "overridden by kept code, or implements a kept requirement"
+        case .extensionKept: "an extension of the type is kept"
+        case .extendedTypeKept: "the extended type is kept"
+        case .attributedStoredProperty: "stored property with an attribute or property wrapper"
+        case .nonLiteralInitializer: "stored property with a non-literal initializer"
+        case .staticInitializer: "static stored property with an initializer"
+        case .memberwiseInitializerUsed: "the memberwise initializer of the struct is used"
+        case .synthesizedConformance: "stored property of a type with a synthesized Equatable, Hashable or Codable conformance"
+        case .uncoveredConditionalName: "name written in an #if clause that no scanned build compiled"
+        case .uncoveredConditionalType: "member of a type declared, extended or inherited from in an #if clause that no scanned build compiled"
+        case .implicitMemberWithUncoveredCode: "subscript, operator or implicitly called member, with code in an #if clause that no scanned build compiled"
+        case .publicDeclaration: "public API, use --include-public"
+        case .storedPropertyNotIncluded: "stored property, use --include-stored-properties"
+        case .frozenType: "stored property of a @frozen type"
+        case .dependencyPackage: "dependency package"
+        case .everyEnumCase: "every case of the enum would be removed"
         }
     }
 }

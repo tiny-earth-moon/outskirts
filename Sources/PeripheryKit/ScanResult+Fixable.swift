@@ -37,6 +37,19 @@ public extension ScanResult {
         }
     }
 
+    /// Whether the result is an unused declaration that `fix --rule unused` may remove: not an import, a parameter, a
+    /// String Catalog key or an asset, and not an unconstructed enum case, which patterns still name.
+    var isUnusedDeclaration: Bool {
+        guard case .unused = annotation else { return false }
+
+        return ![.module, .varParameter, .localizedString].contains(declaration.kind)
+    }
+
+    /// The output v2 id of the result, which keys its edits.
+    var outputV2Id: String {
+        OutputV2Id.id(of: self)
+    }
+
     /// The declaration the result is about.
     var resultDeclaration: Declaration {
         declaration

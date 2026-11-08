@@ -1,7 +1,6 @@
 import Configuration
 import Extensions
 import Foundation
-import Logger
 import Shared
 import SystemPackage
 
@@ -19,7 +18,6 @@ struct SPMBuildVariant: Equatable {
 /// Resolves the `variants` setting into the builds to run.
 struct SPMVariantResolver {
     let shell: Shell
-    let logger: ContextualLogger
     /// Reports a variant that cannot be built.
     let warn: (String) -> Void
     /// The project path, part of the cache key of each scratch path.
@@ -73,7 +71,7 @@ struct SPMVariantResolver {
             case "watchos": os = "watchos"
             case "visionos": os = "xros"
             default:
-                logger.debug("Variants: no build for the declared platform '\(platform.name)'")
+                warn("Skipping the declared platform '\(platform.name)': 'auto' has no build for it. Names written in the #if clauses of its platform stay retained.")
                 return nil
             }
             return BuildVariant(triple: "\(hostArchitecture)-apple-\(os)\(platform.version)\(suffix)")

@@ -4,11 +4,35 @@ import SystemPackage
 
 /// Writes the changes of a plan, each file atomically and only if it still holds the buffer the edits were made on.
 public enum FixWriter {
+    /// Writes every change or none: each file is checked before the first write, and when a write fails, the files
+    /// already written get their original buffer back.
     public static func apply(_ plan: FixPlan) throws {
-        for change in plan.changes {
-            guard try write(change.fixed, to: change, ifHolding: change.original) else {
-                throw PeripheryError.underlyingError(FixWriterError.fileChanged(change.path.string))
+        for change in plan.changes where try !holds(change.original, change) {
+            throw PeripheryError.underlyingError(FixWriterError.fileChanged(change.path.string))
+        }
+
+        var written: [FixPlan.Change] = []
+        do {
+            for change in plan.changes {
+                guard try write(change.fixed, to: change, ifHolding: change.original) else {
+                    throw PeripheryError.underlyingError(FixWriterError.fileChanged(change.path.string))
+                }
+
+                written.append(change)
             }
+        } catch {
+            let notRestored = written.filter { change in
+                do {
+                    return try !write(change.original, to: change, ifHolding: change.fixed)
+                } catch {
+                    return true
+                }
+            }
+            guard notRestored.isEmpty else {
+                throw PeripheryError.underlyingError(FixWriterError.partiallyWritten(error, notRestored.map(\.path.string)))
+            }
+
+            throw error
         }
     }
 
@@ -31,12 +55,16 @@ public enum FixWriter {
 
     // MARK: - Private
 
+    private static func holds(_ expected: [UInt8], _ change: FixPlan.Change) throws -> Bool {
+        let url = URL(fileURLWithPath: RealPath.resolve(change.path.string))
+        return try [UInt8](Data(contentsOf: url)) == expected
+    }
+
     private static func write(_ bytes: [UInt8], to change: FixPlan.Change, ifHolding expected: [UInt8]) throws -> Bool {
         // The planner refuses symbolic links; the real path also covers a link created since.
         let path = RealPath.resolve(change.path.string)
         let url = URL(fileURLWithPath: path)
-        let current = try Data(contentsOf: url)
-        guard [UInt8](current) == expected else { return false }
+        guard try holds(expected, change) else { return false }
 
         let permissions = try FileManager.default.attributesOfItem(atPath: path)[.posixPermissions]
         try Data(bytes).write(to: url, options: .atomic)
@@ -64,11 +92,14 @@ public struct FixRestoration: Equatable {
 
 enum FixWriterError: Error, CustomStringConvertible {
     case fileChanged(String)
+    case partiallyWritten(Error, [String])
 
     var description: String {
         switch self {
         case let .fileChanged(path):
-            "\(path) changed while the fixes were being prepared, nothing more was written."
+            "\(path) changed while the fixes were being prepared, no file was written."
+        case let .partiallyWritten(error, paths):
+            "Writing the fixes failed (\(error)), and these files keep their fixes because they changed since: \(paths.joined(separator: ", "))."
         }
     }
 }

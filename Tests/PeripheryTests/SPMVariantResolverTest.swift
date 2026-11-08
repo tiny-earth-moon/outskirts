@@ -1,6 +1,5 @@
 import Configuration
 import Foundation
-import Logger
 @testable import ProjectDrivers
 import Shared
 import SystemPackage
@@ -58,10 +57,13 @@ final class SPMVariantResolverTest: XCTestCase {
         XCTAssertEqual(warnings, [])
     }
 
-    func testAutoLeavesOutPlatformsWithoutASimulatorBuild() {
+    func testAutoSkipsPlatformsWithoutASimulatorBuildWithAWarning() {
         let platforms = [PackageDescription.Platform(name: "maccatalyst", version: "17.0"), PackageDescription.Platform(name: "visionos", version: "2.0")]
 
         XCTAssertEqual(resolver(installed: []).platformVariants(for: platforms).map(\.triple), ["arm64-apple-xros2.0-simulator"])
+        // A warning makes the variant skipped, which `fix --rule unused` refuses.
+        XCTAssertEqual(warnings.count, 1)
+        XCTAssertTrue(warnings.first?.hasPrefix("Skipping the declared platform 'maccatalyst'") == true, "\(warnings)")
     }
 
     func testExplicitVariantsKeepTheirSDKAndConfiguration() throws {
@@ -131,7 +133,6 @@ final class SPMVariantResolverTest: XCTestCase {
     ) -> SPMVariantResolver {
         var resolver = SPMVariantResolver(
             shell: SDKShell(installed: installed),
-            logger: Logger(quiet: true, verbose: false, colorMode: .never).contextualized(with: "test"),
             warn: { [unowned self] in warnings.append($0) },
             projectPath: "/project",
             buildArguments: buildArguments

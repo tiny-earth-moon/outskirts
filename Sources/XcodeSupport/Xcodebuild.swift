@@ -177,7 +177,11 @@ public final class Xcodebuild {
         return platforms
     }
 
-    /// The `SUPPORTED_PLATFORMS` of the JSON printed by `xcodebuild -showBuildSettings -json`, warnings around it ignored.
+    /// The name `supportedPlatforms` gives to Mac Catalyst, which `SUPPORTS_MACCATALYST` enables.
+    public static let macCatalystPlatform = "maccatalyst"
+
+    /// The `SUPPORTED_PLATFORMS` of the JSON printed by `xcodebuild -showBuildSettings -json`, warnings around it
+    /// ignored, and `maccatalyst` for a target with `SUPPORTS_MACCATALYST`.
     static func supportedPlatforms(fromBuildSettings output: String) throws -> [String] {
         guard let start = output.firstIndex(of: "["), let end = output.lastIndex(of: "]"), start < end else {
             throw PeripheryError.jsonDeserializationError(error: CocoaError(.propertyListReadCorrupt), json: output)
@@ -195,8 +199,12 @@ public final class Xcodebuild {
         var platforms: [String] = []
         for target in targets {
             let settings = target["buildSettings"] as? [String: Any]
-            let supported = (settings?["SUPPORTED_PLATFORMS"] as? String) ?? ""
-            for platform in supported.split(separator: " ").map(String.init) where !platforms.contains(platform) {
+            var supported = ((settings?["SUPPORTED_PLATFORMS"] as? String) ?? "").split(separator: " ").map(String.init)
+            // Mac Catalyst is not a platform of its own: the iOS targets that support it say so in another setting.
+            if (settings?["SUPPORTS_MACCATALYST"] as? String) == "YES" {
+                supported.append(Self.macCatalystPlatform)
+            }
+            for platform in supported where !platforms.contains(platform) {
                 platforms.append(platform)
             }
         }

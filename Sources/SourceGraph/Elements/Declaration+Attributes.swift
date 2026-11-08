@@ -1,5 +1,5 @@
 extension Declaration {
-    func hasAttribute(named name: String) -> Bool {
+    public func hasAttribute(named name: String) -> Bool {
         attributes.contains { $0.name == name }
     }
 

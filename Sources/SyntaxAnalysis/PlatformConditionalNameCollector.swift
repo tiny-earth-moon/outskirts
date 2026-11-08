@@ -17,6 +17,9 @@ import SwiftSyntax
 /// With `narrowsNestedBlocks`, a block nested in other `#if` blocks is narrowed too, when every enclosing block can be
 /// narrowed: a configuration compiles one of its clauses when it also compiles every enclosing clause. The clauses no
 /// configuration compiles are collected exactly as without it.
+///
+/// With `collectsEveryBlock`, the blocks whose conditions do not involve the platform are collected too, whole as
+/// they cannot be evaluated (custom flags, `DEBUG`, `swift()`, `compiler()`...).
 public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor {
     private static let platformConditions: Set<String> = ["os", "targetEnvironment", "arch", "canImport"]
 
@@ -31,9 +34,12 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     public private(set) var names: Set<String> = []
     /// The sites of each name, only collected when a location converter is given (for `--explain`).
     public private(set) var sites: [String: [Site]] = [:]
+    /// The clauses whose names were collected.
+    public private(set) var clauses: [IfConfigClauseSyntax] = []
 
     private let configurations: [PlatformBuildConfiguration]
     private let narrowsNestedBlocks: Bool
+    private let collectsEveryBlock: Bool
     private let locationConverter: SourceLocationConverter?
     /// The block whose clauses were all collected: the blocks it contains are not visited.
     private var collectedBlock: SyntaxIdentifier?
@@ -43,13 +49,16 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     /// - Parameter narrowsNestedBlocks: whether the blocks nested in another `#if` block are narrowed too, instead of
     ///   being collected whole.
     /// - Parameter locationConverter: when given, the line and condition of each name are collected too.
+    /// - Parameter collectsEveryBlock: whether every `#if` block is collected, not only the platform conditional ones.
     public init(
         configurations: [PlatformBuildConfiguration] = [],
         narrowsNestedBlocks: Bool = false,
-        locationConverter: SourceLocationConverter? = nil
+        locationConverter: SourceLocationConverter? = nil,
+        collectsEveryBlock: Bool = false
     ) {
         self.configurations = configurations
         self.narrowsNestedBlocks = narrowsNestedBlocks
+        self.collectsEveryBlock = collectsEveryBlock
         self.locationConverter = locationConverter
     }
 
@@ -63,8 +72,19 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         return collector.names
     }
 
+    /// The clauses of every `#if` block, platform conditional or not, that none of the configurations may have
+    /// compiled: a block that cannot be narrowed to the clauses no configuration compiled is returned whole.
+    public static func uncompiledClauses(
+        from syntax: SourceFileSyntax,
+        configurations: [PlatformBuildConfiguration]
+    ) -> [IfConfigClauseSyntax] {
+        let collector = PlatformConditionalNameCollector(configurations: configurations, collectsEveryBlock: true)
+        collector.walk(syntax)
+        return collector.clauses
+    }
+
     public func visit(_ node: IfConfigDeclSyntax) {
-        guard collectedBlock == nil, node.clauses.contains(where: { isPlatformCondition($0.condition) }) else { return }
+        guard collectedBlock == nil, collectsEveryBlock || node.clauses.contains(where: { isPlatformCondition($0.condition) }) else { return }
 
         if let uncompiledClauses = uncompiledClauses(of: node) {
             uncompiledClauses.forEach(collectNames(in:))
@@ -89,8 +109,9 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     private func collectNames(in clause: IfConfigClauseSyntax) {
         guard let elements = clause.elements else { return }
 
+        clauses.append(clause)
         for token in elements.tokens(viewMode: .sourceAccurate) {
-            if case .identifier = token.tokenKind, isReference(token) {
+            if token.tokenKind.isIdentifier, isReference(token) {
                 let name = token.identifier?.name ?? token.text
                 names.insert(name)
 
@@ -237,6 +258,16 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
             } else {
                 false
             }
+        }
+    }
+}
+
+private extension TokenKind {
+    var isIdentifier: Bool {
+        if case .identifier = self {
+            true
+        } else {
+            false
         }
     }
 }

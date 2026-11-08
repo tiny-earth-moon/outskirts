@@ -145,6 +145,23 @@
             XCTAssertEqual(destinations, ["generic/platform=macOS", "generic/platform=iOS Simulator"])
             XCTAssertEqual(driver.builtVariants.count, 2)
             XCTAssertTrue(driver.builtVariants[1].hasSuffix("-apple-ios-simulator"), "\(driver.builtVariants)")
+            XCTAssertEqual(driver.skippedVariants.count, 1)
+            XCTAssertTrue(driver.skippedVariants.first?.hasPrefix("Skipping the supported platform 'driverkit'") == true, "\(driver.skippedVariants)")
+        }
+
+        func testAutoSkipsMacCatalystWithAWarning() throws {
+            shell.buildSettings = """
+            [{"target": "App", "buildSettings": {"SUPPORTED_PLATFORMS": "iphoneos iphonesimulator", "SUPPORTS_MACCATALYST": "YES"}}]
+            """
+            var configuration = Configuration()
+            configuration.variants = .auto
+
+            let driver = makeDriver(configuration)
+            try driver.build()
+
+            XCTAssertEqual(driver.builtVariants.count, 1)
+            XCTAssertEqual(driver.skippedVariants.count, 1)
+            XCTAssertTrue(driver.skippedVariants.first?.hasPrefix("Skipping the supported platform 'maccatalyst'") == true, "\(driver.skippedVariants)")
         }
 
         func testTheFirstFailedBuildStopsTheScanAndNamesTheVariant() throws {
@@ -257,7 +274,6 @@
         private func resolver(buildArguments: [String] = []) -> XcodeVariantResolver {
             XcodeVariantResolver(
                 shell: shell,
-                logger: logger.contextualized(with: "test"),
                 warn: { [unowned self] in warnings.append($0) },
                 buildArguments: buildArguments,
                 hostArchitecture: "arm64"

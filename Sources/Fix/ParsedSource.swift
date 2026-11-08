@@ -67,12 +67,13 @@ struct ParsedSource {
         }
     }
 
-    /// The range that removes a whole statement or declaration with its attached doc comment and trailing comment.
-    /// Comments separated from it by a blank line, and comments that are not doc comments, stay.
+    /// The range that removes a whole statement or declaration with its attached doc comment, its attached comment
+    /// commands, and its trailing comment. Comments separated from it by a blank line, other comments, and
+    /// `ignore:all` commands, which apply to the whole file, stay.
     func statementRemovalRange(_ node: some SyntaxProtocol) -> Range<Int> {
         var start = node.positionAfterSkippingLeadingTrivia.utf8Offset
         if let firstToken = node.firstToken(viewMode: .sourceAccurate) {
-            start = attachedDocCommentStart(of: firstToken) ?? start
+            start = attachedCommentStart(of: firstToken) ?? start
         }
         return removalRange(from: start, to: node.endPosition.utf8Offset)
     }
@@ -86,8 +87,9 @@ struct ParsedSource {
         byte == UInt8(ascii: " ") || byte == UInt8(ascii: "\t")
     }
 
-    /// The offset of the first doc comment that is attached to the token, line after line without a blank line.
-    private func attachedDocCommentStart(of token: TokenSyntax) -> Int? {
+    /// The offset of the first doc comment or comment command that is attached to the token, line after line without
+    /// a blank line. A comment command left behind would apply to the next declaration.
+    private func attachedCommentStart(of token: TokenSyntax) -> Int? {
         let pieces = token.leadingTrivia.offsetPieces(startingAt: token.position.utf8Offset)
         var index = pieces.count - 1
         var start: Int?
@@ -104,7 +106,7 @@ struct ParsedSource {
             while commentIndex >= 0, pieces[commentIndex].piece.isHorizontalSpace {
                 commentIndex -= 1
             }
-            guard commentIndex >= 0, pieces[commentIndex].piece.isDocComment else { break }
+            guard commentIndex >= 0, pieces[commentIndex].piece.isDocComment || pieces[commentIndex].piece.isDeclarationCommentCommand else { break }
 
             start = pieces[commentIndex].offset
             index = commentIndex - 1
@@ -153,6 +155,18 @@ extension TriviaPiece {
         case .docLineComment, .docBlockComment: true
         default: false
         }
+    }
+
+    /// Whether the piece is an `outskirts:` or `periphery:` comment command that applies to the declaration below it,
+    /// that is any command but `ignore:all`.
+    var isDeclarationCommentCommand: Bool {
+        guard let (text, markerLength) = commentText else { return false }
+
+        let body = text.dropFirst(markerLength).replacingOccurrences(of: "*/", with: "").trimmingCharacters(in: .whitespaces)
+        guard let prefix = ["outskirts:", "periphery:"].first(where: { body.hasPrefix($0) }) else { return false }
+
+        let command = body.dropFirst(prefix.count).split(separator: "-").first.map(String.init) ?? ""
+        return command.trimmingCharacters(in: .whitespaces) != "ignore:all"
     }
 
     /// The text of a comment, nil for any other piece.

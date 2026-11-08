@@ -71,6 +71,24 @@
             }
         }
 
+        func testSkippedBuildReportsNoBuiltVariant() throws {
+            let configuration = Configuration()
+            configuration.variants = .explicit([BuildVariant(triple: Self.macOSTriple)])
+
+            try SPMProjectMultiVariantPath.chdir {
+                let driver = try SPMProjectDriver(configuration: configuration, shell: Self.shell, logger: Self.logger)
+                try driver.build()
+                XCTAssertEqual(driver.builtVariants, [Self.macOSTriple])
+
+                // The index store of the earlier build is read, but nothing proves it matches the sources.
+                configuration.skipBuild = true
+                let skipping = try SPMProjectDriver(configuration: configuration, shell: Self.shell, logger: Self.logger)
+                try skipping.build()
+                _ = try skipping.plan(logger: Self.logger.contextualized(with: "index"))
+                XCTAssertEqual(skipping.builtVariants, [])
+            }
+        }
+
         // MARK: - Private
 
         private func assertReportsWhatNoBuildUses() {

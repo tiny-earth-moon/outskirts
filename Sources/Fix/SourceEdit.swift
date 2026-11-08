@@ -29,11 +29,12 @@ struct SourceEdit: Hashable {
 struct EditResolution {
     /// The edits to apply, sorted by position, none overlapping another.
     let edits: [SourceEdit]
-    /// The owners whose edits overlap the edits of another owner without containing them, which are all refused.
+    /// The owners whose edits overlap the edits of another owner without containing them, unless both are deletions,
+    /// which are all refused.
     let refusedOwners: Set<Int>
 
-    /// Nested edits collapse into the outer one, identical edits are applied once, and overlapping edits are refused
-    /// together with every other edit of their owners.
+    /// Nested edits collapse into the outer one, identical edits are applied once, overlapping deletions merge, and
+    /// other overlapping edits are refused together with every other edit of their owners.
     init(_ editsByOwner: [Int: [SourceEdit]]) {
         var refused = Set<Int>()
 
@@ -63,8 +64,21 @@ struct EditResolution {
                 if isCovered {
                     continue
                 }
-                if let overlapping = kept.first(where: { $0.edit.overlaps(candidate.edit) }) {
-                    newlyRefused.insert(overlapping.owner)
+                let overlapping = kept.indices.filter { kept[$0].edit.overlaps(candidate.edit) }
+                if !overlapping.isEmpty {
+                    // Deletions that share bytes, such as the blank line between two removed declarations, delete
+                    // their union.
+                    if candidate.edit.replacement.isEmpty, overlapping.allSatisfy({ kept[$0].edit.replacement.isEmpty }) {
+                        // The candidates come by position, so the first overlapping edit starts the union.
+                        let first = overlapping[0]
+                        let upperBound = overlapping.map { kept[$0].edit.range.upperBound }.reduce(candidate.edit.range.upperBound, max)
+                        kept[first].edit = SourceEdit(range: kept[first].edit.range.lowerBound ..< upperBound)
+                        for index in overlapping.dropFirst().reversed() {
+                            kept.remove(at: index)
+                        }
+                        continue
+                    }
+                    newlyRefused.formUnion(overlapping.map { kept[$0].owner })
                     newlyRefused.insert(candidate.owner)
                     continue
                 }

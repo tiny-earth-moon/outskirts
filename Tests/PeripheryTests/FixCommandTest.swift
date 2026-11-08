@@ -455,6 +455,100 @@ final class FixCommandTest: XCTestCase {
         XCTAssertEqual(restoration.summary(relativeTo: directory, changeCount: 1), "The fixes break the build, restored 1 of 1 file:\n  restored File.swift")
     }
 
+    func testApplyWritesNothingWhenALaterFileChangedSincePlanning() throws {
+        let source = "import A\nimport B\n"
+        try write(source)
+        let other = directory.appending("Other.swift")
+        try Data("import C\nimport D\n".utf8).write(to: URL(fileURLWithPath: other.string))
+        let plan = makePlanner().plan([
+            target(.unusedImport, "B", .module, at: "import B", in: source),
+            FixTarget(rule: .unusedImport, name: "D", kind: .module, file: other, line: 2, column: 1),
+        ])
+        XCTAssertEqual(plan.changes.count, 2)
+        let lastChange = try XCTUnwrap(plan.changes.last)
+        try Data("// edited\n".utf8).write(to: URL(fileURLWithPath: lastChange.path.string))
+
+        XCTAssertThrowsError(try FixWriter.apply(plan))
+        for change in plan.changes.dropLast() {
+            XCTAssertEqual(try [UInt8](Data(contentsOf: URL(fileURLWithPath: change.path.string))), change.original)
+        }
+    }
+
+    func testApplyRestoresTheWrittenFilesWhenALaterWriteFails() throws {
+        let source = "import A\nimport B\n"
+        try write(source)
+        let locked = directory.appending("Locked")
+        try FileManager.default.createDirectory(atPath: locked.string, withIntermediateDirectories: true)
+        let other = locked.appending("Other.swift")
+        try Data("import C\nimport D\n".utf8).write(to: URL(fileURLWithPath: other.string))
+        let plan = makePlanner().plan([
+            target(.unusedImport, "B", .module, at: "import B", in: source),
+            FixTarget(rule: .unusedImport, name: "D", kind: .module, file: other, line: 2, column: 1),
+        ])
+        XCTAssertEqual(plan.changes.map(\.path), [file, other])
+        // An atomic write creates a temporary file next to the file: a read-only directory makes it fail.
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.string)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.string) }
+        // Root ignores directory permissions (the Linux CI container), so the write cannot be made to fail there.
+        try XCTSkipIf(FileManager.default.isWritableFile(atPath: locked.string), "directory permissions are not enforced")
+
+        XCTAssertThrowsError(try FixWriter.apply(plan))
+        XCTAssertEqual(try String(contentsOfFile: file.string, encoding: .utf8), source)
+        XCTAssertEqual(try String(contentsOfFile: other.string, encoding: .utf8), "import C\nimport D\n")
+    }
+
+    // MARK: - Unused declarations
+
+    func testRemovedDeclarationTakesItsAttachedCommentCommandsButNotIgnoreAll() throws {
+        let source = """
+        // periphery:ignore:all
+        /// Doc.
+        // periphery:ignore:parameters a
+        func dead(a: Int) {}
+
+        // outskirts:ignore:parameters a - kept for the next one
+        func dead2(a: Int) {}
+        func next(a: Int) {}
+
+        """
+        let fixed = try fix(source, [
+            target(.unused, "dead(a:)", .functionFree, at: "dead(", in: source),
+            target(.unused, "dead2(a:)", .functionFree, at: "dead2(", in: source),
+        ])
+
+        XCTAssertEqual(fixed, "// periphery:ignore:all\n\nfunc next(a: Int) {}\n")
+    }
+
+    func testCaseOfAnEnumWithAnUnresolvedRawTypeIsKept() throws {
+        let source = """
+        typealias Code = Int
+        enum Status: Code {
+            case ok
+            case unused
+            case fail
+        }
+        enum CStatus: CInt {
+            case ok
+            case unused
+            case fail
+        }
+        enum Plain: Equatable {
+            case ok
+            case unused
+            case fail
+        }
+
+        """
+        let plan = try planned(source, [
+            target(.unused, "unused", .enumelement, at: "unused", in: source),
+            target(.unused, "unused", .enumelement, at: "unused", in: source, occurrence: 2),
+            target(.unused, "unused", .enumelement, at: "unused", in: source, occurrence: 3),
+        ])
+
+        XCTAssertEqual(plan.skipped.map { "\($0.target.line) \($0.reason)" }, ["4 \(SkipReason.implicitRawValues)", "9 \(SkipReason.implicitRawValues)"])
+        XCTAssertEqual(plan.applied.map(\.line), [14])
+    }
+
     // MARK: - Diff, idempotence and trivia
 
     func testDryRunPrintsAUnifiedDiffAndLeavesTheFileUntouched() throws {
@@ -497,13 +591,24 @@ final class FixCommandTest: XCTestCase {
     func testOverlappingEditsAreRefusedAndNestedEditsCollapse() {
         let outer = SourceEdit(range: 0 ..< 10)
         let nested = SourceEdit(range: 2 ..< 4, replacement: "x")
-        let crossing = SourceEdit(range: 8 ..< 12)
+        let crossing = SourceEdit(range: 8 ..< 12, replacement: "y")
         let separate = SourceEdit(range: 20 ..< 21)
 
         let resolution = EditResolution([0: [outer], 1: [nested], 2: [crossing], 3: [separate]])
 
         XCTAssertEqual(resolution.refusedOwners, [0, 2])
         XCTAssertEqual(resolution.edits, [nested, separate])
+    }
+
+    func testOverlappingDeletionsMergeIntoTheirUnion() {
+        let first = SourceEdit(range: 0 ..< 10)
+        let second = SourceEdit(range: 9 ..< 15)
+        let nested = SourceEdit(range: 11 ..< 12, replacement: "x")
+
+        let resolution = EditResolution([0: [first], 1: [second], 2: [nested]])
+
+        XCTAssertEqual(resolution.refusedOwners, [])
+        XCTAssertEqual(resolution.edits, [SourceEdit(range: 0 ..< 15)])
     }
 
     func testInsertionAtTheStartOfADeletionIsAppliedBeforeIt() {
