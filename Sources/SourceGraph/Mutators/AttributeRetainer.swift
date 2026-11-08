@@ -30,7 +30,7 @@ public struct AttributeRetentionRule: Equatable {
     /// `nil` retains every kind of declaration.
     public let kinds: [String]?
 
-    func retains(_ declaration: Declaration) -> Bool {
+    public func retains(_ declaration: Declaration) -> Bool {
         guard declaration.hasAttribute(named: attribute) else { return false }
         guard let kinds else { return true }
 

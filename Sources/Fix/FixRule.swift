@@ -1,7 +1,7 @@
 import Configuration
 
 /// A kind of result that `outskirts fix` applies with a syntax-only edit. Tier-1 rules apply by default, tier-2 rules
-/// only with `--aggressive`.
+/// only with `--aggressive`, and opt-in rules only when `--rule` names them.
 public enum FixRule: String, CaseIterable, Sendable {
     case redundantPublic = "redundant-public"
     case redundantOpen = "redundant-open"
@@ -11,6 +11,12 @@ public enum FixRule: String, CaseIterable, Sendable {
     case superfluousIgnore = "superfluous-ignore"
     case unusedParameter = "unused-parameter"
     case missingFinal = "missing-final"
+    case unused
+
+    /// Whether the rule only applies when `--rule` names it: removing unused declarations is never a default.
+    public var isOptIn: Bool {
+        self == .unused
+    }
 
     /// Whether the rule is a tier-2 rule, which changes behavior and only applies with `--aggressive`.
     public var isAggressive: Bool {
@@ -37,6 +43,8 @@ public enum FixRule: String, CaseIterable, Sendable {
             true
         case .missingFinal:
             configuration.enableOpenFinalAnalysis
+        case .unused:
+            true
         }
     }
 }

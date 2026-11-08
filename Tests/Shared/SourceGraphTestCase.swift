@@ -14,7 +14,7 @@ open class SourceGraphTestCase: XCTestCase {
     static var swiftVersion: SwiftVersion!
     static var results: [ScanResult] = []
 
-    private static var graph: SourceGraph!
+    private(set) static var graph: SourceGraph!
     private static var indexedConfiguration = Configuration()
     private static var allIndexedDeclarations: Set<Declaration> = []
 

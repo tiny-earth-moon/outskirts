@@ -27,6 +27,8 @@ final class Scan {
         let unitDates: [FilePath: Date]
         /// The driver that built the project, so that `fix --verify` rebuilds it the same way.
         let driver: ProjectDriver
+        /// The analyzed graph, so that `fix --rule unused` checks who references each declaration it removes.
+        let graph: SourceGraph
     }
 
     func perform(project: Project) throws -> Output {
@@ -51,7 +53,7 @@ final class Scan {
         let (indexStoreSwiftVersion, unitDates) = try index(driver)
         try analyze(swiftVersion: indexStoreSwiftVersion)
         explain()
-        return Output(results: buildResults(), unitDates: unitDates, driver: driver)
+        return Output(results: buildResults(), unitDates: unitDates, driver: driver, graph: graph)
     }
 
     // MARK: - Private

@@ -32,6 +32,8 @@ struct EditBuilder {
             return parameterEdits(token: token, target: target)
         case .missingFinal:
             return finalEdits(token: token, target: target)
+        case .unused:
+            return unusedDeclarationEdits(token: token, target: target)
         }
     }
 
@@ -99,6 +101,112 @@ struct EditBuilder {
         }
 
         return .success([SourceEdit(range: source.statementRemovalRange(statement(of: extensionDecl)))])
+    }
+
+    /// Removes the declaration with its doc comment, its attributes and one trailing newline. An extension is only a
+    /// target when the type it extends is removed, so it goes whatever it holds.
+    private func unusedDeclarationEdits(token: TokenSyntax, target: FixTarget) -> Result<[SourceEdit], SkipReason> {
+        guard let decl = DeclarationLocator.declaration(named: token, name: target.name, kind: target.kind) else {
+            return .failure(.locationMismatch)
+        }
+
+        if let variable = decl.as(VariableDeclSyntax.self) {
+            if let reason = storedPropertyRefusal(variable, target: target) {
+                return .failure(reason)
+            }
+        } else if let enumCase = decl.as(EnumCaseDeclSyntax.self) {
+            guard enumCase.elements.count == 1 else { return .failure(.severalCases) }
+
+            if shiftsImplicitRawValues(enumCase) {
+                return .failure(.implicitRawValues)
+            }
+        }
+        return .success([SourceEdit(range: source.statementRemovalRange(statement(of: decl)))])
+    }
+
+    /// Why a variable may not be removed: a stored property must have no attribute (a property wrapper or a macro
+    /// among them), no initializer or a literal one, and no initializer if it is static.
+    private func storedPropertyRefusal(_ variable: VariableDeclSyntax, target: FixTarget) -> SkipReason? {
+        guard variable.bindings.count == 1, let binding = variable.bindings.first else { return .multipleBindings }
+        guard !isComputed(binding, of: variable) else { return nil }
+
+        if let reason = target.storedPropertyRefusal {
+            return reason
+        }
+        if !variable.attributes.isEmpty {
+            return .attributedStoredProperty
+        }
+        guard let initializer = binding.initializer else { return nil }
+
+        if variable.modifiers.contains(where: { [.keyword(.static), .keyword(.class)].contains($0.name.tokenKind) }) {
+            return .staticInitializer
+        }
+        return isLiteral(initializer.value) ? nil : .nonLiteralInitializer
+    }
+
+    /// A protocol requirement, or a binding with a getter, has no storage; observers alone do not make it computed.
+    private func isComputed(_ binding: PatternBindingSyntax, of variable: VariableDeclSyntax) -> Bool {
+        let declGroup = variable.parent?.ancestorOrSelf { $0.isProtocol(DeclGroupSyntax.self) ? $0 : nil }
+        if declGroup?.is(ProtocolDeclSyntax.self) == true {
+            return true
+        }
+        switch binding.accessorBlock?.accessors {
+        case .none:
+            return false
+        case .getter:
+            return true
+        case let .accessors(accessors):
+            return accessors.contains { ![.keyword(.willSet), .keyword(.didSet)].contains($0.accessorSpecifier.tokenKind) }
+        }
+    }
+
+    private func isLiteral(_ expression: ExprSyntax) -> Bool {
+        if expression.is(IntegerLiteralExprSyntax.self) || expression.is(FloatLiteralExprSyntax.self)
+            || expression.is(BooleanLiteralExprSyntax.self) || expression.is(NilLiteralExprSyntax.self)
+        {
+            return true
+        }
+        if let string = expression.as(StringLiteralExprSyntax.self) {
+            return string.segments.allSatisfy { $0.is(StringSegmentSyntax.self) }
+        }
+        if let prefix = expression.as(PrefixOperatorExprSyntax.self) {
+            return prefix.operator.text == "-"
+                && (prefix.expression.is(IntegerLiteralExprSyntax.self) || prefix.expression.is(FloatLiteralExprSyntax.self))
+        }
+        if let array = expression.as(ArrayExprSyntax.self) {
+            return array.elements.allSatisfy { isLiteral($0.expression) }
+        }
+        if let dictionary = expression.as(DictionaryExprSyntax.self) {
+            guard case let .elements(elements) = dictionary.content else { return true }
+
+            return elements.allSatisfy { isLiteral($0.key) && isLiteral($0.value) }
+        }
+        return false
+    }
+
+    /// Whether removing the case changes the raw value of a later case: a later case has no explicit raw value, in an
+    /// enum whose raw values count up, that is with a numeric raw type or with any explicit raw value.
+    private func shiftsImplicitRawValues(_ enumCase: EnumCaseDeclSyntax) -> Bool {
+        guard let enumDecl = enumCase.ancestorOrSelf(mapping: { $0.as(EnumDeclSyntax.self) }),
+              let removed = enumCase.elements.first
+        else { return true }
+
+        // The cases in source order, `#if` clauses included, without those of nested enums.
+        let ordered = enumDecl.memberBlock.tokens(viewMode: .sourceAccurate)
+            .compactMap { token in token.parent?.as(EnumCaseElementSyntax.self).flatMap { $0.name.id == token.id ? $0 : nil } }
+            .filter { $0.ancestorOrSelf(mapping: { $0.as(EnumDeclSyntax.self) })?.id == enumDecl.id }
+        guard let index = ordered.firstIndex(where: { $0.id == removed.id }) else { return true }
+
+        let laterImplicit = ordered[(index + 1)...].contains { $0.rawValue == nil }
+        guard laterImplicit else { return false }
+
+        let rawType = enumDecl.inheritanceClause?.inheritedTypes.first?.type.trimmedDescription ?? ""
+        let numericTypes: Set = [
+            "Int", "Int8", "Int16", "Int32", "Int64", "UInt", "UInt8", "UInt16", "UInt32", "UInt64",
+            "Float", "Double", "Float80", "CGFloat",
+        ]
+        let isNumeric = numericTypes.contains(rawType.replacingOccurrences(of: "Swift.", with: ""))
+        return isNumeric || ordered.contains { $0.rawValue != nil }
     }
 
     private func importEdits(token: TokenSyntax, target: FixTarget) -> Result<[SourceEdit], SkipReason> {

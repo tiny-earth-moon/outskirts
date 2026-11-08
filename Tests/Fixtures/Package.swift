@@ -172,6 +172,12 @@ var targets: [PackageDescription.Target] = [
         name: "UnconstructedEnumCaseSupportFixtures"
     ),
     .target(
+        name: "FixUnusedFixtures",
+        swiftSettings: [
+            .unsafeFlags(["-suppress-warnings"])
+        ]
+    ),
+    .target(
         name: "UnconstructedEnumCaseFixtures",
         dependencies: [
             .target(name: "UnconstructedEnumCaseSupportFixtures")
