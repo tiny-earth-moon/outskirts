@@ -8,13 +8,13 @@ public enum AssetCatalogSymbolKind: String, CaseIterable {
     case image
 
     /// The kinds whose unused symbols are detected with the given configuration.
-    public static func detected(by configuration: Configuration) -> [Self] {
+    static func detected(by configuration: Configuration) -> [Self] {
         allCases.filter { $0.isDetected(by: configuration) }
     }
 
     /// Name of the generated resource type whose initializer receives the asset name,
     /// e.g. `ColorResource(name: "AccentColor", bundle: resourceBundle)`.
-    public var resourceTypeName: String {
+    var resourceTypeName: String {
         switch self {
         case .color: "ColorResource"
         case .image: "ImageResource"
@@ -22,7 +22,7 @@ public enum AssetCatalogSymbolKind: String, CaseIterable {
     }
 
     /// Names of the types extended with a static symbol for each asset of this kind.
-    public var symbolTypeNames: Set<String> {
+    var symbolTypeNames: Set<String> {
         switch self {
         case .color: [resourceTypeName, "Color", "ShapeStyle", "UIColor", "NSColor"]
         case .image: [resourceTypeName, "Image", "UIImage", "NSImage"]
@@ -31,7 +31,7 @@ public enum AssetCatalogSymbolKind: String, CaseIterable {
 
     /// Extensions of the asset directories of this kind in an asset catalog. App icons (`appiconset`) have no
     /// generated symbol and are never reported.
-    public var assetDirectoryExtensions: [String] {
+    var assetDirectoryExtensions: [String] {
         switch self {
         case .color: ["colorset"]
         case .image: ["imageset", "symbolset"]

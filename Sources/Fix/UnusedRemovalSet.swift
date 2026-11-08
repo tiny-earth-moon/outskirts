@@ -10,7 +10,7 @@ import SourceGraph
 /// and again whenever the planner keeps one of its targets.
 public struct UnusedRemovalSet {
     /// The targets that were kept, with the reason of each.
-    public private(set) var skipped: [(target: FixTarget, reason: SkipReason)] = []
+    private(set) var skipped: [(target: FixTarget, reason: SkipReason)] = []
 
     private let graph: SourceGraph
     private var removed: [Declaration: FixTarget] = [:]
@@ -98,14 +98,14 @@ public struct UnusedRemovalSet {
     }
 
     /// The targets to remove: the declarations and the extensions of the removed types.
-    public var targets: [FixTarget] {
+    var targets: [FixTarget] {
         (Array(removed.values) + Array(removedExtensions.values)).sorted { Self.isOrdered($0, before: $1) }
     }
 
     /// Keeps the given targets, which the planner could not remove, and every declaration that can no longer be
     /// removed without them. Returns whether the set changed.
     @discardableResult
-    public mutating func keep(_ kept: [(target: FixTarget, reason: SkipReason)]) -> Bool {
+    mutating func keep(_ kept: [(target: FixTarget, reason: SkipReason)]) -> Bool {
         let keptTargets = Set(kept.map(\.target))
         let removedBefore = removed.count + removedExtensions.count
 

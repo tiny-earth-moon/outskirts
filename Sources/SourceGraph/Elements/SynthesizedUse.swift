@@ -33,7 +33,7 @@ public struct SynthesizedUse: Hashable {
 
     /// The nominal type name of a declared type, without optionality, array brackets, generic arguments or module
     /// qualification, e.g. `Thing` for `[Module.Thing]?`.
-    public static func baseTypeName(_ typeName: String) -> String {
+    static func baseTypeName(_ typeName: String) -> String {
         var name = typeName.trimmingCharacters(in: .whitespaces)
 
         while let last = name.last, last == "?" || last == "!" {

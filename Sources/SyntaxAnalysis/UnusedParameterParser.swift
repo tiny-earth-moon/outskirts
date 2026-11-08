@@ -18,12 +18,12 @@ public struct Function: Item, Hashable {
     }
 
     public let name: String
-    public let fullName: String
+    let fullName: String
     public let location: Location
     public let items: [Item]
-    public let parameters: [Parameter]
-    public let genericParameters: [String]
-    public let attributes: [Attribute]
+    let parameters: [Parameter]
+    let genericParameters: [String]
+    let attributes: [Attribute]
 }
 
 public struct Attribute {

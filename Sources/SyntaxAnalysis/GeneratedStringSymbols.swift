@@ -9,7 +9,7 @@ import SwiftSyntax
 public final class GeneratedStringSymbols: SyntaxVisitor {
     /// The catalogue key of each generated symbol, by the line of the symbol's name, where the index store records its
     /// definition.
-    public private(set) var keysByLine: [Int: String] = [:]
+    private(set) var keysByLine: [Int: String] = [:]
 
     private let converter: SourceLocationConverter
 

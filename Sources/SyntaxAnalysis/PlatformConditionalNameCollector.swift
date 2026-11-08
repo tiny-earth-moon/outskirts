@@ -35,7 +35,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     /// The sites of each name, only collected when a location converter is given (for `--explain`).
     public private(set) var sites: [String: [Site]] = [:]
     /// The clauses whose names were collected.
-    public private(set) var clauses: [IfConfigClauseSyntax] = []
+    private(set) var clauses: [IfConfigClauseSyntax] = []
 
     private let configurations: [PlatformBuildConfiguration]
     private let narrowsNestedBlocks: Bool
@@ -62,7 +62,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         self.locationConverter = locationConverter
     }
 
-    public static func collect(
+    static func collect(
         from syntax: SourceFileSyntax,
         configurations: [PlatformBuildConfiguration] = [],
         narrowsNestedBlocks: Bool = false

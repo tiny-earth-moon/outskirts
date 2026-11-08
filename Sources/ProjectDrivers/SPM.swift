@@ -10,24 +10,24 @@ public enum SPM {
         FilePath.current.appending("Package.swift").exists
     }
 
-    public struct Package {
-        public let path: FilePath = .current
+    struct Package {
+        let path: FilePath = .current
 
         private let configuration: Configuration
         private let shell: Shell
         private let logger: Logger
 
-        public init(configuration: Configuration, shell: Shell, logger: Logger) {
+        init(configuration: Configuration, shell: Shell, logger: Logger) {
             self.configuration = configuration
             self.shell = shell
             self.logger = logger
         }
 
-        public func clean(additionalArguments: [String] = []) throws {
+        func clean(additionalArguments: [String] = []) throws {
             try shell.exec(["swift", "package", "clean"] + additionalArguments)
         }
 
-        public func build(additionalArguments: [String]) throws {
+        func build(additionalArguments: [String]) throws {
             try shell.exec(["swift", "build", "--build-tests"] + additionalArguments)
         }
 
@@ -63,7 +63,7 @@ public enum SPM {
         }
 
         /// The directory SwiftPM places build products in, as reported by `swift build --show-bin-path`.
-        public func binPath(additionalArguments: [String]) throws -> FilePath {
+        func binPath(additionalArguments: [String]) throws -> FilePath {
             let arguments = ["swift", "build", "--show-bin-path"] + Self.locationArguments(from: additionalArguments)
             let output = try shell.exec(arguments)
 
@@ -79,7 +79,7 @@ public enum SPM {
         /// - Native backend: `<scratch>/<triple>/<configuration>/index/store`, i.e. `<binPath>/index/store`.
         /// - `swiftbuild` backend (default since Swift 6.4): `<scratch>/out/v5`, where `<binPath>` is
         ///   `<scratch>/out/Products/<Configuration>`, i.e. `<binPath>/../..`.
-        public func indexStorePath(additionalArguments: [String]) throws -> FilePath {
+        func indexStorePath(additionalArguments: [String]) throws -> FilePath {
             let binPath = try binPath(additionalArguments: additionalArguments)
             let candidates = [
                 binPath.appending("index/store"),
@@ -94,7 +94,7 @@ public enum SPM {
             throw PeripheryError.spmIndexStoreNotFound(tried: candidates.map(\.string))
         }
 
-        public func load() throws -> PackageDescription {
+        func load() throws -> PackageDescription {
             logger.contextualized(with: "spm:package").debug("Loading \(FilePath.current)")
 
             let jsonData: Data
@@ -127,30 +127,30 @@ public enum SPM {
 }
 
 public struct PackageDescription: Decodable {
-    public let targets: [Target]
+    let targets: [Target]
     /// The `platforms` of the manifest, nil when it declares none.
-    public let platforms: [Platform]?
+    let platforms: [Platform]?
 
     public struct Platform: Decodable, Equatable {
         /// Lowercased, e.g. `macos`, `ios`, `maccatalyst`.
-        public let name: String
-        public let version: String
+        let name: String
+        let version: String
     }
 }
 
 public struct Target: Decodable {
-    public let name: String
-    public let c99name: String?
-    public let type: String
-    public let path: String
-    public let resources: [Resource]?
-    public let sources: [String]?
+    let name: String
+    let c99name: String?
+    let type: String
+    let path: String
+    let resources: [Resource]?
+    let sources: [String]?
 
-    public var isTestTarget: Bool {
+    var isTestTarget: Bool {
         type == "test"
     }
 }
 
 public struct Resource: Decodable {
-    public let path: String
+    let path: String
 }

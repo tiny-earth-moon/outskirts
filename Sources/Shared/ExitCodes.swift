@@ -9,11 +9,11 @@ public enum ExitCodes: String, CaseIterable, Codable, Equatable, Sendable {
     public static let `default` = ExitCodes.v1
 
     /// Findings with `--strict` or `--strict-baseline`.
-    public static let findingsStatus: Int32 = 1
+    static let findingsStatus: Int32 = 1
     /// With `v2`: the configuration, a setting or an option is invalid.
-    public static let configurationErrorStatus: Int32 = 2
+    static let configurationErrorStatus: Int32 = 2
     /// With `v2`: the project, its build or its index store could not be used.
-    public static let projectErrorStatus: Int32 = 3
+    static let projectErrorStatus: Int32 = 3
 
     /// The contract in effect for the process: the `--exit-codes` option as soon as it is parsed, then the resolved
     /// configuration once the configuration file is loaded.

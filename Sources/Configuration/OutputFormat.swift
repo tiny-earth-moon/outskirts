@@ -13,7 +13,7 @@ public enum OutputFormat: String, CaseIterable, Sendable {
     case sarif
     case agent
 
-    public static let `default` = OutputFormat.xcode
+    static let `default` = OutputFormat.xcode
 
     @inlinable public var supportsAuxiliaryOutput: Bool {
         self == .xcode

@@ -8,7 +8,7 @@ public final class StringLiteralCollector: PeripherySyntaxNodeVisitor {
 
     public init() {}
 
-    public static func collect(from syntax: SourceFileSyntax) -> Set<String> {
+    static func collect(from syntax: SourceFileSyntax) -> Set<String> {
         let collector = StringLiteralCollector()
         collector.walk(syntax)
         return collector.values

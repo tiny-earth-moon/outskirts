@@ -139,7 +139,7 @@ public extension PeripherySyntaxNodeVisitor {
 public class ForwardingSyntaxVisitor: SyntaxVisitor {
     private var visitors: [PeripherySyntaxNodeVisitor]
 
-    public init(visitors: [PeripherySyntaxNodeVisitor] = []) {
+    init(visitors: [PeripherySyntaxNodeVisitor] = []) {
         self.visitors = visitors
         super.init(viewMode: .sourceAccurate)
     }

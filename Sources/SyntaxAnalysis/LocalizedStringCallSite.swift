@@ -46,11 +46,4 @@ public struct LocalizedStringUnresolvedKey: Hashable {
     public let bundleScope: BundleScope
     public let line: Int
     public let column: Int
-
-    public init(prefix: String, bundleScope: BundleScope, line: Int, column: Int) {
-        self.prefix = prefix
-        self.bundleScope = bundleScope
-        self.line = line
-        self.column = column
-    }
 }

@@ -29,9 +29,9 @@ public final class MetalFunctionNameCollector: PeripherySyntaxVisitor {
 
     private static let callNames: Set = ["makeFunction", "MTLFunctionStitchingFunctionNode"]
 
-    public private(set) var candidates: [Candidate] = []
+    private(set) var candidates: [Candidate] = []
 
-    public private(set) var runtimeLibrarySites: [MetalRuntimeLibrarySite] = []
+    private(set) var runtimeLibrarySites: [MetalRuntimeLibrarySite] = []
 
     private let sourceLocationBuilder: SourceLocationBuilder
 
@@ -43,7 +43,7 @@ public final class MetalFunctionNameCollector: PeripherySyntaxVisitor {
         self.sourceLocationBuilder = sourceLocationBuilder
     }
 
-    public static func collect(
+    static func collect(
         from syntax: SourceFileSyntax,
         file: SourceFile,
         locationConverter: SourceLocationConverter

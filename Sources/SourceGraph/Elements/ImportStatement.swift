@@ -2,13 +2,13 @@ import Foundation
 
 public struct ImportStatement {
     public let module: String
-    public let isTestable: Bool
+    let isTestable: Bool
     public let isExported: Bool
-    public let isConditional: Bool
-    public let location: Location
-    public let endLocation: Location
-    public let commentCommands: [CommentCommand]
-    public let range: DeclarationRange?
+    let isConditional: Bool
+    let location: Location
+    let endLocation: Location
+    let commentCommands: [CommentCommand]
+    let range: DeclarationRange?
 
     public init(
         module: String,
@@ -32,7 +32,7 @@ public struct ImportStatement {
 
     /// Whether the location lies within the import statement, e.g. the reference to the declaration named
     /// by a scoped import such as `import struct Module.Type`.
-    public func contains(_ other: Location) -> Bool {
+    func contains(_ other: Location) -> Bool {
         let start = (location.line, location.column)
         let end = (endLocation.line, endLocation.column)
         let point = (other.line, other.column)

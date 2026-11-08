@@ -15,7 +15,7 @@ public final class Xcodebuild {
 
     private static let cachedVersion = Mutex<String?>(nil)
 
-    public func version() throws -> String {
+    func version() throws -> String {
         if let version = Self.cachedVersion.withLock({ $0 }) {
             return version
         }
@@ -178,7 +178,7 @@ public final class Xcodebuild {
     }
 
     /// The name `supportedPlatforms` gives to Mac Catalyst, which `SUPPORTS_MACCATALYST` enables.
-    public static let macCatalystPlatform = "maccatalyst"
+    static let macCatalystPlatform = "maccatalyst"
 
     /// The `SUPPORTED_PLATFORMS` of the JSON printed by `xcodebuild -showBuildSettings -json`, warnings around it
     /// ignored, and `maccatalyst` for a target with `SUPPORTS_MACCATALYST`.

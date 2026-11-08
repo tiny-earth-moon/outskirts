@@ -5,20 +5,20 @@ import SystemPackage
 public struct IndexPlan {
     public let sourceFiles: [SourceFile: [IndexUnit]]
     /// The main files of the index store units that `index_exclude` leaves out.
-    public let indexExcludedSourceFiles: Set<FilePath>
-    public let plistPaths: Set<FilePath>
-    public let xibPaths: Set<FilePath>
-    public let xcDataModelPaths: Set<FilePath>
-    public let xcMappingModelPaths: Set<FilePath>
-    public let xcStringsPaths: Set<FilePath>
+    let indexExcludedSourceFiles: Set<FilePath>
+    let plistPaths: Set<FilePath>
+    let xibPaths: Set<FilePath>
+    let xcDataModelPaths: Set<FilePath>
+    let xcMappingModelPaths: Set<FilePath>
+    let xcStringsPaths: Set<FilePath>
     /// The modules owning each String Catalog, for the project drivers that know the target membership of resources.
     /// A catalogue without an entry has an unknown owner.
-    public let xcStringsModules: [FilePath: Set<String>]
-    public let expectedSourceFiles: [String: Set<FilePath>]
-    public let indexStorePaths: Set<FilePath>
+    let xcStringsModules: [FilePath: Set<String>]
+    let expectedSourceFiles: [String: Set<FilePath>]
+    let indexStorePaths: Set<FilePath>
     /// Values of the `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME` build setting, `nil` when the project driver
     /// does not read build settings.
-    public let globalAccentColorNames: Set<String>?
+    let globalAccentColorNames: Set<String>?
 
     public init(
         sourceFiles: [SourceFile: [IndexUnit]],

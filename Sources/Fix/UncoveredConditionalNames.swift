@@ -17,14 +17,14 @@ import SystemPackage
 /// declares one or names a parameter, since a declaration in such a clause can override, implement or extend one.
 public struct UncoveredConditionalNames {
     /// Every identifier and operator written in the clauses.
-    public let names: Set<String>
+    let names: Set<String>
     /// The types declared, extended, inherited from, constrained to or used as an attribute in the clauses, and the
     /// types of the scan they inherit from: code in the clauses can reach any of their members without naming it,
     /// through a conformance or an override.
-    public let typeNames: Set<String>
+    let typeNames: Set<String>
     /// Whether some clause holds code, which can call a subscript, `callAsFunction`, an operator, a pattern match
     /// (`~=`), a string interpolation or a dynamic member without writing its name.
-    public let hasCode: Bool
+    let hasCode: Bool
 
     public init(names: Set<String>, typeNames: Set<String> = [], hasCode: Bool = false) {
         self.names = names

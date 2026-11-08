@@ -6,19 +6,19 @@ import SystemPackage
 /// of the lines that removing the reported code would delete.
 public struct ScanSummary: Equatable {
     public struct UnusedFile: Equatable {
-        public let path: FilePath
-        public let lineCount: Int
+        let path: FilePath
+        let lineCount: Int
     }
 
     /// The number of results, the conformances of a redundant protocol not counted apart.
-    public let resultCount: Int
+    let resultCount: Int
     /// The number of results of each annotation, keyed by its name in the `hints` of the `json` format.
-    public let countsByAnnotation: [String: Int]
+    let countsByAnnotation: [String: Int]
     /// The lines of the unused declarations and empty extensions, attached doc comments and attributes included,
     /// each line counted once however many reported declarations cover it.
-    public let unusedLineCount: Int
+    let unusedLineCount: Int
     /// The Swift files whose every top-level declaration, imports excepted, is reported as unused, sorted by path.
-    public let unusedFiles: [UnusedFile]
+    let unusedFiles: [UnusedFile]
     /// The builds scanned together with the `variants` setting, empty with `variants: default`.
     public var variants: [String] = []
 }
