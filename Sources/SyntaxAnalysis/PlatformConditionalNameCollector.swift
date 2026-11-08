@@ -1,4 +1,5 @@
 import Foundation
+import SourceGraph
 import SwiftIfConfig
 import SwiftSyntax
 
@@ -19,7 +20,12 @@ import SwiftSyntax
 /// configuration compiles are collected exactly as without it.
 ///
 /// With `collectsEveryBlock`, the blocks whose conditions do not involve the platform are collected too, whole as
-/// they cannot be evaluated (custom flags, `DEBUG`, `swift()`, `compiler()`...).
+/// they cannot be evaluated (custom flags, `DEBUG`, `swift()`, `compiler()`...). Without it, their names are collected
+/// apart, as `PlatformConditionalName.otherClauseReference`, which only accounts for imports.
+///
+/// Besides the names written as references, `names` holds the encoded `PlatformConditionalName` entries that tell
+/// what a clause uses without writing its name: the operators it applies, the conformances its extensions declare,
+/// the members it overrides and the classes it inherits from.
 public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor {
     private static let platformConditions: Set<String> = ["os", "targetEnvironment", "arch", "canImport"]
 
@@ -84,7 +90,12 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     public func visit(_ node: IfConfigDeclSyntax) {
-        guard collectedBlock == nil, collectsEveryBlock || node.clauses.contains(where: { isPlatformCondition($0.condition) }) else { return }
+        guard collectedBlock == nil else { return }
+        guard collectsEveryBlock || node.clauses.contains(where: { isPlatformCondition($0.condition) }) else {
+            // The platform conditional blocks it contains are still visited.
+            node.clauses.forEach(collectOtherClauseNames(in:))
+            return
+        }
 
         if let uncompiledClauses = uncompiledClauses(of: node) {
             uncompiledClauses.forEach(collectNames(in:))
@@ -111,8 +122,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
 
         clauses.append(clause)
         for token in elements.tokens(viewMode: .sourceAccurate) {
-            if token.tokenKind.isIdentifier, isReference(token) {
-                let name = token.identifier?.name ?? token.text
+            if let name = referencedName(token) {
                 names.insert(name)
 
                 if let locationConverter {
@@ -121,6 +131,41 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
                     sites[name, default: []].append(Site(line: line, condition: condition))
                 }
             }
+        }
+
+        let declarationCollector = UnnamedUseCollector(viewMode: .sourceAccurate)
+        declarationCollector.walk(elements)
+        names.formUnion(declarationCollector.entries.map(\.encoded))
+    }
+
+    private func collectOtherClauseNames(in clause: IfConfigClauseSyntax) {
+        guard let elements = clause.elements else { return }
+
+        for token in elements.tokens(viewMode: .sourceAccurate) {
+            if let name = referencedName(token) {
+                names.insert(PlatformConditionalName.otherClauseReference(name).encoded)
+            }
+        }
+    }
+
+    /// The name the token refers to: an identifier that is a reference, or an applied operator.
+    private func referencedName(_ token: TokenSyntax) -> String? {
+        switch token.tokenKind {
+        case .identifier:
+            guard isReference(token) else { return nil }
+
+            return token.identifier?.name ?? token.text
+        case .binaryOperator, .prefixOperator, .postfixOperator:
+            guard let parent = token.parent,
+                  parent.is(BinaryOperatorExprSyntax.self)
+                  || parent.is(PrefixOperatorExprSyntax.self)
+                  || parent.is(PostfixOperatorExprSyntax.self)
+                  || parent.is(DeclReferenceExprSyntax.self)
+            else { return nil }
+
+            return token.text
+        default:
+            return nil
         }
     }
 
@@ -259,6 +304,87 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
                 false
             }
         }
+    }
+}
+
+/// Collects what the declarations of a clause use without writing a name: the conformances of its extensions, the
+/// members it overrides and the types its classes and protocols inherit from.
+private final class UnnamedUseCollector: SyntaxVisitor {
+    private(set) var entries: Set<PlatformConditionalName> = []
+
+    override func visit(_ node: ExtensionDeclSyntax) -> SyntaxVisitorContinueKind {
+        if let typeName = Self.typeNames(of: node.extendedType).first {
+            for protocolName in Self.inheritedTypeNames(of: node.inheritanceClause) {
+                entries.insert(.conformance(type: typeName, protocol: protocolName))
+            }
+        }
+        return .visitChildren
+    }
+
+    override func visit(_ node: ClassDeclSyntax) -> SyntaxVisitorContinueKind {
+        insertSuperclasses(of: node.inheritanceClause)
+        return .visitChildren
+    }
+
+    override func visit(_ node: ProtocolDeclSyntax) -> SyntaxVisitorContinueKind {
+        insertSuperclasses(of: node.inheritanceClause)
+        return .visitChildren
+    }
+
+    override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
+        if Self.isOverride(node.modifiers) {
+            entries.insert(.override(node.name.identifier?.name ?? node.name.text))
+        }
+        return .visitChildren
+    }
+
+    override func visit(_ node: SubscriptDeclSyntax) -> SyntaxVisitorContinueKind {
+        if Self.isOverride(node.modifiers) {
+            entries.insert(.override("subscript"))
+        }
+        return .visitChildren
+    }
+
+    override func visit(_ node: VariableDeclSyntax) -> SyntaxVisitorContinueKind {
+        if Self.isOverride(node.modifiers) {
+            for binding in node.bindings {
+                for token in binding.pattern.tokens(viewMode: .sourceAccurate) where token.tokenKind.isIdentifier {
+                    entries.insert(.override(token.identifier?.name ?? token.text))
+                }
+            }
+        }
+        return .visitChildren
+    }
+
+    private func insertSuperclasses(of clause: InheritanceClauseSyntax?) {
+        for name in Self.inheritedTypeNames(of: clause) {
+            entries.insert(.superclass(name))
+        }
+    }
+
+    private static func isOverride(_ modifiers: DeclModifierListSyntax) -> Bool {
+        modifiers.contains { $0.name.tokenKind == .keyword(.override) }
+    }
+
+    private static func inheritedTypeNames(of clause: InheritanceClauseSyntax?) -> [String] {
+        clause?.inheritedTypes.flatMap { typeNames(of: $0.type) } ?? []
+    }
+
+    /// The names of the types, without their module or enclosing types.
+    private static func typeNames(of type: TypeSyntax) -> [String] {
+        if let identifier = type.as(IdentifierTypeSyntax.self) {
+            return [identifier.name.identifier?.name ?? identifier.name.text]
+        }
+        if let member = type.as(MemberTypeSyntax.self) {
+            return [member.name.identifier?.name ?? member.name.text]
+        }
+        if let attributed = type.as(AttributedTypeSyntax.self) {
+            return typeNames(of: attributed.baseType)
+        }
+        if let composition = type.as(CompositionTypeSyntax.self) {
+            return composition.elements.flatMap { typeNames(of: $0.type) }
+        }
+        return []
     }
 }
 

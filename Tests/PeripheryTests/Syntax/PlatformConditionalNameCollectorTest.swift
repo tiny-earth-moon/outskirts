@@ -1,3 +1,4 @@
+import SourceGraph
 import SwiftParser
 import SwiftSyntax
 @testable import SyntaxAnalysis
@@ -7,12 +8,77 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
     private let macOS = PlatformBuildConfiguration(triple: "arm64-apple-macosx14.0")!
     private let iOSSimulator = PlatformBuildConfiguration(triple: "arm64-apple-ios18.0-simulator")!
 
+    /// The names written as references.
     private func collect(_ source: String, _ configurations: [PlatformBuildConfiguration], narrowsNestedBlocks: Bool = false) -> Set<String> {
-        PlatformConditionalNameCollector.collect(
+        Set(collectEntries(source, configurations, narrowsNestedBlocks: narrowsNestedBlocks).compactMap { entry in
+            if case let .reference(name) = entry {
+                name
+            } else {
+                nil
+            }
+        })
+    }
+
+    private func collectEntries(
+        _ source: String,
+        _ configurations: [PlatformBuildConfiguration],
+        narrowsNestedBlocks: Bool = false
+    ) -> Set<PlatformConditionalName> {
+        Set(PlatformConditionalNameCollector.collect(
             from: Parser.parse(source: source),
             configurations: configurations,
             narrowsNestedBlocks: narrowsNestedBlocks
-        )
+        ).compactMap(PlatformConditionalName.init(encoded:)))
+    }
+
+    func testCollectsUsesThatWriteNoName() {
+        let source = """
+        #if os(iOS)
+        let isEqual = lhs <~> rhs
+        let negated = -value
+        extension Module.FixtureType: @unchecked Sendable, FixtureProtocol & OtherProtocol {}
+        final class FixtureSubclass: FixtureBase {
+            override func update() {}
+            override var size: Int { 0 }
+            override subscript(index: Int) -> Int { index }
+            func notOverridden() {}
+        }
+        #endif
+        """
+
+        XCTAssertEqual(collectEntries(source, [macOS]), [
+            .reference("lhs"), .reference("<~>"), .reference("rhs"), .reference("-"), .reference("value"),
+            .reference("Module"), .reference("unchecked"), .reference("Sendable"), .reference("FixtureProtocol"), .reference("OtherProtocol"),
+            .reference("FixtureBase"), .reference("Int"), .reference("index"),
+            .conformance(type: "FixtureType", protocol: "Sendable"),
+            .conformance(type: "FixtureType", protocol: "FixtureProtocol"),
+            .conformance(type: "FixtureType", protocol: "OtherProtocol"),
+            .superclass("FixtureBase"),
+            .override("update"), .override("size"), .override("subscript"),
+        ])
+    }
+
+    /// The names of the other `#if` blocks only account for imports: they are collected apart, both clauses whole.
+    func testCollectsNamesOfNonPlatformConditionalsApart() {
+        let source = """
+        #if !DEBUG
+        releaseOnly()
+        #else
+        debugOnly()
+        #endif
+        """
+
+        XCTAssertEqual(collectEntries(source, [macOS]), [.otherClauseReference("releaseOnly"), .otherClauseReference("debugOnly")])
+    }
+
+    func testEncodedEntriesRoundTrip() {
+        let entries: [PlatformConditionalName] = [
+            .reference("name"), .reference("<~>"), .conformance(type: "T", protocol: "P"), .override("update"),
+            .superclass("Base"), .otherClauseReference("flagOnly"),
+        ]
+
+        XCTAssertEqual(entries.map { PlatformConditionalName(encoded: $0.encoded) }, entries)
+        XCTAssertNil(PlatformConditionalName(encoded: "`unknown`name"))
     }
 
     func testParsesKnownTriples() throws {

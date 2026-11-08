@@ -6,7 +6,9 @@ import Shared
 /// platform appears unused. This retains:
 ///  - declarations marked `@available(<platform>, unavailable)`, as they exist for other platforms, and
 ///  - declarations whose name is written inside a platform conditional `#if` block, as the reference may live
-///    in a branch that was not compiled.
+///    in a branch that was not compiled,
+///  - the members such a block uses without writing their name: the initializers, subscripts and `callAsFunction` of
+///    a type it names, and the witnesses of a conformance one of its extensions declares.
 ///
 /// With `platform_conditional_retention: auto`, a declaration marked unavailable is not retained when its file was
 /// indexed for one of these platforms and for a platform where it is available (see `IndexVariant.cover`).
@@ -18,6 +20,13 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
         .functionAccessorSetter, .functionAccessorWillset, .functionAccessorRead, .functionAccessorModify,
         .functionAccessorInit,
     ]
+
+    private static let typeKinds: Set<Declaration.Kind> = [.class, .struct, .enum]
+    /// Members used without writing their name: `T(...)`, `.init(...)`, `value[0]`.
+    private static let unnamedMemberKinds: Set<Declaration.Kind> = [.functionConstructor, .functionSubscript]
+
+    /// An initializer can implement an `init` requirement.
+    private static let nonWitnessKinds = nonReferenceableKinds.subtracting([.functionConstructor])
 
     private let graph: SourceGraph
     private let configuration: Configuration
@@ -48,9 +57,57 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
                 graph.markRetained(decl, reason: nameRetentionReason(Self.baseName(of: decl.name)))
             }
         }
+
+        retainUnnamedMembers(ofTypesNamedIn: names)
+        retainConformanceWitnesses()
     }
 
     // MARK: - Private
+
+    /// The initializers, subscripts and `callAsFunction` of the types named in a platform conditional block, which
+    /// calls them without writing their name: `T()`, `let value: T = .init()`, `value[0]`, `value()`.
+    private func retainUnnamedMembers(ofTypesNamedIn names: Set<String>) {
+        guard !names.isEmpty else { return }
+
+        for type in graph.declarations(ofKinds: Self.typeKinds) {
+            let typeName = Self.baseName(of: type.name)
+            guard names.contains(typeName) else { continue }
+
+            for member in members(of: type) where Self.unnamedMemberKinds.contains(member.kind) || Self.baseName(of: member.name) == "callAsFunction" {
+                graph.markRetained(member, reason: RetentionReason(Self.self, "member of '\(typeName)', named in a platform conditional block, used without writing its name"))
+            }
+        }
+    }
+
+    /// The members of a type that bear the name of a requirement of a protocol it conforms to in an extension written
+    /// in a platform conditional block: they are its witnesses there.
+    private func retainConformanceWitnesses() {
+        let conformances = graph.platformConditionalConformances
+        guard !conformances.isEmpty else { return }
+
+        let protocolsByName = Dictionary(grouping: graph.declarations(ofKind: .protocol), by: \.name)
+        let typesByName = Dictionary(grouping: graph.declarations(ofKinds: Self.typeKinds), by: \.name)
+
+        for conformance in conformances {
+            let requirementNames = protocolsByName[conformance.protocolName, default: []].flatMapSet { protocolDecl in
+                Set(protocolDecl.declarations.map { Self.baseName(of: $0.name) })
+            }
+            guard !requirementNames.isEmpty else { continue }
+
+            for type in typesByName[conformance.typeName, default: []] {
+                for member in members(of: type) where !Self.nonWitnessKinds.contains(member.kind)
+                    && requirementNames.contains(Self.baseName(of: member.name))
+                {
+                    graph.markRetained(member, reason: RetentionReason(Self.self, "witness of the conformance of '\(conformance.typeName)' to '\(conformance.protocolName)' declared in a platform conditional block"))
+                }
+            }
+        }
+    }
+
+    /// The members of the type, those of its extensions included.
+    private func members(of type: Declaration) -> Set<Declaration> {
+        graph.extensions[type, default: []].reduce(into: type.declarations) { $0.formUnion($1.declarations) }
+    }
 
     /// The first place, in file and line order, where the name is written in a platform conditional block.
     private func nameRetentionReason(_ name: String) -> RetentionReason {
