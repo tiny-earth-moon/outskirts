@@ -66,12 +66,16 @@ final class MetalFunctionIndexer: Indexer {
                 names.insert(function.name)
                 guard !function.isConditional else { continue }
 
-                declarations.insert(Declaration(
+                let declaration = Declaration(
                     name: function.name,
                     kind: .metalFunction,
                     usrs: [SyntheticUsr.metalFunction(function.name, in: path, projectRoot: configuration.projectRoot)],
                     location: Location(file: sourceFile, line: function.line, column: function.column)
-                ))
+                )
+                if function.isExported {
+                    declaration.attributes.insert(.metalExported)
+                }
+                declarations.insert(declaration)
             }
 
             logger.debug("\(path.string): \(result.functions.count) functions")
