@@ -497,6 +497,26 @@ final class FixCommandTest: XCTestCase {
 
     // MARK: - Unused declarations
 
+    func testRemovedDeclarationTakesItsAttachedCommentCommandsButNotIgnoreAll() throws {
+        let source = """
+        // periphery:ignore:all
+        /// Doc.
+        // periphery:ignore:parameters a
+        func dead(a: Int) {}
+
+        // outskirts:ignore:parameters a - kept for the next one
+        func dead2(a: Int) {}
+        func next(a: Int) {}
+
+        """
+        let fixed = try fix(source, [
+            target(.unused, "dead(a:)", .functionFree, at: "dead(", in: source),
+            target(.unused, "dead2(a:)", .functionFree, at: "dead2(", in: source),
+        ])
+
+        XCTAssertEqual(fixed, "// periphery:ignore:all\n\nfunc next(a: Int) {}\n")
+    }
+
     func testCaseOfAnEnumWithAnUnresolvedRawTypeIsKept() throws {
         let source = """
         typealias Code = Int

@@ -66,7 +66,7 @@ A declaration is removed when all of these hold:
 - No kept declaration overrides it or implements it, and it does not implement a kept protocol requirement.
 - Every extension of the type, and of the types nested in it, is in the results and is removed with it, in the same edit set.
 
-Members of a removed type go with it. Each declaration is removed with its doc comment, its attributes and one trailing newline. A declaration that shares its line with others (`case a, b`, `var a = 1, b = 2`) is kept. When a removal is skipped, for example because its file has uncommitted changes, the declarations that depend on it are kept as well.
+Members of a removed type go with it. Each declaration is removed with its doc comment, the comment commands right above it (an `ignore:parameters` comment left behind would apply to the next declaration; `ignore:all` stays), its attributes and one trailing newline. A declaration that shares its line with others (`case a, b`, `var a = 1, b = 2`) is kept. When a removal is skipped, for example because its file has uncommitted changes, the declarations that depend on it are kept as well.
 
 The summary lists each removal, and each kept result with its reason, with its [output v2 id](output-formats.md):
 
@@ -93,7 +93,7 @@ Reflection is invisible to every scan: a type created with `NSClassFromString`, 
 ## Safety
 
 - Each result is re-located by parsing its file with SwiftParser at the reported line and column and walking up to the declaration, import or parameter. When the name or the kind does not match the result, the result is skipped as a location mismatch.
-- Edits are byte ranges of the original file, which is never re-printed: comments, blank lines and formatting outside the edited ranges stay as they are. A comment separated from a removed declaration by a blank line, and a comment that is not a doc comment, stay.
+- Edits are byte ranges of the original file, which is never re-printed: comments, blank lines and formatting outside the edited ranges stay as they are. A comment separated from a removed declaration by a blank line, and a comment that is neither a doc comment nor a comment command other than `ignore:all`, stay.
 - An edit nested in another collapses into it, for example a redundant `public` on an empty extension that is removed. Edits that overlap without nesting are refused.
 - Always skipped: files excluded from indexing, generated files (build folders, `GeneratedAssetSymbols.swift`, `GeneratedStringSymbols_*`, macro expansion buffers, or a header comment that says the file is generated), results with an `override location=` comment, and `@_exported`, `public`, `@testable` and conditional (`#if`) imports.
 - Files modified after their index store unit was written, or after the scan started, are refused, since they may no longer match the results; with `--skip-build` or `--index-store-path`, rebuild first.
