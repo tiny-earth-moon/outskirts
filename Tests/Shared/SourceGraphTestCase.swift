@@ -111,7 +111,9 @@ open class SourceGraphTestCase: XCTestCase {
 
     final func assertReferenced(_ description: DeclarationDescription, scopedAssertions: (() -> Void)? = nil, file: StaticString = #file, line: UInt = #line) {
         if case .module = description.kind {
-            if let declaration = Self.graph.unusedModuleImports.first(where: { $0.name == description.name }) {
+            if !isImported(description.name) {
+                XCTFail("Module is not imported: \(description.name)", file: file, line: line)
+            } else if let declaration = Self.graph.unusedModuleImports.first(where: { $0.name == description.name }) {
                 XCTFail("Expected declaration to be referenced: \(declaration)", file: file, line: line)
             }
         } else {
@@ -425,6 +427,19 @@ open class SourceGraphTestCase: XCTestCase {
         }
 
         return matchedDeclaration
+    }
+
+    private func isImported(_ module: String) -> Bool {
+        let scopedModules = Set(scopeStack.compactMap { scope -> String? in
+            if case let .module(name) = scope {
+                return name
+            }
+            return nil
+        })
+        return Self.graph.indexedSourceFiles.contains { file in
+            (scopedModules.isEmpty || !file.modules.isDisjoint(with: scopedModules))
+                && file.importStatements.contains { $0.module == module }
+        }
     }
 
     private func scopedDeclarations(from defaultDeclarations: Set<Declaration>? = nil) -> Set<Declaration> {
