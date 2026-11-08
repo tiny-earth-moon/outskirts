@@ -67,7 +67,6 @@ public final class SPMProjectDriver {
         let platforms = configuration.variants == .auto ? try description().platforms : nil
         let resolver = SPMVariantResolver(
             shell: shell,
-            logger: logger.contextualized(with: "spm:variants"),
             warn: { [unowned self] in
                 logger.warn($0)
                 skippedVariantMessages.append($0)

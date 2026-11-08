@@ -127,7 +127,6 @@
             let variantLogger = logger.contextualized(with: "xcode:variants")
             let resolver = XcodeVariantResolver(
                 shell: shell,
-                logger: variantLogger,
                 warn: { [unowned self] in
                     logger.warn($0)
                     skippedVariantMessages.append($0)

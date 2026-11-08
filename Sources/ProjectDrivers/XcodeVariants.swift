@@ -1,7 +1,6 @@
 #if os(macOS)
     import Configuration
     import Foundation
-    import Logger
     import Shared
 
     /// A build of the Xcode schemes resolved from the `variants` setting.
@@ -16,7 +15,6 @@
     /// Resolves the `variants` setting into the `xcodebuild` builds to run.
     struct XcodeVariantResolver {
         let shell: Shell
-        let logger: ContextualLogger
         /// Reports a variant that cannot be built.
         let warn: (String) -> Void
         let buildArguments: [String]
@@ -64,8 +62,8 @@
         /// The variant of each platform in `SUPPORTED_PLATFORMS`, a simulator for the Apple platforms other than macOS.
         func platformVariants(for supportedPlatforms: [String]) -> [BuildVariant] {
             let supported = Set(supportedPlatforms)
-            for platform in supported where !Self.platforms.contains(where: { $0.sdks.contains(platform) }) {
-                logger.debug("Variants: no build for the supported platform '\(platform)'")
+            for platform in supportedPlatforms where !Self.platforms.contains(where: { $0.sdks.contains(platform) }) {
+                warn("Skipping the supported platform '\(platform)': 'auto' has no build for it. Names written in the #if clauses of its platform stay retained.")
             }
             return Self.platforms
                 .filter { !$0.sdks.isDisjoint(with: supported) }
