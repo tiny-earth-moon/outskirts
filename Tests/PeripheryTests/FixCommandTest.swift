@@ -585,6 +585,18 @@ final class FixCommandTest: XCTestCase {
         XCTAssertEqual(fixed, "import A\r\n\r\npublic final class C {}\r\nfunc f(a _: Int) {}\r\n")
     }
 
+    func testRemovalInACRLFFileLeavesOneBlankLine() throws {
+        let source = "struct A {}\r\n\r\nextension A {}\r\n\r\nstruct B {}\r\n\r\nextension B {}\r\nextension A {}\r\n\r\nstruct C {}\r\n\r\nextension C {}\r\n"
+        let fixed = try fix(source, [
+            target(.emptyExtension, "A", .extension, at: "A {}\r\n\r\nstruct B", in: source),
+            target(.emptyExtension, "B", .extension, at: "B {}\r\nextension", in: source),
+            target(.emptyExtension, "A", .extension, at: "A {}\r\n\r\nstruct C", in: source),
+            target(.emptyExtension, "C", .extension, at: "C {}\r\n", in: source, occurrence: 2),
+        ])
+
+        XCTAssertEqual(fixed, "struct A {}\r\n\r\nstruct B {}\r\n\r\nstruct C {}\r\n")
+    }
+
     func testSecondRunProducesNoDiff() throws {
         let source = "/// Doc.\npublic func f(a: Int) {}\nextension Int {}\n"
         let targets = [
