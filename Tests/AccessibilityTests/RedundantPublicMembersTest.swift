@@ -29,10 +29,10 @@ final class RedundantPublicMembersTest: SPMSourceGraphTestCase {
     func testProtocolWitnesses() {
         analyze()
 
-        assertNotRedundantPublicAccessibility(.functionMethodInstance("rpmRequirement()"))
-        assertNotRedundantPublicAccessibility(.varInstance("rpmRequirementProperty"))
+        assertNotRedundantPublicAccessibility(.functionMethodInstance("rpmRequirement()", line: 17))
+        assertNotRedundantPublicAccessibility(.varInstance("rpmRequirementProperty", line: 18))
         assertNotRedundantPublicAccessibility(.varInstance("description"))
-        assertNotRedundantPublicAccessibility(.functionOperatorInfix("==(_:_:)"))
+        assertNotRedundantPublicAccessibility(.functionOperatorInfix("==(_:_:)", line: 22))
         assertNotRedundantPublicAccessibility(.functionConstructor("init(from:)"))
     }
 

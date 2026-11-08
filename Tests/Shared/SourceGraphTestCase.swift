@@ -416,10 +416,14 @@ open class SourceGraphTestCase: XCTestCase {
     private func materialize(_ description: DeclarationDescription, in defaultDeclarations: Set<Declaration>? = nil, fail: Bool = true, file: StaticString, line: UInt) -> Declaration? {
         let declarations = scopedDeclarations(from: defaultDeclarations)
         let matchingDeclarations = declarations.filter { $0.kind == description.kind && $0.name == description.name }
-        let matchedDeclaration = if let line = description.line {
-            matchingDeclarations.first(where: { $0.location.line == line })
+        let matchedDeclaration: Declaration?
+        if let line = description.line {
+            matchedDeclaration = matchingDeclarations.first(where: { $0.location.line == line })
+        } else if matchingDeclarations.count > 1, fail {
+            XCTFail("Ambiguous declaration: \(description) matches \(matchingDeclarations.count) declarations, add line:.", file: file, line: line)
+            return nil
         } else {
-            matchingDeclarations.first
+            matchedDeclaration = matchingDeclarations.first
         }
 
         if matchedDeclaration == nil, fail {

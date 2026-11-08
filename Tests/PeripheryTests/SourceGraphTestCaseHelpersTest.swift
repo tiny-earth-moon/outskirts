@@ -24,5 +24,14 @@
                 self.assertReferenced(.module("UnusedImportFixtureB"))
             }
         }
+
+        func testAssertReferenced_failsForAnAmbiguousDescription() throws {
+            let groups = Dictionary(grouping: Self.graph.rootDeclarations) { "\($0.kind.rawValue) \($0.name ?? "")" }
+            let duplicate = try XCTUnwrap(groups.values.first { $0.count > 1 && $0.first?.name != nil }?.first)
+            let description = DeclarationDescription(kind: duplicate.kind, name: try XCTUnwrap(duplicate.name), line: nil)
+
+            XCTExpectFailure("Several declarations match \(description).")
+            assertReferenced(description)
+        }
     }
 #endif
