@@ -36,7 +36,7 @@ struct FixCommand: ParsableCommand {
     @Flag(help: "Allow '--rule unused' after a scan that did not cover every variant ('variants: default', or a variant that could not be built)")
     var allowPartialVariants: Bool = false
 
-    @Flag(help: "Allow '--rule unused' when index_exclude, exclude_tests or exclude_targets leaves code out of the scan")
+    @Flag(help: "Allow '--rule unused' on an Xcode project, whose scan only builds the listed schemes in Debug, or when index_exclude, exclude_tests or exclude_targets leaves code out of the scan")
     var allowPartialScan: Bool = false
 
     @Flag(help: "With '--rule unused', also remove public and open declarations, unless retain_public or retain_public_modules applies")
@@ -82,8 +82,8 @@ struct FixCommand: ParsableCommand {
         if removesUnused, !allowPartialVariants, configuration.variants == .default {
             throw PeripheryError.usageError("'--rule unused' removes declarations, which is only safe once every variant that ships is scanned: code used only in another platform's '#if' clauses would break. Set 'variants' to 'auto' or to a list of variants, or pass '--allow-partial-variants'.")
         }
-        if removesUnused, !allowPartialScan, let option = Self.narrowingOption(of: configuration) {
-            throw PeripheryError.usageError("'--rule unused' removes declarations, which is only safe when every file that may use them is scanned, but '\(option)' leaves code out of the scan: its references would be lost. Remove '\(option)', or pass '--allow-partial-scan'.")
+        if removesUnused, !allowPartialScan, let refusal = Self.partialScanRefusal(of: prepared.project.kind, configuration: configuration) {
+            throw PeripheryError.usageError(refusal)
         }
 
         let scanStartedAt = Date()
@@ -133,9 +133,20 @@ struct FixCommand: ParsableCommand {
         rules.contains(.unused)
     }
 
+    /// Why the scan of the project may leave out code that uses the declarations `--rule unused` would remove, or nil.
+    static func partialScanRefusal(of projectKind: ProjectKind, configuration: Configuration) -> String? {
+        if case .xcode = projectKind {
+            return "'--rule unused' removes declarations, which is only safe when every build that compiles them is scanned, but an Xcode project is only built for the listed schemes in the Debug configuration: targets outside the schemes, other configurations and per-configuration settings such as EXCLUDED_SOURCE_FILE_NAMES are not scanned, so code only they compile could be removed. Pass '--allow-partial-scan' to accept this."
+        }
+        if let option = narrowingOption(of: configuration) {
+            return "'--rule unused' removes declarations, which is only safe when every file that may use them is scanned, but '\(option)' leaves code out of the scan: its references would be lost. Remove '\(option)', or pass '--allow-partial-scan'."
+        }
+        return nil
+    }
+
     /// The first option that leaves code out of the index, whose references to the removed declarations would be
     /// lost. `report_exclude` and `report_include` only narrow the results, so the references stay.
-    static func narrowingOption(of configuration: Configuration) -> String? {
+    private static func narrowingOption(of configuration: Configuration) -> String? {
         if !Set(configuration.indexExclude).subtracting(configuration.$indexExclude.defaultValue).isEmpty {
             return "index_exclude"
         }
