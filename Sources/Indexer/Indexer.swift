@@ -11,7 +11,7 @@ class Indexer {
         self.configuration = configuration
     }
 
-    func filterIndexExcluded(from files: Set<FilePath>) -> (included: Set<FilePath>, excluded: Set<FilePath>) {
+    final func filterIndexExcluded(from files: Set<FilePath>) -> (included: Set<FilePath>, excluded: Set<FilePath>) {
         guard !configuration.indexExclude.isEmpty else { return (files, []) }
 
         let included = files.filter { !configuration.isIndexExcluded($0) }
@@ -19,7 +19,7 @@ class Indexer {
     }
 
     /// Whether every declaration of the file is retained, by `retain_files` or an override with `retain.all`.
-    func isRetained(_ file: SourceFile) -> Bool {
+    final func isRetained(_ file: SourceFile) -> Bool {
         configuration.retainFilesMatchers.anyMatch(filename: file.path.string)
             || (!configuration.overrides.isEmpty && configuration.settings(forModules: file.modules, path: file.path).retainsAll)
     }
