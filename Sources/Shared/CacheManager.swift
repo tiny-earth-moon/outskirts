@@ -332,7 +332,8 @@ public enum CacheManager {
 
         let components = URL(fileURLWithPath: path).pathComponents
         if components.count > 2, components[1] == "Volumes",
-           !fileManager.fileExists(atPath: "/Volumes/\(components[2])") {
+           !fileManager.fileExists(atPath: "/Volumes/\(components[2])")
+        {
             return false
         }
         return !fileManager.fileExists(atPath: path)

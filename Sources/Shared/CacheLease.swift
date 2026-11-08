@@ -22,7 +22,9 @@ public final class CacheLease {
         guard creating || fileManager.fileExists(atPath: path) else { return }
 
         if let descriptor = descriptors[path] {
-            if CacheLock.isCurrent(descriptor, in: directory) { return }
+            if CacheLock.isCurrent(descriptor, in: directory) {
+                return
+            }
 
             close(descriptor)
             descriptors[path] = nil
