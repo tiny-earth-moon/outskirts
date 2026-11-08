@@ -560,6 +560,14 @@ final class ConfigurationV2Test: XCTestCase {
         }
     }
 
+    func testDocumentationListsEveryV1KeyAndItsV2Path() throws {
+        let page = try Documentation.page("configuration")
+        let table = Self.v1ToV2Table()
+        let block = "<!-- v1-v2-keys:begin -->\n\(table)<!-- v1-v2-keys:end -->"
+
+        XCTAssertTrue(page.contains(block), "docs/configuration.md is out of date, its table must be:\n\(table)")
+    }
+
     // MARK: - Print
 
     func testPrintShowsTheEffectiveV2ConfigurationWithItsOverrides() throws {
@@ -679,6 +687,32 @@ final class ConfigurationV2Test: XCTestCase {
             }
             return (setting.key, "\(value)")
         })
+    }
+
+    /// The Markdown table of the v1 keys, in the order of the schema, and their v2 paths.
+    private static func v1ToV2Table() -> String {
+        let notes = [
+            "index_exclude": "the default globs are kept unless `exclude.index_defaults: false`",
+            "retain_public": "a list of modules is `retain.public_modules`",
+            "retain_objc_annotated": "`annotated`",
+            "retain_objc_accessible": "`accessible`",
+            "retain_codable_properties": "`Codable`",
+            "retain_encodable_properties": "`Encodable`",
+            "retain_equatable_properties": "`Equatable`",
+            "retain_hashable_properties": "`Hashable`",
+            "disable_platform_conditional_retention": "`true` is `off`",
+            "disable_update_check": "`true` is `false`",
+        ]
+        var rows = ["| v1 key | v2 path | Note |", "|--------|---------|------|"]
+
+        for key in Configuration().settingKeys {
+            let paths = ConfigurationKeyMapping.all.filter { $0.v1Key == key }.map { "`\($0.v2Path)`" }
+            let rule = RuleIdentifier.allCases.first { $0.v1Key == key }
+            let note = notes[key] ?? (rule.map { $0.v1KeyTurnsRuleOff ? "`true` is `off`" : "`true` is `on`" } ?? "")
+            rows.append("| `\(key)` | \(paths.joined(separator: ", ")) | \(note) |")
+        }
+
+        return rows.map { $0 + "\n" }.joined()
     }
 
     /// The effective configuration of a migrated file, loaded from a file next to the v1 one.
