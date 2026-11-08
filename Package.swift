@@ -56,6 +56,7 @@ var targets: [PackageDescription.Target] = [
             .target(name: "Configuration"),
             .target(name: "PeripheryKit"),
             .target(name: "SourceGraph"),
+            .target(name: "SyntaxAnalysis"),
             .target(name: "Shared"),
             .product(name: "SystemPackage", package: "swift-system"),
             .product(name: "SwiftSyntax", package: "swift-syntax"),

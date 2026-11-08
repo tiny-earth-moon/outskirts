@@ -106,6 +106,7 @@ struct FixCommand: ParsableCommand {
                 results: included,
                 graph: output.graph,
                 configuration: configuration,
+                uncoveredNames: UncoveredConditionalNames(graph: output.graph),
                 includesPublic: includePublic
             )
             plan = planner.plan(targets, removing: &removal)

@@ -38,18 +38,22 @@ public struct UnusedRemovalSet {
     ]
 
     /// - Parameter results: the reported results; only unused declarations are considered.
+    /// - Parameter uncoveredNames: the names written in the `#if` clauses no scanned build compiled, which keep the
+    ///   declarations they may reference.
     /// - Parameter includesPublic: whether `public` and `open` declarations may be removed, unless the configuration
     ///   retains them.
     public init(
         results: [ScanResult],
         graph: SourceGraph,
         configuration: Configuration,
+        uncoveredNames: UncoveredConditionalNames = UncoveredConditionalNames(names: []),
         includesPublic: Bool = false
     ) throws {
         self.graph = graph
         let eligibility = Eligibility(
             retentionRules: try AttributeRetentionRule.resolve(configuration),
             configuration: configuration,
+            uncoveredNames: uncoveredNames,
             includesPublic: includesPublic
         )
 
@@ -207,6 +211,9 @@ public struct UnusedRemovalSet {
         {
             return .publicDeclaration
         }
+        if eligibility.uncoveredNames.writtenName(of: declaration) != nil {
+            return .uncoveredConditionalName
+        }
 
         if declaration.kind == .enumelement, let enumDecl = declaration.parent {
             if enumDecl.hasAttribute(named: "objc") {
@@ -322,6 +329,7 @@ public struct UnusedRemovalSet {
 private struct Eligibility {
     let retentionRules: [AttributeRetentionRule]
     let configuration: Configuration
+    let uncoveredNames: UncoveredConditionalNames
     let includesPublic: Bool
 }
 

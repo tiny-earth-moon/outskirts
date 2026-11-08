@@ -231,14 +231,22 @@ final class FixCommandEndToEndTest: XCTestCase {
 
     func testUnusedRuleRemovesATypeWithItsExtensionAfterAScanOfEveryVariant() throws {
         try write(Self.deadCode, to: "Sources/Lib/Dead.swift")
+        let releaseOnly = "func releaseOnly() -> Int { 3 }\n"
+        try write(releaseOnly, to: "Sources/App/Release.swift")
+        try write("import Lib\n\nprint(Widget().render(width: 1, 2))\n#if !DEBUG\n    print(releaseOnly())\n#endif\n", to: "Sources/App/main.swift")
         try commitAll()
 
-        let output = try run(["fix", "--rule", "unused", "--variants", "auto", "--retain-public", "--apply", "--verify"])
+        let output = try run(["fix", "--rule", "unused", "--variants", "auto", "--apply", "--verify"])
 
         XCTAssertEqual(output.status, 0, output.stderr)
-        XCTAssertTrue(output.stderr.contains("Applied 3 fixes in 1 file, skipped 0.\n  unused: 3\n  removed unused 'DeadType' at Sources/Lib/Dead.swift:1:8 [p2_"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("Applied 3 fixes in 1 file, skipped 2.\n"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("  removed unused 'DeadType' at Sources/Lib/Dead.swift:1:8 [p2_"), output.stderr)
+        // Only a release build calls it, which a debug scan does not see.
+        XCTAssertTrue(output.stderr.contains("  skipped unused 'releaseOnly()' at Sources/App/Release.swift:1:6: name written in an #if clause that no scanned build compiled"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("  skipped unused 'helperValue()' at Sources/Helpers/Helpers.swift:1:13: public API, use --include-public"), output.stderr)
         XCTAssertTrue(output.stderr.contains("The project builds with the fixes."), output.stderr)
         XCTAssertEqual(try read("Sources/Lib/Dead.swift"), "")
+        XCTAssertEqual(try read("Sources/App/Release.swift"), releaseOnly)
         XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.library)
     }
 

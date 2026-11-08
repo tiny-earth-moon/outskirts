@@ -158,6 +158,45 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         XCTAssertEqual(outcome.fixed, outcome.original)
     }
 
+    func testKeepsNamesWrittenInUncoveredConditionalClauses() throws {
+        let outcome = try removeUnused(readsConditionalClauses: true)
+
+        XCTAssertEqual(outcome.decisions, [
+            "1 fixUnusedReleaseOnly()": SkipReason.uncoveredConditionalName.description,
+            "3 fixUnusedFlagOnly()": SkipReason.uncoveredConditionalName.description,
+            "5 fixUnusedNotConditional()": "removed",
+        ])
+    }
+
+    func testCollectsTheNamesOfEveryClauseNoBuildCompiled() {
+        let source = """
+        #if os(macOS)
+            onMac()
+        #elseif os(Linux)
+            onLinux()
+        #endif
+        #if swift(>=5.9)
+            newSwift()
+        #else
+            oldSwift()
+        #endif
+        #if canImport(UIKit)
+            withUIKit()
+        #endif
+        #if !DEBUG
+            let value = 1 <+> 2
+        #endif
+        """
+        let macOS: Set = [IndexVariant(triple: "arm64-apple-macosx15.0", isOptimized: false)]
+
+        XCTAssertEqual(
+            UncoveredConditionalNames.names(in: source, variants: macOS),
+            ["onLinux", "newSwift", "oldSwift", "withUIKit", "<+>"]
+        )
+        // Without the triples of the file's builds, no clause is known to be compiled.
+        XCTAssertTrue(UncoveredConditionalNames.names(in: source, variants: []).contains("onMac"))
+    }
+
     func testKeepsPublicDeclarationsUnlessIncluded() throws {
         let kept = try removeUnused(scanRetainsPublic: false)
         XCTAssertEqual(kept.decisions["1 fixUnusedPublicFunction()"], SkipReason.publicDeclaration.description)
@@ -217,6 +256,7 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         scanRetainsPublic: Bool = true,
         fixRetainsPublic: Bool = false,
         includesPublic: Bool = false,
+        readsConditionalClauses: Bool = false,
         including isIncluded: (ScanResult) -> Bool = { _ in true }
     ) throws -> Outcome {
         let fixtureTests = fixture.map { [$0] }
@@ -230,6 +270,7 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
             results: results.filter(isIncluded),
             graph: Self.graph,
             configuration: configuration,
+            uncoveredNames: readsConditionalClauses ? UncoveredConditionalNames(graph: Self.graph) : UncoveredConditionalNames(names: []),
             includesPublic: includesPublic
         )
         let plan = makePlanner().plan([], removing: &removal)

@@ -17,6 +17,9 @@ import SwiftSyntax
 /// With `narrowsNestedBlocks`, a block nested in other `#if` blocks is narrowed too, when every enclosing block can be
 /// narrowed: a configuration compiles one of its clauses when it also compiles every enclosing clause. The clauses no
 /// configuration compiles are collected exactly as without it.
+///
+/// With `collectsEveryBlock`, the blocks whose conditions do not involve the platform are collected too, whole as
+/// they cannot be evaluated (custom flags, `DEBUG`, `swift()`, `compiler()`...), and operators count as names.
 public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor {
     private static let platformConditions: Set<String> = ["os", "targetEnvironment", "arch", "canImport"]
 
@@ -34,6 +37,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
 
     private let configurations: [PlatformBuildConfiguration]
     private let narrowsNestedBlocks: Bool
+    private let collectsEveryBlock: Bool
     private let locationConverter: SourceLocationConverter?
     /// The block whose clauses were all collected: the blocks it contains are not visited.
     private var collectedBlock: SyntaxIdentifier?
@@ -43,28 +47,36 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     /// - Parameter narrowsNestedBlocks: whether the blocks nested in another `#if` block are narrowed too, instead of
     ///   being collected whole.
     /// - Parameter locationConverter: when given, the line and condition of each name are collected too.
+    /// - Parameter collectsEveryBlock: whether every `#if` block is collected, not only the platform conditional ones.
     public init(
         configurations: [PlatformBuildConfiguration] = [],
         narrowsNestedBlocks: Bool = false,
-        locationConverter: SourceLocationConverter? = nil
+        locationConverter: SourceLocationConverter? = nil,
+        collectsEveryBlock: Bool = false
     ) {
         self.configurations = configurations
         self.narrowsNestedBlocks = narrowsNestedBlocks
+        self.collectsEveryBlock = collectsEveryBlock
         self.locationConverter = locationConverter
     }
 
     public static func collect(
         from syntax: SourceFileSyntax,
         configurations: [PlatformBuildConfiguration] = [],
-        narrowsNestedBlocks: Bool = false
+        narrowsNestedBlocks: Bool = false,
+        collectsEveryBlock: Bool = false
     ) -> Set<String> {
-        let collector = PlatformConditionalNameCollector(configurations: configurations, narrowsNestedBlocks: narrowsNestedBlocks)
+        let collector = PlatformConditionalNameCollector(
+            configurations: configurations,
+            narrowsNestedBlocks: narrowsNestedBlocks,
+            collectsEveryBlock: collectsEveryBlock
+        )
         collector.walk(syntax)
         return collector.names
     }
 
     public func visit(_ node: IfConfigDeclSyntax) {
-        guard collectedBlock == nil, node.clauses.contains(where: { isPlatformCondition($0.condition) }) else { return }
+        guard collectedBlock == nil, collectsEveryBlock || node.clauses.contains(where: { isPlatformCondition($0.condition) }) else { return }
 
         if let uncompiledClauses = uncompiledClauses(of: node) {
             uncompiledClauses.forEach(collectNames(in:))
@@ -90,7 +102,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         guard let elements = clause.elements else { return }
 
         for token in elements.tokens(viewMode: .sourceAccurate) {
-            if case .identifier = token.tokenKind, isReference(token) {
+            if isNamedOperator(token) || (token.tokenKind.isIdentifier && isReference(token)) {
                 let name = token.identifier?.name ?? token.text
                 names.insert(name)
 
@@ -228,6 +240,18 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
             || parent.is(MacroExpansionDeclSyntax.self)
     }
 
+    /// Returns `true` for an operator used in an expression, when every block is collected.
+    private func isNamedOperator(_ token: TokenSyntax) -> Bool {
+        guard collectsEveryBlock else { return false }
+
+        switch token.tokenKind {
+        case .binaryOperator, .prefixOperator, .postfixOperator:
+            return true
+        default:
+            return false
+        }
+    }
+
     private func isPlatformCondition(_ condition: ExprSyntax?) -> Bool {
         guard let condition else { return false }
 
@@ -237,6 +261,16 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
             } else {
                 false
             }
+        }
+    }
+}
+
+private extension TokenKind {
+    var isIdentifier: Bool {
+        if case .identifier = self {
+            true
+        } else {
+            false
         }
     }
 }
