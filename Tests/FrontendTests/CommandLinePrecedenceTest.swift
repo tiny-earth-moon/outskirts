@@ -137,7 +137,7 @@ final class CommandLinePrecedenceTest: XCTestCase {
         XCTAssertEqual(configuration.localizedStringCatalogExclude, ["**/Other.xcstrings"])
         XCTAssertEqual(configuration.project?.string, "App.xcodeproj")
         XCTAssertEqual(configuration.indexStorePath.map(\.string), [".build/out"])
-        XCTAssertEqual(configuration.reportExclude, [.pattern("**/Generated/**")])
+        XCTAssertEqual(configuration.reportExclude, [.pattern("**/Generated/**"), .pattern(Configuration.buildPluginOutputsGlob)])
     }
 
     func testEveryBooleanOptionHasAnInversionThatOverridesTheFile() throws {
@@ -197,7 +197,7 @@ final class CommandLinePrecedenceTest: XCTestCase {
 
         XCTAssertEqual(configuration.schemes, ["Tools"])
         XCTAssertEqual(configuration.excludeTargets, ["Demo"])
-        XCTAssertEqual(configuration.reportExclude, [.pattern("**/Mocks/**")])
+        XCTAssertEqual(configuration.reportExclude, [.pattern("**/Mocks/**"), .pattern(Configuration.buildPluginOutputsGlob)])
     }
 
     func testRetainPublicModulesOnTheCommandLineReplaceTheOnesOfTheFile() throws {
