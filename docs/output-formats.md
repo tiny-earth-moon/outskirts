@@ -85,7 +85,7 @@ One line per result in the format Xcode and most editors understand, colored in 
   Unused class 'Widget'
 ```
 
-Each result is printed on one line; it is wrapped above for reading. Use this format in an [Xcode run script](xcode-integration.md), where the results show up as warnings.
+Each result is printed on one line; it is wrapped above for reading. Use this format in an [Xcode run script](xcode-integration.md), where the results show up as warnings, or in a [VS Code task](vscode-integration.md).
 
 ## json
 

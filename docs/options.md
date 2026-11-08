@@ -674,7 +674,7 @@ Colored output mode. `--no-color` is a deprecated hidden alias of `--color never
 
 Key `color` · one of `auto`, `always`, `never` · default `auto`.
 
-See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x), [Output formats: xcode](output-formats.md#xcode).
+See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x), [Output formats: xcode](output-formats.md#xcode), [VS Code integration: The task](vscode-integration.md#the-task).
 
 ### `--strict`
 

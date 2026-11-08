@@ -26,6 +26,7 @@ outskirts explores your Swift project, builds a map of what refers to what, and 
 - [Output formats](output-formats.md)
 - [Continuous integration](ci.md)
 - [Xcode integration](xcode-integration.md)
+- [VS Code integration](vscode-integration.md)
 
 ## Reference
 
