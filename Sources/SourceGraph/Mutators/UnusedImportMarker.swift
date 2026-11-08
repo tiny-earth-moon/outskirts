@@ -104,11 +104,12 @@ final class UnusedImportMarker: SourceGraphMutator {
         // built. A name written there is attributed to the modules declaring it, and a name that no scanned
         // declaration or import accounts for may come from any system module.
         var filesWithUnresolvedPlatformNames: Set<SourceFile> = []
+        let conditionalNamesByFile = conditionalNamesByFile()
 
-        if !graph.platformConditionalNamesByFile.isEmpty {
+        if !conditionalNamesByFile.isEmpty {
             let modulesByDeclarationName = modulesByDeclarationBaseName()
 
-            for (file, names) in graph.platformConditionalNamesByFile {
+            for (file, names) in conditionalNamesByFile {
                 for name in names {
                     if let modules = modulesByDeclarationName[name] {
                         referencedModulesByFile[file, default: []].formUnion(modules)
@@ -220,6 +221,31 @@ final class UnusedImportMarker: SourceGraphMutator {
             .union(indirectModules)
             .union(modulesExtending(ref))
         return (modules, isUnresolved)
+    }
+
+    /// The names of each file that the index store may lack: those of the platform conditional clauses no indexed build
+    /// compiled, and those of the `#if` blocks whose condition does not involve the platform (`DEBUG`, custom flags),
+    /// such as an import only used under `#if !DEBUG`. These blocks are collected whole, so their names that the index
+    /// already references in the file come from a compiled clause, whose modules are known: they are left out, lest
+    /// every `#if DEBUG` block naming a system declaration stop the analysis of the file's system imports.
+    private func conditionalNamesByFile() -> [SourceFile: Set<String>] {
+        var result = graph.platformConditionalNamesByFile
+        let otherNamesByFile = graph.otherConditionalNamesByFile
+        guard !otherNamesByFile.isEmpty else { return result }
+
+        var referencedNamesByFile: [SourceFile: Set<String>] = [:]
+        for ref in graph.allReferences where otherNamesByFile[ref.location.file] != nil {
+            referencedNamesByFile[ref.location.file, default: []].insert(PlatformConditionalRetainer.baseName(of: ref.name))
+        }
+
+        for (file, names) in otherNamesByFile {
+            let unreferencedNames = names.subtracting(referencedNamesByFile[file, default: []])
+            guard !unreferencedNames.isEmpty else { continue }
+
+            result[file, default: []].formUnion(unreferencedNames)
+        }
+
+        return result
     }
 
     /// The modules declaring a referenceable declaration, by the base name of the declaration.

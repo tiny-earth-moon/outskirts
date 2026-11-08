@@ -29,6 +29,15 @@ class XibViewController: UIViewController {
         showAlert(title: "IBAction", message: "click(for:) - Connected via Interface Builder")
     }
 
+    // Sent to the First Responder in the XIB (selector: firstResponderAction:)
+    @IBAction func firstResponderAction(_ sender: Any) {}
+
+    // IBAction with an explicit Objective-C name (selector: didTapExplicit:)
+    @objc(didTapExplicit:) @IBAction func tapExplicit(_ sender: Any) {}
+
+    // IBAction with two unnamed parameters (selector: clickTwice::)
+    @IBAction func clickTwice(_ sender: Any, _ event: UIEvent) {}
+
     // Unreferenced - not connected in XIB
     @IBAction func unusedAction(_ sender: Any) {
         showAlert(title: "Unused", message: "unusedAction(_:) - This should be reported as unused!")

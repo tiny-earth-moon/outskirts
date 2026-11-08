@@ -103,7 +103,23 @@ final class FormatterTests: XCTestCase {
         .xcode, .csv, .json, .checkstyle, .codeclimate, .githubActions, .githubMarkdown, .gitlabCodeQuality, .sarif, .agent,
     ]
 
-    private func assertMatchesSnapshot(_ format: OutputFormat, relativeResults: Bool, file: StaticString = #filePath, line: UInt = #line) throws {
+    /// Operators, a generic signature and a path with a comma and a space: every character a format has to escape.
+    private func operatorResults() -> [ScanResult] {
+        let path = "/Project/Sources/My Lib, Extras/Operators.swift"
+        let equal = Declaration(name: "==(_:_:)", kind: .functionOperatorInfix, usrs: ["s:3Lib1VV2eeoiySbAC_ACtFZ"], location: location(path, modules: ["Lib"], line: 4, column: 17))
+        let less = Declaration(name: "<(_:_:)", kind: .functionOperatorInfix, usrs: ["s:3Lib1VV1loiySbAC_ACtFZ"], location: location(path, modules: ["Lib"], line: 8, column: 17))
+        let and = Declaration(name: "&&(_:_:)", kind: .functionOperatorInfix, usrs: ["s:3Lib1VV2aaoiySbAC_ACtFZ"], location: location(path, modules: ["Lib"], line: 12, column: 17))
+        let generic = Declaration(name: "map<T>(_:) \"quoted\" | piped", kind: .functionMethodInstance, usrs: ["s:3Lib1VV3mapyqd__qd__xXElF"], location: location(path, modules: ["Lib"], line: 16, column: 10))
+
+        return [
+            ScanResult(declaration: equal, annotation: .unused),
+            ScanResult(declaration: less, annotation: .unused),
+            ScanResult(declaration: and, annotation: .unused),
+            ScanResult(declaration: generic, annotation: .unused),
+        ]
+    }
+
+    private func assertMatchesSnapshot(_ format: OutputFormat, relativeResults: Bool, escaping: Bool = false, file: StaticString = #filePath, line: UInt = #line) throws {
         // A fixed root rather than the working directory, which `sarif` writes into its report.
         let checkout = FilePath("/Checkout")
         root = relativeResults || format.requiresRelativePaths ? checkout.string : ""
@@ -111,8 +127,8 @@ final class FormatterTests: XCTestCase {
         configuration.relativeResults = relativeResults
         let formatter = format.formatter.init(configuration: configuration, logger: logger)
         formatter.currentFilePath = checkout
-        let output = try XCTUnwrap(formatter.format(results(), colored: false), file: file, line: line)
-        let directory = goldenDirectory.appendingPathComponent("formats")
+        let output = try XCTUnwrap(formatter.format(escaping ? operatorResults() : results(), colored: false), file: file, line: line)
+        let directory = goldenDirectory.appendingPathComponent(escaping ? "formats/escaping" : "formats")
         let url = directory.appendingPathComponent("\(format.rawValue).\(relativeResults ? "relative" : "absolute").txt")
 
         if ProcessInfo.processInfo.environment["PERIPHERY_UPDATE_GOLDEN"] != nil {
@@ -133,6 +149,12 @@ final class FormatterTests: XCTestCase {
     func testEveryFormat_withAbsoluteResults_matchesItsSnapshot() throws {
         for format in Self.pinnedFormats where !format.requiresRelativePaths {
             try assertMatchesSnapshot(format, relativeResults: false)
+        }
+    }
+
+    func testEveryFormat_escapesOperatorAndGenericNames() throws {
+        for format in Self.pinnedFormats {
+            try assertMatchesSnapshot(format, relativeResults: true, escaping: true)
         }
     }
 

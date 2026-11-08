@@ -172,7 +172,7 @@ var targets: [PackageDescription.Target] = [
         name: "UnconstructedEnumCaseSupportFixtures"
     ),
     .target(
-        name: "FixUnusedFixtures",
+        name: "UncoveredConditionalNamesFixtures",
         swiftSettings: [
             .unsafeFlags(["-suppress-warnings"])
         ]

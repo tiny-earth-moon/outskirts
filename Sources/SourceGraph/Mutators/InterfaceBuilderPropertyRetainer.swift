@@ -28,6 +28,19 @@ final class InterfaceBuilderPropertyRetainer {
         }
     }
 
+    /// Retains the actions of any class of the project whose selector an Interface Builder file sends to the First
+    /// Responder: the responder chain decides at runtime which object receives them.
+    func retainActionsSentToFirstResponder(_ selectors: Set<String>) {
+        guard !selectors.isEmpty else { return }
+
+        for decl in graph.declarations(ofKind: .functionMethodInstance)
+            where decl.attributes.contains(where: { ibActionAttributes.contains($0.name) }) &&
+            selectors.contains(Self.selector(of: decl))
+        {
+            graph.markRetained(decl, reason: RetentionReason(Self.self, "sent to the First Responder by an Interface Builder file"))
+        }
+    }
+
     /// Retains only the outlets, actions, and inspectable properties that are actually
     /// referenced in the Interface Builder file.
     func retainPropertiesDeclared(
@@ -51,8 +64,7 @@ final class InterfaceBuilderPropertyRetainer {
 
             // Check IBAction/IBSegueAction methods
             if decl.attributes.contains(where: { ibActionAttributes.contains($0.name) }) {
-                let selectorName = Self.swiftNameToSelector(decl.name)
-                if referencedActions.contains(selectorName) {
+                if referencedActions.contains(Self.selector(of: decl)) {
                     graph.markRetained(decl, reason: RetentionReason(Self.self, "referenced by an Interface Builder file"))
                 }
                 continue
@@ -88,6 +100,17 @@ final class InterfaceBuilderPropertyRetainer {
         "via",
         "when", "with", "within",
     ]
+
+    /// The Objective-C selector of a method: the explicit name of `@objc(name:)` when present, otherwise the name
+    /// derived from its Swift name.
+    static func selector(of decl: Declaration) -> String {
+        if let explicitName = decl.attributes.first(where: { $0.name == "objc" })?.arguments?
+            .trimmingCharacters(in: .whitespaces), !explicitName.isEmpty
+        {
+            return explicitName
+        }
+        return swiftNameToSelector(decl.name)
+    }
 
     /// Converts a Swift function name like `click(_:)` or `doSomething(_:withValue:)`
     /// to an Objective-C selector like `click:` or `doSomething:withValue:`.
@@ -140,9 +163,9 @@ final class InterfaceBuilderPropertyRetainer {
                         selector += "With" + label.prefix(1).uppercased() + label.dropFirst() + ":"
                     }
                 }
-            } else if !param.isEmpty {
-                // Subsequent parameters: add label + ":"
-                selector += String(param) + ":"
+            } else if index < params.count - 1 {
+                // Subsequent parameters: add label + ":", an unnamed one (`_`) gives a bare ":"
+                selector += (param == "_" ? "" : String(param)) + ":"
             }
         }
 
