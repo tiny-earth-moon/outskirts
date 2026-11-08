@@ -455,6 +455,46 @@ final class FixCommandTest: XCTestCase {
         XCTAssertEqual(restoration.summary(relativeTo: directory, changeCount: 1), "The fixes break the build, restored 1 of 1 file:\n  restored File.swift")
     }
 
+    func testApplyWritesNothingWhenALaterFileChangedSincePlanning() throws {
+        let source = "import A\nimport B\n"
+        try write(source)
+        let other = directory.appending("Other.swift")
+        try Data("import C\nimport D\n".utf8).write(to: URL(fileURLWithPath: other.string))
+        let plan = makePlanner().plan([
+            target(.unusedImport, "B", .module, at: "import B", in: source),
+            FixTarget(rule: .unusedImport, name: "D", kind: .module, file: other, line: 2, column: 1),
+        ])
+        XCTAssertEqual(plan.changes.count, 2)
+        let lastChange = try XCTUnwrap(plan.changes.last)
+        try Data("// edited\n".utf8).write(to: URL(fileURLWithPath: lastChange.path.string))
+
+        XCTAssertThrowsError(try FixWriter.apply(plan))
+        for change in plan.changes.dropLast() {
+            XCTAssertEqual(try [UInt8](Data(contentsOf: URL(fileURLWithPath: change.path.string))), change.original)
+        }
+    }
+
+    func testApplyRestoresTheWrittenFilesWhenALaterWriteFails() throws {
+        let source = "import A\nimport B\n"
+        try write(source)
+        let locked = directory.appending("Locked")
+        try FileManager.default.createDirectory(atPath: locked.string, withIntermediateDirectories: true)
+        let other = locked.appending("Other.swift")
+        try Data("import C\nimport D\n".utf8).write(to: URL(fileURLWithPath: other.string))
+        let plan = makePlanner().plan([
+            target(.unusedImport, "B", .module, at: "import B", in: source),
+            FixTarget(rule: .unusedImport, name: "D", kind: .module, file: other, line: 2, column: 1),
+        ])
+        XCTAssertEqual(plan.changes.map(\.path), [file, other])
+        // An atomic write creates a temporary file next to the file: a read-only directory makes it fail.
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.string)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.string) }
+
+        XCTAssertThrowsError(try FixWriter.apply(plan))
+        XCTAssertEqual(try String(contentsOfFile: file.string, encoding: .utf8), source)
+        XCTAssertEqual(try String(contentsOfFile: other.string, encoding: .utf8), "import C\nimport D\n")
+    }
+
     // MARK: - Diff, idempotence and trivia
 
     func testDryRunPrintsAUnifiedDiffAndLeavesTheFileUntouched() throws {
