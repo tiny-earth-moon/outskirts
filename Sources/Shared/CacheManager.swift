@@ -1,10 +1,11 @@
 import Foundation
+import Logger
 
-struct CacheEntryError: Error, CustomStringConvertible {
+public struct CacheEntryError: Error, CustomStringConvertible {
     let path: String
     let underlying: Error
 
-    var description: String {
+    public var description: String {
         "\(path): \(underlying.localizedDescription)"
     }
 }
@@ -21,6 +22,22 @@ struct CacheClearError: Error, LocalizedError {
 public struct EvictedCacheEntry: Equatable {
     public let name: String
     public let size: Int64
+}
+
+/// What a cache refresh did. Housekeeping failures never fail the scan: they are reported as warnings.
+public struct CacheRefreshResult {
+    var evicted: [EvictedCacheEntry] = []
+    var failures: [CacheEntryError] = []
+
+    public func report(to logger: Logger) {
+        for entry in evicted {
+            let size = ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .file)
+            logger.info("Evicted unused build cache \(entry.name) (\(size))")
+        }
+        for failure in failures {
+            logger.warn("Could not maintain the build cache: \(failure.description)")
+        }
+    }
 }
 
 public enum CacheManager {
@@ -81,7 +98,8 @@ public enum CacheManager {
     }
 
     /// Records the project in each build folder of the current scan (DerivedData folder or scratch path) and marks it
-    /// as used, then evicts the stale folders from the cache, keeping the current ones. Returns the evicted entries.
+    /// as used, then evicts the stale folders from the cache, keeping the current ones. Never throws: the failures are
+    /// returned with the evicted entries.
     public static func refresh(
         directories: [URL],
         projectPath: String,
@@ -89,18 +107,37 @@ public enum CacheManager {
         maxSizeGB: Int,
         cacheDirectory: URL? = nil,
         fileManager: FileManager = .default
-    ) throws -> [EvictedCacheEntry] {
+    ) -> CacheRefreshResult {
+        var failures: [CacheEntryError] = []
         for directory in directories where fileManager.fileExists(atPath: directory.path) {
-            try recordProject(projectPath, in: directory, fileManager: fileManager)
-            try touch(directory, fileManager: fileManager)
+            do {
+                try recordProject(projectPath, in: directory, fileManager: fileManager)
+                try touch(directory, fileManager: fileManager)
+            } catch {
+                failures.append(error as? CacheEntryError ?? CacheEntryError(path: directory.path, underlying: error))
+            }
         }
-        return try evictStale(
-            cacheDirectory: cacheDirectory ?? URL(fileURLWithPath: Constants.cachePath().string),
+
+        let cache: URL
+        if let cacheDirectory {
+            cache = cacheDirectory
+        } else {
+            do {
+                cache = try URL(fileURLWithPath: Constants.cachePath().string)
+            } catch {
+                return CacheRefreshResult(failures: failures + [CacheEntryError(path: "cache directory", underlying: error)])
+            }
+        }
+
+        var result = evictStale(
+            cacheDirectory: cache,
             maxAgeDays: maxAgeDays,
             maxSizeBytes: Int64(maxSizeGB) << 30,
             keeping: directories,
             fileManager: fileManager
         )
+        result.failures.insert(contentsOf: failures, at: 0)
+        return result
     }
 
     /// Marks a DerivedData folder as used now.
@@ -127,8 +164,8 @@ public enum CacheManager {
         keeping: URL?,
         now: Date = Date(),
         fileManager: FileManager = .default
-    ) throws -> [EvictedCacheEntry] {
-        try evictStale(
+    ) -> CacheRefreshResult {
+        evictStale(
             cacheDirectory: cacheDirectory,
             maxAgeDays: maxAgeDays,
             maxSizeBytes: maxSizeBytes,
@@ -142,6 +179,7 @@ public enum CacheManager {
     /// the project recorded in its sidecar no longer exists, or when its modification date is older than
     /// `maxAgeDays` (0 disables this age rule). Then, when `maxSizeBytes` is above 0, the least recently
     /// used folders are removed until the folders left fit in `maxSizeBytes` bytes (the size of `keeping` counts).
+    /// The folders that cannot be removed are returned as failures, never thrown.
     @discardableResult
     static func evictStale(
         cacheDirectory: URL,
@@ -150,16 +188,21 @@ public enum CacheManager {
         keeping: [URL],
         now: Date = Date(),
         fileManager: FileManager = .default
-    ) throws -> [EvictedCacheEntry] {
-        guard fileManager.fileExists(atPath: cacheDirectory.path) else { return [] }
+    ) -> CacheRefreshResult {
+        guard fileManager.fileExists(atPath: cacheDirectory.path) else { return CacheRefreshResult() }
 
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86400)
         let keptNames = Set(keeping.map(\.lastPathComponent))
-        let entries = try fileManager.contentsOfDirectory(
-            at: cacheDirectory,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: []
-        )
+        let entries: [URL]
+        do {
+            entries = try fileManager.contentsOfDirectory(
+                at: cacheDirectory,
+                includingPropertiesForKeys: [.contentModificationDateKey],
+                options: []
+            )
+        } catch {
+            return CacheRefreshResult(failures: [CacheEntryError(path: cacheDirectory.path, underlying: error)])
+        }
 
         var evicted: [EvictedCacheEntry] = []
         var failures: [CacheEntryError] = []
@@ -182,7 +225,13 @@ public enum CacheManager {
 
         for entry in entries where evictablePrefixes.contains(where: entry.lastPathComponent.hasPrefix) {
             let isKept = keptNames.contains(entry.lastPathComponent)
-            let modified = try entry.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            let modified: Date?
+            do {
+                modified = try entry.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            } catch {
+                failures.append(CacheEntryError(path: entry.path, underlying: error))
+                continue
+            }
             let isStale = !isKept
                 && (isOrphan(entry, fileManager: fileManager) || (maxAgeDays > 0 && (modified.map { $0 < cutoff } ?? false)))
             if !isStale, maxSizeBytes == 0 {
@@ -209,10 +258,7 @@ public enum CacheManager {
             }
         }
 
-        if !failures.isEmpty {
-            throw CacheClearError(failures: failures)
-        }
-        return evicted
+        return CacheRefreshResult(evicted: evicted, failures: failures)
     }
 
     // MARK: - Private

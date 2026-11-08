@@ -69,6 +69,28 @@ final class CacheManagerTest: XCTestCase {
         XCTAssertTrue(fm.fileExists(atPath: locked.path))
     }
 
+    func testEvictionFailure_isReturnedNotThrown() throws {
+        try XCTSkipIf(getuid() == 0, "root can remove a directory without write permission")
+        let locked = try makeDerivedData("DerivedData-locked", ageDays: 30)
+        let removable = try makeDerivedData("DerivedData-removable", ageDays: 30)
+        let current = try makeDerivedData("DerivedData-current", ageDays: 1)
+        // A directory without write permission prevents removing its children.
+        try fm.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.appendingPathComponent("Index").path)
+
+        let result = CacheManager.refresh(
+            directories: [current],
+            projectPath: root.path,
+            maxAgeDays: 14,
+            maxSizeGB: 0,
+            cacheDirectory: cache
+        )
+
+        XCTAssertEqual(result.evicted.map(\.name), ["DerivedData-removable"])
+        XCTAssertEqual(result.failures.map { URL(fileURLWithPath: $0.path).lastPathComponent }, ["DerivedData-locked"])
+        XCTAssertFalse(fm.fileExists(atPath: removable.path))
+        XCTAssertTrue(fm.fileExists(atPath: current.path))
+    }
+
     func testEvict_removesStaleKeepsRecentAndCurrent() throws {
         let stale = try makeDerivedData("DerivedData-stale", ageDays: 30)
         let recent = try makeDerivedData("DerivedData-recent", ageDays: 2)
@@ -77,7 +99,7 @@ final class CacheManagerTest: XCTestCase {
         try fm.createDirectory(at: unrelated, withIntermediateDirectories: true)
         try fm.setAttributes([.modificationDate: Date.distantPast], ofItemAtPath: unrelated.path)
 
-        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: current)
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: current).evicted
 
         XCTAssertEqual(evicted.map(\.name), ["DerivedData-stale"])
         XCTAssertGreaterThan(evicted[0].size, 0)
@@ -90,7 +112,7 @@ final class CacheManagerTest: XCTestCase {
     func testEvict_zeroDisablesEviction() throws {
         let stale = try makeDerivedData("DerivedData-stale", ageDays: 365)
 
-        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 0, keeping: nil)
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 0, keeping: nil).evicted
 
         XCTAssertTrue(evicted.isEmpty)
         XCTAssertTrue(fm.fileExists(atPath: stale.path))
@@ -104,7 +126,7 @@ final class CacheManagerTest: XCTestCase {
         try CacheManager.recordProject(root.appendingPathComponent("Gone.xcodeproj").path, in: orphan)
         try CacheManager.recordProject(existing.path, in: live)
 
-        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: nil)
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: nil).evicted
 
         XCTAssertEqual(evicted.map(\.name), ["DerivedData-orphan"])
         XCTAssertFalse(fm.fileExists(atPath: orphan.path))
@@ -115,7 +137,7 @@ final class CacheManagerTest: XCTestCase {
         let recent = try makeDerivedData("DerivedData-recent", ageDays: 1)
         let old = try makeDerivedData("DerivedData-old", ageDays: 30)
 
-        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: nil)
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: nil).evicted
 
         XCTAssertEqual(evicted.map(\.name), ["DerivedData-old"])
         XCTAssertTrue(fm.fileExists(atPath: recent.path))
@@ -126,7 +148,7 @@ final class CacheManagerTest: XCTestCase {
         let current = try makeDerivedData("DerivedData-current", ageDays: 1)
         try CacheManager.recordProject(root.appendingPathComponent("Gone.xcodeproj").path, in: current)
 
-        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: current)
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: current).evicted
 
         XCTAssertTrue(evicted.isEmpty)
         XCTAssertTrue(fm.fileExists(atPath: current.path))
@@ -136,7 +158,7 @@ final class CacheManagerTest: XCTestCase {
         let orphan = try makeDerivedData("DerivedData-orphan", ageDays: 1)
         try CacheManager.recordProject(root.appendingPathComponent("Gone.xcodeproj").path, in: orphan)
 
-        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 0, keeping: nil)
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 0, keeping: nil).evicted
 
         XCTAssertEqual(evicted.map(\.name), ["DerivedData-orphan"])
         XCTAssertFalse(fm.fileExists(atPath: orphan.path))
@@ -156,7 +178,7 @@ final class CacheManagerTest: XCTestCase {
         let middle = try makeBigDerivedData("DerivedData-middle", ageDays: 2, kilobytes: 400)
         let newest = try makeBigDerivedData("DerivedData-newest", ageDays: 1, kilobytes: 400)
 
-        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, maxSizeBytes: 1000 << 10, keeping: nil)
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, maxSizeBytes: 1000 << 10, keeping: nil).evicted
 
         XCTAssertEqual(evicted.map(\.name), ["DerivedData-oldest"])
         XCTAssertFalse(fm.fileExists(atPath: oldest.path))
@@ -168,7 +190,7 @@ final class CacheManagerTest: XCTestCase {
         let current = try makeBigDerivedData("DerivedData-current", ageDays: 10, kilobytes: 600)
         let other = try makeBigDerivedData("DerivedData-other", ageDays: 1, kilobytes: 600)
 
-        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, maxSizeBytes: 1000 << 10, keeping: current)
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, maxSizeBytes: 1000 << 10, keeping: current).evicted
 
         XCTAssertEqual(evicted.map(\.name), ["DerivedData-other"])
         XCTAssertTrue(fm.fileExists(atPath: current.path))
@@ -179,7 +201,7 @@ final class CacheManagerTest: XCTestCase {
         let oldest = try makeBigDerivedData("DerivedData-oldest", ageDays: 300, kilobytes: 600)
         let newest = try makeBigDerivedData("DerivedData-newest", ageDays: 200, kilobytes: 600)
 
-        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 0, maxSizeBytes: 1000 << 10, keeping: nil)
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 0, maxSizeBytes: 1000 << 10, keeping: nil).evicted
 
         XCTAssertEqual(evicted.map(\.name), ["DerivedData-oldest"])
         XCTAssertFalse(fm.fileExists(atPath: oldest.path))
@@ -190,7 +212,7 @@ final class CacheManagerTest: XCTestCase {
         let first = try makeBigDerivedData("DerivedData-first", ageDays: 2, kilobytes: 600)
         let second = try makeBigDerivedData("DerivedData-second", ageDays: 1, kilobytes: 600)
 
-        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, maxSizeBytes: 0, keeping: nil)
+        let evicted = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, maxSizeBytes: 0, keeping: nil).evicted
 
         XCTAssertTrue(evicted.isEmpty)
         XCTAssertTrue(fm.fileExists(atPath: first.path))

@@ -186,17 +186,13 @@
             }
 
             if configuration.indexStorePath.isEmpty {
-                let evicted = try xcodebuild.refreshCache(
+                try xcodebuild.refreshCache(
                     project: project,
                     schemes: Array(schemes),
                     buildArgumentsOfEachBuild: buildArgumentsOfEachBuild(),
                     maxAgeDays: configuration.cacheMaxAgeDays,
                     maxSizeGB: configuration.cacheMaxSizeGB
-                )
-                for entry in evicted {
-                    let size = ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .file)
-                    self.logger.info("Evicted unused build cache \(entry.name) (\(size))")
-                }
+                ).report(to: self.logger)
             }
 
             let targets = project.targets

@@ -174,16 +174,12 @@ extension SPMProjectDriver: ProjectDriver {
         let scratchPaths = variants.compactMap(\.scratchPath)
 
         if !scratchPaths.isEmpty {
-            let evicted = try CacheManager.refresh(
+            CacheManager.refresh(
                 directories: scratchPaths.map { URL(fileURLWithPath: $0.string) },
                 projectPath: pkg.path.lexicallyNormalized().string,
                 maxAgeDays: configuration.cacheMaxAgeDays,
                 maxSizeGB: configuration.cacheMaxSizeGB
-            )
-            for entry in evicted {
-                let size = ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .file)
-                logger.info("Evicted unused build cache \(entry.name) (\(size))")
-            }
+            ).report(to: logger)
         }
 
         return stores
