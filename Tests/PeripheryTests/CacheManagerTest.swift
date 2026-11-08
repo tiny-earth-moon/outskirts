@@ -66,7 +66,9 @@ final class CacheManagerTest: XCTestCase {
             XCTAssertTrue(clearError.localizedDescription.contains("DerivedData-locked"))
         }
         XCTAssertFalse(fm.fileExists(atPath: removable.path))
-        XCTAssertTrue(fm.fileExists(atPath: locked.path))
+        // Renamed out of service before its removal failed; the next sweep removes it again.
+        XCTAssertFalse(fm.fileExists(atPath: locked.path))
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: cache.path).filter { $0.hasPrefix(".evicting-") }.count, 1)
     }
 
     func testEvictionFailure_isReturnedNotThrown() throws {
@@ -138,6 +140,61 @@ final class CacheManagerTest: XCTestCase {
         }
         XCTAssertTrue(fm.fileExists(atPath: busy.path))
         XCTAssertFalse(fm.fileExists(atPath: idle.path))
+    }
+
+    func testEviction_renamesTheFolderOutOfReachBeforeRemovingIt() throws {
+        let stale = try makeDerivedData("DerivedData-stale", ageDays: 30)
+        let fileManager = RemovalObservingFileManager()
+        let otherScan = CacheLease()
+        fileManager.onRemove = { [fm] _ in
+            // A scan starting while the removal runs gets a fresh folder, never the one being removed.
+            fileManager.originalExistedDuringRemoval = fm.fileExists(atPath: stale.path)
+            if !fileManager.originalExistedDuringRemoval {
+                try? otherScan.hold(stale)
+            }
+        }
+
+        let result = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: [], fileManager: fileManager)
+
+        XCTAssertEqual(result.evicted.map(\.name), ["DerivedData-stale"])
+        XCTAssertFalse(fileManager.originalExistedDuringRemoval)
+        XCTAssertTrue(fm.fileExists(atPath: stale.appendingPathComponent(".outskirts-lock").path))
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: cache.path).filter { $0.hasPrefix(".evicting-") }, [])
+    }
+
+    func testEvict_removesLeftoversOfInterruptedRemovals() throws {
+        let leftover = try makeDerivedData(".evicting-\(UUID().uuidString)", ageDays: 0)
+
+        let result = CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: [])
+
+        XCTAssertTrue(result.failures.isEmpty)
+        XCTAssertFalse(fm.fileExists(atPath: leftover.path))
+    }
+
+    func testClearCache_keepsFolderCreatedDuringTheClear() throws {
+        let old = try makeDerivedData("DerivedData-old", ageDays: 1)
+        let created = cache.appendingPathComponent("DerivedData-created")
+        let fileManager = RemovalObservingFileManager()
+        let otherScan = CacheLease()
+        fileManager.onRemove = { _ in try? otherScan.hold(created) }
+
+        XCTAssertNoThrow(try CacheManager.clear(cacheDirectory: cache, fileManager: fileManager))
+
+        XCTAssertFalse(fm.fileExists(atPath: old.path))
+        XCTAssertTrue(fm.fileExists(atPath: created.appendingPathComponent(".outskirts-lock").path))
+    }
+
+    func testWhileUnused_skipsFolderHeldByRunningScan() throws {
+        let busy = try makeDerivedData("DerivedData-busy", ageDays: 1)
+        let idle = try makeDerivedData("DerivedData-idle", ageDays: 1)
+        let otherScan = CacheLease()
+        try otherScan.hold(busy)
+        var changed: [String] = []
+
+        XCTAssertFalse(try CacheManager.whileUnused(busy) { changed.append("busy") })
+        XCTAssertTrue(try CacheManager.whileUnused(idle) { changed.append("idle") })
+
+        XCTAssertEqual(changed, ["idle"])
     }
 
     func testLease_holdsFolderAgainAfterItWasRemoved() throws {
@@ -389,5 +446,16 @@ private final class CountingFileManager: FileManager, @unchecked Sendable {
     override func contentsOfDirectory(at url: URL, includingPropertiesForKeys keys: [URLResourceKey]?, options mask: FileManager.DirectoryEnumerationOptions = []) throws -> [URL] {
         reads += 1
         return try super.contentsOfDirectory(at: url, includingPropertiesForKeys: keys, options: mask)
+    }
+}
+
+/// Calls `onRemove` before each removal.
+private final class RemovalObservingFileManager: FileManager, @unchecked Sendable {
+    var onRemove: (URL) -> Void = { _ in }
+    var originalExistedDuringRemoval = true
+
+    override func removeItem(at url: URL) throws {
+        onRemove(url)
+        try super.removeItem(at: url)
     }
 }

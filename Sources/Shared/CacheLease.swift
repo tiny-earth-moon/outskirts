@@ -1,16 +1,28 @@
 import Foundation
+import Synchronization
 
 /// Advisory locks on the build folders of the cache that the current scan uses (DerivedData folders, scratch paths).
 /// Eviction and `clear-cache` skip a folder while a scan holds its lock. The locks are released when the lease is
 /// deallocated or the process exits.
-public final class CacheLease {
-    private var descriptors: [String: Int32] = [:]
+public final class CacheLease: Sendable {
+    private let descriptors = Mutex<[String: Int32]>([:])
 
     public init() {}
 
     deinit {
-        for descriptor in descriptors.values {
-            close(descriptor)
+        descriptors.withLock { descriptors in
+            for descriptor in descriptors.values {
+                close(descriptor)
+            }
+        }
+    }
+
+    /// Releases the folder, before this scan removes it for instance.
+    public func release(_ directory: URL) {
+        descriptors.withLock { descriptors in
+            if let descriptor = descriptors.removeValue(forKey: directory.path) {
+                close(descriptor)
+            }
         }
     }
 
@@ -21,16 +33,18 @@ public final class CacheLease {
         let path = directory.path
         guard creating || fileManager.fileExists(atPath: path) else { return }
 
-        if let descriptor = descriptors[path] {
-            if CacheLock.isCurrent(descriptor, in: directory) {
-                return
-            }
+        try descriptors.withLock { descriptors in
+            if let descriptor = descriptors[path] {
+                if CacheLock.isCurrent(descriptor, in: directory) {
+                    return
+                }
 
-            close(descriptor)
-            descriptors[path] = nil
+                close(descriptor)
+                descriptors[path] = nil
+            }
+            descriptors[path] = try CacheLock.acquireShared(in: directory, fileManager: fileManager)
+            try CacheManager.touch(directory, fileManager: fileManager)
         }
-        descriptors[path] = try CacheLock.acquireShared(in: directory, fileManager: fileManager)
-        try CacheManager.touch(directory, fileManager: fileManager)
     }
 }
 

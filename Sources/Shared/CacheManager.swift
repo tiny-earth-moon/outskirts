@@ -53,6 +53,8 @@ public enum CacheManager {
     /// The cache entries subject to eviction.
     static let evictablePrefixes = [derivedDataPrefix, packageBuildPrefix]
     static let projectSidecarName = ".outskirts-project"
+    /// The prefix of a build folder renamed for removal, out of reach of the scans that start meanwhile.
+    static let evictingPrefix = ".evicting-"
     /// Its modification date is the start of the last eviction sweep of the cache.
     static let evictionStampName = ".outskirts-last-eviction"
     /// A scan sweeps the cache at most once per interval: a sweep measures every build folder.
@@ -94,14 +96,10 @@ public enum CacheManager {
             }
         }
 
-        if failures.isEmpty {
-            do {
-                try fileManager.removeItem(at: cacheDirectory)
-            } catch {
-                if !isMissing(error) {
-                    failures.append(CacheEntryError(path: cacheDirectory.path, underlying: error))
-                }
-            }
+        // Not recursive: a scan may have created and locked a build folder since the listing.
+        if failures.isEmpty, rmdir(cacheDirectory.path) != 0, ![ENOENT, ENOTEMPTY, EEXIST].contains(errno) {
+            let error = NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSFilePathErrorKey: cacheDirectory.path])
+            failures.append(CacheEntryError(path: cacheDirectory.path, underlying: error))
         }
 
         if !failures.isEmpty {
@@ -239,6 +237,17 @@ public enum CacheManager {
         var remaining: [(url: URL, modified: Date, size: Int64)] = []
         var keptSize: Int64 = 0
 
+        // Leftovers of removals that were interrupted: no scan uses them.
+        for entry in entries where entry.lastPathComponent.hasPrefix(evictingPrefix) {
+            do {
+                try fileManager.removeItem(at: entry)
+            } catch {
+                if !isMissing(error) {
+                    failures.append(CacheEntryError(path: entry.path, underlying: error))
+                }
+            }
+        }
+
         func remove(_ entry: URL, size: Int64) -> Bool {
             do {
                 guard try removeUnlessInUse(entry, fileManager: fileManager) else { return false }
@@ -309,17 +318,39 @@ public enum CacheManager {
         try fileManager.setAttributes([.modificationDate: now], ofItemAtPath: stamp.path)
     }
 
-    /// Removes a cache entry under an exclusive lock, unless a running scan holds it. Returns false when it is in use.
-    private static func removeUnlessInUse(_ entry: URL, fileManager: FileManager) throws -> Bool {
+    /// Removes a build folder, unless a running scan holds it. Returns false when it is in use. Under an exclusive lock,
+    /// the folder is first renamed out of reach, then removed: a scan that starts meanwhile never sees it half removed.
+    public static func removeUnlessInUse(_ entry: URL, fileManager: FileManager = .default) throws -> Bool {
         let type = try fileManager.attributesOfItem(atPath: entry.path)[.type] as? FileAttributeType
-        guard type == .typeDirectory else {
+        guard type == .typeDirectory, !entry.lastPathComponent.hasPrefix(evictingPrefix) else {
             try fileManager.removeItem(at: entry)
             return true
         }
         guard let descriptor = try CacheLock.tryExclusive(in: entry) else { return false }
 
+        let renamed = entry.deletingLastPathComponent().appendingPathComponent("\(evictingPrefix)\(UUID().uuidString)")
+        do {
+            try fileManager.moveItem(at: entry, to: renamed)
+        } catch {
+            close(descriptor)
+            throw error
+        }
+        close(descriptor)
+        try fileManager.removeItem(at: renamed)
+        return true
+    }
+
+    /// Runs `body`, which changes a build folder, under an exclusive lock unless a running scan holds the folder. Returns
+    /// false, without running `body`, when it is in use. A missing folder is not locked.
+    public static func whileUnused(_ directory: URL, _ body: () throws -> Void) throws -> Bool {
+        guard FileManager.default.fileExists(atPath: directory.path) else {
+            try body()
+            return true
+        }
+        guard let descriptor = try CacheLock.tryExclusive(in: directory) else { return false }
+
         defer { close(descriptor) }
-        try fileManager.removeItem(at: entry)
+        try body()
         return true
     }
 
