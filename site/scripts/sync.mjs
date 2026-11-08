@@ -12,7 +12,7 @@ const problems = [];
 
 /** Sections of the options reference, in order; every key of the schema belongs to exactly one. */
 const CATEGORIES = [
-  ["Project and build", ["project", "schemes", "build_arguments", "variants", "xcode_list_arguments", "clean_build", "skip_build", "skip_schemes_validation", "index_store_path", "strict_index", "json_package_manifest_path", "generic_project_config", "cache_max_age_days", "cache_max_size_gb"]],
+  ["Project and build", ["project", "schemes", "build_arguments", "variants", "xcode_list_arguments", "clean_build", "skip_build", "skip_schemes_validation", "index_store_path", "quiet_index_store", "strict_index", "json_package_manifest_path", "generic_project_config", "cache_max_age_days", "cache_max_size_gb"]],
   ["Files and scope", ["exclude_targets", "exclude_tests", "index_exclude", "report_exclude", "report_include", "retain_files", "changed_since", "changed_lines"]],
   ["Analyses", ["disable_redundant_public_analysis", "enable_redundant_public_members", "enable_open_final_analysis", "enable_empty_extension_analysis", "enable_redundant_access_level_analysis", "report_unused_type_parameters", "enable_unassigned_optional_analysis", "enable_unconstructed_enum_case_analysis", "disable_unused_import_analysis", "enable_unused_system_imports", "superfluous_ignore_comments", "disable_platform_conditional_retention", "platform_conditional_retention", "detect_unused_asset_catalog_colors", "detect_unused_asset_catalog_images", "detect_unused_metal_functions"]],
   ["Localized strings", ["disable_unused_localized_string_analysis", "localized_string_catalog_exclude", "localized_string_key_patterns", "localized_string_key_literal_match", "retain_runtime_localized_keys"]],
@@ -40,7 +40,7 @@ const COMMAND_LINE_ONLY = [
  * The version that added each configuration key absent from options-baseline.txt (the keys of the 3.20.0 schema).
  * Every new key needs an entry: the next version, after the one in `Sources/Shared/Version.swift`.
  */
-const SINCE = { retain_public_modules: "3.21.0", strict_index: "3.21.0", enable_unconstructed_enum_case_analysis: "3.22.0", platform_conditional_retention: "3.22.0", variants: "3.22.0", exit_codes: "3.22.0", baseline_format: "3.22.0" };
+const SINCE = { retain_public_modules: "3.21.0", strict_index: "3.21.0", enable_unconstructed_enum_case_analysis: "3.22.0", platform_conditional_retention: "3.22.0", variants: "3.22.0", exit_codes: "3.22.0", baseline_format: "3.22.0", quiet_index_store: "3.22.0" };
 
 /** Keys whose command line form is not `--` followed by the key in kebab case; `null` for configuration file only. */
 const FLAGS = { build_arguments: "-- <args>", relative_results_base: "--relative-to", xcode_list_arguments: null };
@@ -129,7 +129,7 @@ function option(key, property, references) {
   facts.push(describeType(property, flag));
   facts.push(`default ${describeDefault(property)}`);
   const description = property.description.replace(/\s*\(command line: --[a-z-]+\)/, "").trim();
-  const extra = key === "color" ? " `--no-color` is a hidden alias of `--color never`." : "";
+  const extra = key === "color" ? " `--no-color` is a deprecated hidden alias of `--color never`: it still works and prints a deprecation warning." : "";
   const since = SINCE[key] ? [`Since ${SINCE[key]}.`, ""] : [];
   return [heading, "", ...since, `${description}${extra}`, "", `${facts.join(" · ")}.`, "", ...seeAlso(references, [flag, key].filter(Boolean))];
 }

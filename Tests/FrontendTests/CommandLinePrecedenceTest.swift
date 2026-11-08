@@ -41,6 +41,7 @@ final class CommandLinePrecedenceTest: XCTestCase {
         ("clean_build", \.cleanBuild),
         ("skip_build", \.skipBuild),
         ("strict_index", \.strictIndex),
+        ("quiet_index_store", \.quietIndexStore),
         ("skip_schemes_validation", \.skipSchemesValidation),
         ("relative_results", \.relativeResults),
         ("strict", \.strict),

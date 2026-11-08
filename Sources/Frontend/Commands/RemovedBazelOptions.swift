@@ -3,6 +3,7 @@ import Shared
 
 /// Options of the Bazel mode, removed in 3.13.0. They stay declared, hidden from the help, so that using one fails with
 /// an explicit error instead of the generic "Unknown option" of ArgumentParser.
+/// - Note: Deprecated: this shim is a thin check in front of the generic unknown option handling and goes away with it.
 struct RemovedBazelOptions: ParsableArguments {
     @Flag(help: .hidden)
     var bazel: Bool = false

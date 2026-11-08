@@ -40,6 +40,9 @@ struct BuildOptions: ParsableArguments {
     @Flag(inversion: .prefixedNo, help: "Fail the scan when a source file is newer than its index data, instead of warning")
     var strictIndex: Bool?
 
+    @Flag(inversion: .prefixedNo, help: "With '--index-store-path', imply '--skip-build' silently and warn about Xcode only for a store under Xcode's DerivedData")
+    var quietIndexStore: Bool?
+
     @Flag(inversion: .prefixedNo, help: "Skip schemes validation")
     var skipSchemesValidation: Bool?
 
@@ -277,9 +280,17 @@ struct MiscellaneousOptions: ParsableArguments {
     @Flag(inversion: .prefixedNo, help: "Only output results")
     var quiet: Bool?
 
-    @Option(help: "Colored output mode (default: auto)")
+    @Option(help: "Colored output mode (default: auto). The hidden '--no-color' is a deprecated alias of '--color never'")
     var color: ColorOption?
 
+    /// Deprecated alias of `--color never`, kept hidden; the help of `--color` names it.
     @Flag(name: .customLong("no-color"), help: .hidden)
     var noColor: Bool = false
+
+    static let noColorDeprecationWarning = "The '--no-color' option is deprecated, use '--color never' instead."
+
+    /// The colour mode given, `--no-color` being translated to `--color never`.
+    var givenColor: ColorOption? {
+        noColor ? .never : color
+    }
 }
