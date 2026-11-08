@@ -5,6 +5,7 @@
     @testable import ProjectDrivers
     import Shared
     import SystemPackage
+    import TestShared
     @testable import XcodeSupport
     import XCTest
 
@@ -64,7 +65,7 @@
         override func setUp() {
             super.setUp()
             shell = XcodeShell()
-            xcodebuild = Xcodebuild(shell: shell, logger: logger)
+            xcodebuild = Xcodebuild(shell: shell, logger: logger, cacheDirectory: TestCacheDirectory.path)
             project = ProjectStub()
             warnings = []
         }

@@ -3,6 +3,7 @@ import Logger
 import Shared
 import SystemPackage
 @testable import XcodeSupport
+import TestShared
 import XCTest
 
 final class XcodebuildBuildProjectTest: XCTestCase {
@@ -15,7 +16,7 @@ final class XcodebuildBuildProjectTest: XCTestCase {
         let logger = Logger(quiet: true, verbose: false, colorMode: .never)
         let shell = ShellImpl(logger: logger)
         var loadedProjectPaths: Set<FilePath> = []
-        xcodebuild = Xcodebuild(shell: shell, logger: logger)
+        xcodebuild = Xcodebuild(shell: shell, logger: logger, cacheDirectory: TestCacheDirectory.path)
         project = try! XcodeProject(path: UIKitProjectPath, loadedProjectPaths: &loadedProjectPaths, xcodebuild: xcodebuild, shell: shell, logger: logger)
     }
 

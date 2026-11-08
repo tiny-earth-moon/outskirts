@@ -18,20 +18,24 @@ public final class SPMProjectDriver {
     /// The scratch paths of this scan, locked so that concurrent scans never evict them.
     private let cacheLease = CacheLease()
 
-    public convenience init(configuration: Configuration, shell: Shell, logger: Logger) throws {
+    /// The directory holding the scratch paths of the variants, the outskirts cache when nil.
+    private let cacheDirectory: FilePath?
+
+    public convenience init(configuration: Configuration, shell: Shell, logger: Logger, cacheDirectory: FilePath? = nil) throws {
         if !configuration.schemes.isEmpty {
             throw PeripheryError.usageError("The --schemes option has no effect with Swift Package Manager projects.")
         }
 
         let pkg = SPM.Package(configuration: configuration, shell: shell, logger: logger)
-        self.init(pkg: pkg, configuration: configuration, logger: logger, shell: shell)
+        self.init(pkg: pkg, configuration: configuration, logger: logger, shell: shell, cacheDirectory: cacheDirectory)
     }
 
-    init(pkg: SPM.Package, configuration: Configuration, logger: Logger, shell: Shell) {
+    init(pkg: SPM.Package, configuration: Configuration, logger: Logger, shell: Shell, cacheDirectory: FilePath? = nil) {
         self.pkg = pkg
         self.configuration = configuration
         self.logger = logger
         self.shell = shell
+        self.cacheDirectory = cacheDirectory
     }
 
     /// Why some builds of the `variants` setting were not scanned.
@@ -67,7 +71,7 @@ public final class SPMProjectDriver {
         }
 
         let platforms = configuration.variants == .auto ? try description().platforms : nil
-        let resolver = SPMVariantResolver(
+        var resolver = SPMVariantResolver(
             shell: shell,
             warn: { [unowned self] in
                 logger.warn($0)
@@ -76,6 +80,7 @@ public final class SPMProjectDriver {
             projectPath: pkg.path,
             buildArguments: configuration.buildArguments
         )
+        resolver.cacheDirectory = cacheDirectory
         let variants = try resolver.resolve(configuration.variants, platforms: platforms)
         if configuration.variants != .default {
             logger.contextualized(with: "spm:variants").debug("Variants: \(variants.map(\.name).joined(separator: ", "))")
@@ -177,7 +182,8 @@ extension SPMProjectDriver: ProjectDriver {
                 directories: scratchPaths.map { URL(fileURLWithPath: $0.string) },
                 projectPath: pkg.path.lexicallyNormalized().string,
                 maxAgeDays: configuration.cacheMaxAgeDays,
-                maxSizeGB: configuration.cacheMaxSizeGB
+                maxSizeGB: configuration.cacheMaxSizeGB,
+                cacheDirectory: cacheDirectory.map { URL(fileURLWithPath: $0.string) }
             ).report(to: logger)
         }
 

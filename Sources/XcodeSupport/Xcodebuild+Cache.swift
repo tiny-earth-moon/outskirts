@@ -16,7 +16,8 @@ public extension Xcodebuild {
             directories: directories.map { URL(fileURLWithPath: $0.string) },
             projectPath: project.path.lexicallyNormalized().string,
             maxAgeDays: maxAgeDays,
-            maxSizeGB: maxSizeGB
+            maxSizeGB: maxSizeGB,
+            cacheDirectory: cacheDirectory.map { URL(fileURLWithPath: $0.string) }
         )
     }
 }

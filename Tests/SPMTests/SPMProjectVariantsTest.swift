@@ -76,13 +76,13 @@
             configuration.variants = .explicit([BuildVariant(triple: Self.macOSTriple)])
 
             try SPMProjectMultiVariantPath.chdir {
-                let driver = try SPMProjectDriver(configuration: configuration, shell: Self.shell, logger: Self.logger)
+                let driver = try SPMProjectDriver(configuration: configuration, shell: Self.shell, logger: Self.logger, cacheDirectory: TestCacheDirectory.path)
                 try driver.build()
                 XCTAssertEqual(driver.builtVariants, [Self.macOSTriple])
 
                 // The index store of the earlier build is read, but nothing proves it matches the sources.
                 configuration.skipBuild = true
-                let skipping = try SPMProjectDriver(configuration: configuration, shell: Self.shell, logger: Self.logger)
+                let skipping = try SPMProjectDriver(configuration: configuration, shell: Self.shell, logger: Self.logger, cacheDirectory: TestCacheDirectory.path)
                 try skipping.build()
                 _ = try skipping.plan(logger: Self.logger.contextualized(with: "index"))
                 XCTAssertEqual(skipping.builtVariants, [])
@@ -123,7 +123,7 @@
 
             var scan: Scan?
             try SPMProjectMultiVariantPath.chdir {
-                let driver = try SPMProjectDriver(configuration: configuration, shell: shell, logger: logger)
+                let driver = try SPMProjectDriver(configuration: configuration, shell: shell, logger: logger, cacheDirectory: TestCacheDirectory.path)
                 try driver.build()
                 let plan = try driver.plan(logger: logger.contextualized(with: "index"))
                 scan = Scan(configuration: configuration, plan: plan, builtVariants: driver.builtVariants)

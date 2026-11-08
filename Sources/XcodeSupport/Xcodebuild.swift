@@ -7,10 +7,13 @@ import SystemPackage
 public final class Xcodebuild {
     private let shell: Shell
     private let logger: Logger
+    /// The directory holding the DerivedData folders, the outskirts cache when nil.
+    let cacheDirectory: FilePath?
 
-    public required init(shell: Shell, logger: Logger) {
+    public required init(shell: Shell, logger: Logger, cacheDirectory: FilePath? = nil) {
         self.shell = shell
         self.logger = logger
+        self.cacheDirectory = cacheDirectory
     }
 
     private static let cachedVersion = Mutex<String?>(nil)
@@ -279,6 +282,6 @@ public final class Xcodebuild {
         if !buildArguments.isEmpty {
             name += "-\(buildArguments.joined(separator: "\n").djb2Hex)"
         }
-        return try Constants.cachePath().appending(name)
+        return try (cacheDirectory ?? Constants.cachePath()).appending(name)
     }
 }

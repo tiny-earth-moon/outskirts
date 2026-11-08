@@ -3,6 +3,7 @@ import Logger
 import Shared
 import SystemPackage
 @testable import XcodeSupport
+import TestShared
 import XCTest
 
 final class XcodebuildListDerivedDataTest: XCTestCase {
@@ -18,9 +19,10 @@ final class XcodebuildListDerivedDataTest: XCTestCase {
         }
     }
 
-    private func makeProject(shell: Shell) throws -> (Xcodebuild, XcodeProject) {
+    /// Without `cacheDirectory`, the commands use the user's outskirts cache: only record them, never run them.
+    private func makeProject(shell: Shell, cacheDirectory: FilePath? = nil) throws -> (Xcodebuild, XcodeProject) {
         let logger = Logger(quiet: true, verbose: false, colorMode: .never)
-        let xcodebuild = Xcodebuild(shell: shell, logger: logger)
+        let xcodebuild = Xcodebuild(shell: shell, logger: logger, cacheDirectory: cacheDirectory)
         var loadedProjectPaths: Set<FilePath> = []
         let project = try XcodeProject(path: UIKitProjectPath, loadedProjectPaths: &loadedProjectPaths, xcodebuild: xcodebuild, shell: shell, logger: logger)
         return (xcodebuild, project)
@@ -46,7 +48,7 @@ final class XcodebuildListDerivedDataTest: XCTestCase {
 
     func testCleanBuildRemovesTheDerivedDataUsedByList() throws {
         let shell = RecordingShell()
-        let (xcodebuild, project) = try makeProject(shell: shell)
+        let (xcodebuild, project) = try makeProject(shell: shell, cacheDirectory: TestCacheDirectory.path)
 
         _ = try project.schemes(additionalArguments: [])
         let listCommand = try listCommand(in: shell)

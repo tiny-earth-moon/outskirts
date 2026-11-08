@@ -3,6 +3,7 @@ import Logger
 import Shared
 import SystemPackage
 @testable import XcodeSupport
+import TestShared
 import XCTest
 
 final class XcodebuildArgumentsTest: XCTestCase {
@@ -40,7 +41,7 @@ final class XcodebuildArgumentsTest: XCTestCase {
     override func setUp() {
         super.setUp()
         shell = RecordingShell()
-        xcodebuild = Xcodebuild(shell: shell, logger: Logger(quiet: true, verbose: false, colorMode: .never))
+        xcodebuild = Xcodebuild(shell: shell, logger: Logger(quiet: true, verbose: false, colorMode: .never), cacheDirectory: TestCacheDirectory.path)
     }
 
     func testBuildPassesSchemeProjectAndBuildArgumentsAsLiteralArguments() throws {

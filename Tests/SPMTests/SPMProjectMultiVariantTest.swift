@@ -27,7 +27,7 @@
                     let iOSStore = try buildIOSSimulatorStore()
                     let configuration = Configuration()
                     configuration.indexStorePath = Array(macOSPlan.indexStorePaths) + [iOSStore]
-                    let driver = try SPMProjectDriver(configuration: configuration, shell: shell, logger: logger)
+                    let driver = try SPMProjectDriver(configuration: configuration, shell: shell, logger: logger, cacheDirectory: TestCacheDirectory.path)
                     unionPlan = try driver.plan(logger: logger.contextualized(with: "index"))
                 } catch {
                     unionSkipReason = "The iOS simulator index store could not be built: \(error)"
