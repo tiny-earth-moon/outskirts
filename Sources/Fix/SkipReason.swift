@@ -30,6 +30,9 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case dependencyPackage
     case libraryProduct
     case openMember
+    case outsideProject
+    case ignoredByGit
+    case gitFailed(String)
 
     var description: String {
         switch self {
@@ -63,6 +66,9 @@ enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .dependencyPackage: "dependency package"
         case .libraryProduct: "public API of a library product, clients outside the scan may use it"
         case .openMember: "open member"
+        case .outsideProject: "outside the project root"
+        case .ignoredByGit: "ignored by git"
+        case let .gitFailed(message): message
         }
     }
 }

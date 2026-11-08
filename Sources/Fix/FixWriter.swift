@@ -55,14 +55,24 @@ public enum FixWriter {
 
     // MARK: - Private
 
+    /// The real path of the file, which must still be the one the planner checked: a link created since, on the file
+    /// or on one of its directories, could lead outside the project.
+    private static func realPath(of change: FixPlan.Change) throws -> String {
+        let path = RealPath.resolve(change.path.string)
+        guard path == change.realPath else {
+            throw PeripheryError.underlyingError(FixWriterError.pathChanged(change.path.string))
+        }
+
+        return path
+    }
+
     private static func holds(_ expected: [UInt8], _ change: FixPlan.Change) throws -> Bool {
-        let url = URL(fileURLWithPath: RealPath.resolve(change.path.string))
+        let url = try URL(fileURLWithPath: realPath(of: change))
         return try [UInt8](Data(contentsOf: url)) == expected
     }
 
     private static func write(_ bytes: [UInt8], to change: FixPlan.Change, ifHolding expected: [UInt8]) throws -> Bool {
-        // The planner refuses symbolic links; the real path also covers a link created since.
-        let path = RealPath.resolve(change.path.string)
+        let path = try realPath(of: change)
         let url = URL(fileURLWithPath: path)
         guard try holds(expected, change) else { return false }
 
@@ -93,6 +103,7 @@ public struct FixRestoration: Equatable {
 enum FixWriterError: Error, CustomStringConvertible {
     case fileChanged(String)
     case partiallyWritten(Error, [String])
+    case pathChanged(String)
 
     var description: String {
         switch self {
@@ -100,6 +111,8 @@ enum FixWriterError: Error, CustomStringConvertible {
             "\(path) changed while the fixes were being prepared, no file was written."
         case let .partiallyWritten(error, paths):
             "Writing the fixes failed (\(error)), and these files keep their fixes because they changed since: \(paths.joined(separator: ", "))."
+        case let .pathChanged(path):
+            "\(path) now leads to another file through a symbolic link, no file was written."
         }
     }
 }

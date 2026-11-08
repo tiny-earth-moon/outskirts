@@ -65,7 +65,7 @@ After a partial scan, a rule named with `--rule` is refused with the reason, and
 - **`--aggressive`**: also apply the tier-2 rules.
 - **`--rule <rule>`**: only apply this rule; repeat the option to apply several.
 - **`--include <glob>`**: only fix the files that match the glob, relative to `--project-root`; repeat the option to give several.
-- **`--allow-dirty`**: also fix files with uncommitted changes, and projects outside a git repository.
+- **`--allow-dirty`**: also fix files with uncommitted changes, and projects outside a git repository. Files whose real path is outside the project root are still refused, including a file reached through a linked directory.
 - **`--allow-partial-scan`**: apply `redundant-public`, `redundant-open` and `missing-final` after a scan that did not cover all the code (see [Partial scans](#partial-scans)).
 
 ## Safety
@@ -80,7 +80,7 @@ After a partial scan, a rule named with `--rule` is refused with the reason, and
   - while any such clause holds code, a subscript, an operator, `callAsFunction`, `appendInterpolation` or `dynamicallyCall`, or a type that has one, since code calls them without writing their name;
   - an unused import in a file with code in such a clause.
 - Files modified after their index store unit was written, or after the scan started, are refused, since they may no longer match the results; with `--skip-build` or `--index-store-path`, rebuild first.
-- Only the files that version control can restore are edited. Files with uncommitted changes, untracked files included, are refused unless `--allow-dirty` is given, and so are symbolic links, files outside the repository of the project and files of a submodule or nested repository. git is run with an argument array, never through a shell.
+- Only the files that version control can restore are edited. Files with uncommitted changes, untracked files included, and files ignored by git are refused unless `--allow-dirty` is given, and so are symbolic links, files outside the repository of the project (outside the project root with `--allow-dirty` or without git, following linked directories) and files of a submodule or nested repository. A file is only written at the real path checked when the fixes were planned. git is run with an argument array, never through a shell. When git itself fails, for example on a corrupt index or a repository owned by another user, `fix` stops with git's message instead of treating the project as outside a repository.
 - For a Swift package, only the root package is built: a local dependency (`.package(path:)`) is scanned, but its own tests and its other clients are not, so its files are never edited and its results are skipped with the reason `dependency package`.
 - The file is parsed as the bytes on disk, so a byte order mark does not shift the edits.
 

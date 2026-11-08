@@ -565,6 +565,16 @@ final class FixCommandTest: XCTestCase {
         XCTAssertEqual(try String(contentsOfFile: file.string, encoding: .utf8), source)
     }
 
+    func testDiffOfAFileOutsideTheRootIsRelative() throws {
+        let source = "public func render() {}\n"
+        let plan = try planned(source, [target(.redundantPublic, "render()", .functionFree, at: "render", in: source)])
+
+        let diff = plan.diff(relativeTo: directory.appending("App"))
+        XCTAssertTrue(diff.hasPrefix("--- a/../File.swift\n+++ b/../File.swift\n"), diff)
+        XCTAssertEqual(file.relativePath(from: directory), "File.swift")
+        XCTAssertEqual(file.relativePath(from: FilePath(directory.string + "/")), "File.swift")
+    }
+
     func testDryRunDiffOfACRLFFileHasNoNoNewlineMarker() throws {
         let source = "import A\r\nimport B\r\n\r\nfunc f() {}\r\n"
         let plan = try planned(source, [target(.unusedImport, "B", .module, at: "import B", in: source)])
@@ -676,13 +686,13 @@ final class FixCommandTest: XCTestCase {
         try commitAll()
         let renderTarget = target(.redundantPublic, "render()", .functionFree, at: "render", in: source)
 
-        XCTAssertEqual(try FixPlanner(workingTree: GitWorkingTree.state(at: directory), indexDates: nil) { _ in false }.plan([renderTarget]).applied, [renderTarget])
+        XCTAssertEqual(try FixPlanner(projectRoot: directory, workingTree: GitWorkingTree.state(at: directory), indexDates: nil) { _ in false }.plan([renderTarget]).applied, [renderTarget])
 
         try write(source + "// changed\n")
-        let dirty = try FixPlanner(workingTree: GitWorkingTree.state(at: directory), indexDates: nil) { _ in false }
+        let dirty = try FixPlanner(projectRoot: directory, workingTree: GitWorkingTree.state(at: directory), indexDates: nil) { _ in false }
         XCTAssertEqual(dirty.plan([renderTarget]).skipped.map(\.reason), [.uncommittedChanges])
 
-        let noRepository = FixPlanner(workingTree: .notARepository, indexDates: nil) { _ in false }
+        let noRepository = FixPlanner(projectRoot: directory, workingTree: .notARepository, indexDates: nil) { _ in false }
         XCTAssertEqual(noRepository.plan([renderTarget]).skipped.map(\.reason), [.notInGitRepository])
     }
 
@@ -705,13 +715,79 @@ final class FixCommandTest: XCTestCase {
         try git("-c", "protocol.file.allow=always", "submodule", "add", "-q", origin.string, "Sub")
         try commitAll()
 
-        let planner = try FixPlanner(workingTree: GitWorkingTree.state(at: directory), indexDates: nil) { _ in false }
+        let planner = try FixPlanner(projectRoot: directory, workingTree: GitWorkingTree.state(at: directory), indexDates: nil) { _ in false }
         let targets = [link, outsideFile, directory.appending("Sub/Sub.swift")].map { path in
             FixTarget(rule: .redundantPublic, name: "render()", kind: .functionFree, file: path, line: 1, column: 13)
         }
         let reasons = planner.plan(targets).skipped.reduce(into: [String: SkipReason]()) { $0[$1.target.file.lastComponent?.string ?? ""] = $1.reason }
 
         XCTAssertEqual(reasons, ["Link.swift": .symbolicLink, "Outside.swift": .outsideRepository, "Sub.swift": .nestedRepository])
+        XCTAssertEqual(try String(contentsOfFile: outsideFile.string, encoding: .utf8), source)
+    }
+
+    func testIgnoredFile_isRefused() throws {
+        let source = "public func render() {}\n"
+        try write(source)
+        let vendor = directory.appending("Vendor")
+        try FileManager.default.createDirectory(atPath: vendor.string, withIntermediateDirectories: true)
+        let ignoredFile = vendor.appending("Ignored.swift")
+        let forcedFile = vendor.appending("Forced.swift")
+        for path in [ignoredFile, forcedFile] {
+            try Data(source.utf8).write(to: URL(fileURLWithPath: path.string))
+        }
+        try Data("Vendor/\n".utf8).write(to: URL(fileURLWithPath: directory.appending(".gitignore").string))
+        try git("init", "-q")
+        try git("add", "-f", "Vendor/Forced.swift")
+        try commitAll()
+
+        let planner = try FixPlanner(projectRoot: directory, workingTree: GitWorkingTree.state(at: directory), indexDates: nil) { _ in false }
+        let targets = [file, ignoredFile, forcedFile].map { path in
+            FixTarget(rule: .redundantPublic, name: "render()", kind: .functionFree, file: path, line: 1, column: 13)
+        }
+        let plan = planner.plan(targets)
+
+        XCTAssertEqual(plan.skipped.map(\.target.file), [ignoredFile])
+        XCTAssertEqual(plan.skipped.map(\.reason), [.ignoredByGit])
+        XCTAssertEqual(Set(plan.applied.map(\.file)), [file, forcedFile])
+    }
+
+    func testAllowDirty_refusesFileReachedThroughDirectoryLinkOutsideRoot() throws {
+        let source = "public func render() {}\n"
+        try write(source)
+        let outside = try makeTemporaryDirectory("outside")
+        let outsideFile = outside.appending("Linked.swift")
+        try Data(source.utf8).write(to: URL(fileURLWithPath: outsideFile.string))
+        try FileManager.default.createSymbolicLink(atPath: directory.appending("Linked").string, withDestinationPath: outside.string)
+
+        let linkedTarget = FixTarget(rule: .redundantPublic, name: "render()", kind: .functionFree, file: directory.appending("Linked/Linked.swift"), line: 1, column: 13)
+        let insideTarget = target(.redundantPublic, "render()", .functionFree, at: "render", in: source)
+        for (state, insideReasons) in [(WorkingTreeState.ignored, [SkipReason]()), (.notARepository, [.notInGitRepository])] {
+            let plan = FixPlanner(projectRoot: directory, workingTree: state, indexDates: nil) { _ in false }.plan([linkedTarget, insideTarget])
+
+            XCTAssertEqual(plan.skipped.filter { $0.target == linkedTarget }.map(\.reason), [.outsideProject], "\(state)")
+            XCTAssertEqual(plan.skipped.filter { $0.target == insideTarget }.map(\.reason), insideReasons, "\(state)")
+            try FixWriter.apply(plan)
+        }
+        XCTAssertEqual(try String(contentsOfFile: outsideFile.string, encoding: .utf8), source)
+    }
+
+    func testDirectoryLinkedOutsideTheRootAfterPlanningIsNotWritten() throws {
+        let source = "public func render() {}\n"
+        let sources = directory.appending("Sources")
+        try FileManager.default.createDirectory(atPath: sources.string, withIntermediateDirectories: true)
+        let planned = sources.appending("File.swift")
+        try Data(source.utf8).write(to: URL(fileURLWithPath: planned.string))
+        let renderTarget = FixTarget(rule: .redundantPublic, name: "render()", kind: .functionFree, file: planned, line: 1, column: 13)
+        let plan = makePlanner().plan([renderTarget])
+        XCTAssertEqual(plan.applied, [renderTarget])
+
+        let outside = try makeTemporaryDirectory("outside")
+        let outsideFile = outside.appending("File.swift")
+        try Data(source.utf8).write(to: URL(fileURLWithPath: outsideFile.string))
+        try FileManager.default.moveItem(atPath: sources.string, toPath: directory.appending("Moved").string)
+        try FileManager.default.createSymbolicLink(atPath: sources.string, withDestinationPath: outside.string)
+
+        XCTAssertThrowsError(try FixWriter.apply(plan))
         XCTAssertEqual(try String(contentsOfFile: outsideFile.string, encoding: .utf8), source)
     }
 
@@ -735,6 +811,17 @@ final class FixCommandTest: XCTestCase {
         }
     }
 
+    func testGitFailure_isNotReportedAsNotARepository() throws {
+        try write("let x = 1\n")
+        try commitAll()
+        try Data("corrupt".utf8).write(to: URL(fileURLWithPath: directory.appending(".git/index").string))
+
+        XCTAssertThrowsError(try GitWorkingTree.state(at: directory)) { error in
+            XCTAssertTrue("\(error)".contains("git status"), "\(error)")
+            XCTAssertTrue("\(error)".contains("index file"), "\(error)")
+        }
+    }
+
     func testGeneratedIndexExcludedAndChangedFilesAreRefused() throws {
         let generated = "// Generated by SwiftGen, do not edit.\npublic func render() {}\n"
         XCTAssertEqual(try planned(generated, [target(.redundantPublic, "render()", .functionFree, at: "render", in: generated)]).skipped.map(\.reason), [.generatedFile])
@@ -743,7 +830,7 @@ final class FixCommandTest: XCTestCase {
         try write(source)
         let renderTarget = target(.redundantPublic, "render()", .functionFree, at: "render", in: source)
 
-        let excluded = FixPlanner(workingTree: .ignored, indexDates: nil) { _ in true }
+        let excluded = FixPlanner(projectRoot: directory, workingTree: .ignored, indexDates: nil) { _ in true }
         XCTAssertEqual(excluded.plan([renderTarget]).skipped.map(\.reason), [.indexExcluded])
 
         XCTAssertTrue(GeneratedFile.isGenerated(path: "/p/.build/debug/Foo.swift"))
@@ -758,7 +845,7 @@ final class FixCommandTest: XCTestCase {
         let later = Date(timeIntervalSinceNow: 60)
 
         func reasons(_ dates: IndexDates) -> [SkipReason] {
-            FixPlanner(workingTree: .ignored, indexDates: dates) { _ in false }.plan([renderTarget]).skipped.map(\.reason)
+            FixPlanner(projectRoot: directory, workingTree: .ignored, indexDates: dates) { _ in false }.plan([renderTarget]).skipped.map(\.reason)
         }
 
         // The scan started after the edit, but the index store was written before it, e.g. with --skip-build.
@@ -782,7 +869,7 @@ final class FixCommandTest: XCTestCase {
     }
 
     private func makePlanner() -> FixPlanner {
-        FixPlanner(workingTree: .ignored, indexDates: nil) { _ in false }
+        FixPlanner(projectRoot: directory, workingTree: .ignored, indexDates: nil) { _ in false }
     }
 
     private func write(_ source: String) throws {
@@ -868,7 +955,7 @@ final class FixCommandTest: XCTestCase {
     }
 
     private func uncommitted() throws -> Set<String> {
-        guard case let .repository(_, paths) = try GitWorkingTree.state(at: directory) else {
+        guard case let .repository(_, paths, _) = try GitWorkingTree.state(at: directory) else {
             XCTFail("the directory is a working tree")
             return []
         }
