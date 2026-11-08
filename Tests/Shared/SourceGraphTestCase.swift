@@ -111,7 +111,9 @@ open class SourceGraphTestCase: XCTestCase {
 
     final func assertReferenced(_ description: DeclarationDescription, scopedAssertions: (() -> Void)? = nil, file: StaticString = #file, line: UInt = #line) {
         if case .module = description.kind {
-            if let declaration = Self.graph.unusedModuleImports.first(where: { $0.name == description.name }) {
+            if !isImported(description.name) {
+                XCTFail("Module is not imported: \(description.name)", file: file, line: line)
+            } else if let declaration = Self.graph.unusedModuleImports.first(where: { $0.name == description.name }) {
                 XCTFail("Expected declaration to be referenced: \(declaration)", file: file, line: line)
             }
         } else {
@@ -414,10 +416,14 @@ open class SourceGraphTestCase: XCTestCase {
     private func materialize(_ description: DeclarationDescription, in defaultDeclarations: Set<Declaration>? = nil, fail: Bool = true, file: StaticString, line: UInt) -> Declaration? {
         let declarations = scopedDeclarations(from: defaultDeclarations)
         let matchingDeclarations = declarations.filter { $0.kind == description.kind && $0.name == description.name }
-        let matchedDeclaration = if let line = description.line {
-            matchingDeclarations.first(where: { $0.location.line == line })
+        let matchedDeclaration: Declaration?
+        if let line = description.line {
+            matchedDeclaration = matchingDeclarations.first(where: { $0.location.line == line })
+        } else if matchingDeclarations.count > 1, fail {
+            XCTFail("Ambiguous declaration: \(description) matches \(matchingDeclarations.count) declarations, add line:.", file: file, line: line)
+            return nil
         } else {
-            matchingDeclarations.first
+            matchedDeclaration = matchingDeclarations.first
         }
 
         if matchedDeclaration == nil, fail {
@@ -425,6 +431,19 @@ open class SourceGraphTestCase: XCTestCase {
         }
 
         return matchedDeclaration
+    }
+
+    private func isImported(_ module: String) -> Bool {
+        let scopedModules = Set(scopeStack.compactMap { scope -> String? in
+            if case let .module(name) = scope {
+                return name
+            }
+            return nil
+        })
+        return Self.graph.indexedSourceFiles.contains { file in
+            (scopedModules.isEmpty || !file.modules.isDisjoint(with: scopedModules))
+                && file.importStatements.contains { $0.module == module }
+        }
     }
 
     private func scopedDeclarations(from defaultDeclarations: Set<Declaration>? = nil) -> Set<Declaration> {

@@ -38,6 +38,24 @@ final class OpenFinalAlreadyFinalClass {
     func openFinalMemberOfFinalClass() {}
 }
 
+open class OpenFinalClassSubclassedOnOtherPlatform {
+    public init() {}
+
+    open func openFinalOverriddenOnOtherPlatform() {}
+    open func openFinalNotOverriddenOnOtherPlatform() {}
+}
+
+class OpenFinalInternalClassSubclassedOnOtherPlatform {
+    func openFinalInternalOverriddenOnOtherPlatform() {}
+    func openFinalInternalNotOverriddenOnOtherPlatform() {}
+}
+
+#if os(iOS)
+    final class OpenFinalInternalSubclassOnOtherPlatform: OpenFinalInternalClassSubclassedOnOtherPlatform {
+        override func openFinalInternalOverriddenOnOtherPlatform() {}
+    }
+#endif
+
 actor OpenFinalActor {
     func openFinalActorMember() {}
 }
@@ -54,5 +72,11 @@ public enum OpenFinalRetainer {
         _ = OpenFinalActor()
         OpenFinalClassNeverSubclassed().openFinalMemberOfNeverSubclassedClass()
         OpenFinalPublicClassWithOpenMember().openFinalOpenMemberInPublicClass()
+        let otherPlatformBase = OpenFinalClassSubclassedOnOtherPlatform()
+        otherPlatformBase.openFinalOverriddenOnOtherPlatform()
+        otherPlatformBase.openFinalNotOverriddenOnOtherPlatform()
+        let otherPlatformInternalBase = OpenFinalInternalClassSubclassedOnOtherPlatform()
+        otherPlatformInternalBase.openFinalInternalOverriddenOnOtherPlatform()
+        otherPlatformInternalBase.openFinalInternalNotOverriddenOnOtherPlatform()
     }
 }
