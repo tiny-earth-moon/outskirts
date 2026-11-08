@@ -42,6 +42,8 @@ public struct UnusedRemovalSet {
     ///   declarations they may reference.
     /// - Parameter includesPublic: whether `public` and `open` declarations may be removed, unless the configuration
     ///   retains them.
+    /// - Parameter includesStoredProperties: whether stored instance properties may be removed, which changes the
+    ///   memory layout of their type.
     /// - Parameter ownModules: the modules of the targets the project builds, when the driver knows them: the files
     ///   of other modules, such as a local dependency package, are not edited, as their own tests are not built.
     public init(
@@ -50,6 +52,7 @@ public struct UnusedRemovalSet {
         configuration: Configuration,
         uncoveredNames: UncoveredConditionalNames = UncoveredConditionalNames(names: []),
         includesPublic: Bool = false,
+        includesStoredProperties: Bool = false,
         ownModules: Set<String>? = nil
     ) throws {
         self.graph = graph
@@ -57,7 +60,8 @@ public struct UnusedRemovalSet {
             retentionRules: try AttributeRetentionRule.resolve(configuration),
             configuration: configuration,
             uncoveredNames: uncoveredNames,
-            includesPublic: includesPublic
+            includesPublic: includesPublic,
+            includesStoredProperties: includesStoredProperties
         )
 
         var extendedTypes: [Declaration: Declaration] = [:]
@@ -87,7 +91,7 @@ public struct UnusedRemovalSet {
             } else if let reason = ineligibility(of: declaration, eligibility) {
                 skipped.append((target, reason))
             } else {
-                removed[declaration] = target.refusingStoredProperty(storedPropertyRefusal(of: declaration))
+                removed[declaration] = target.refusingStoredProperty(storedPropertyRefusal(of: declaration, eligibility))
             }
         }
         reduce()
@@ -273,8 +277,17 @@ public struct UnusedRemovalSet {
     }
 
     /// Why the declaration may not be removed if the syntax shows it is a stored property.
-    private func storedPropertyRefusal(of declaration: Declaration) -> SkipReason? {
+    private func storedPropertyRefusal(of declaration: Declaration, _ eligibility: Eligibility) -> SkipReason? {
         guard declaration.kind == .varInstance, let type = declaration.parent else { return nil }
+
+        // Removing a stored property changes the layout of its type, which unsafe pointers, `withUnsafeBytes`,
+        // padding or reserved fields and `@frozen` types depend on.
+        if type.hasAttribute(named: "frozen") {
+            return .frozenType
+        }
+        if !eligibility.includesStoredProperties {
+            return .storedPropertyNotIncluded
+        }
 
         if type.kind == .struct {
             let memberwiseInitializers = type.declarations.filter { $0.kind == .functionConstructor && $0.isImplicit }
@@ -342,6 +355,7 @@ private struct Eligibility {
     let configuration: Configuration
     let uncoveredNames: UncoveredConditionalNames
     let includesPublic: Bool
+    let includesStoredProperties: Bool
 }
 
 public extension FixPlanner {

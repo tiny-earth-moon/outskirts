@@ -42,6 +42,9 @@ struct FixCommand: ParsableCommand {
     @Flag(help: "With '--rule unused', also remove public and open declarations, unless retain_public or retain_public_modules applies")
     var includePublic: Bool = false
 
+    @Flag(help: "With '--rule unused', also remove stored instance properties, which changes the memory layout of their type (never in a @frozen type)")
+    var includeStoredProperties: Bool = false
+
     @OptionGroup
     var scan: ScanCommand
 
@@ -69,6 +72,9 @@ struct FixCommand: ParsableCommand {
         }
         if includePublic, !removesUnused {
             throw ValidationError("'--include-public' only applies to '--rule unused'")
+        }
+        if includeStoredProperties, !removesUnused {
+            throw ValidationError("'--include-stored-properties' only applies to '--rule unused'")
         }
     }
 
@@ -108,6 +114,7 @@ struct FixCommand: ParsableCommand {
                 configuration: configuration,
                 uncoveredNames: UncoveredConditionalNames(graph: output.graph),
                 includesPublic: includePublic,
+                includesStoredProperties: includeStoredProperties,
                 ownModules: output.driver.ownModules()
             )
             plan = planner.plan(targets, removing: &removal)

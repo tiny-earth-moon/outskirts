@@ -26,7 +26,7 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
     }
 
     func testRemovesStoredPropertiesWithoutOrWithALiteralInitializer() throws {
-        let outcome = try removeUnused()
+        let outcome = try removeUnused(includesStoredProperties: true)
 
         XCTAssertEqual(outcome.decisions, ["4 unusedLiteral": "removed", "5 unusedOptional": "removed", "6 unusedArray": "removed"])
         XCTAssertEqual(outcome.fixed, "public final class FixUnusedStoredHolder {\n    public init() {}\n\n}\n")
@@ -133,7 +133,7 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
     }
 
     func testKeepsStoredPropertiesWithInitializersOrWrappers() throws {
-        let outcome = try removeUnused()
+        let outcome = try removeUnused(includesStoredProperties: true)
 
         XCTAssertEqual(outcome.decisions, [
             "10 fixUnusedMakeValue()": "referenced by code that is kept",
@@ -145,17 +145,29 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
     }
 
     func testKeepsStoredPropertiesOfAStructWithAUsedMemberwiseInitializer() throws {
-        let outcome = try removeUnused()
+        let outcome = try removeUnused(includesStoredProperties: true)
 
         XCTAssertEqual(outcome.decisions, ["3 unusedConstant": "the memberwise initializer of the struct is used"])
         XCTAssertEqual(outcome.fixed, outcome.original)
     }
 
     func testKeepsStoredPropertiesOfAnEquatableType() throws {
-        let outcome = try removeUnused()
+        let outcome = try removeUnused(includesStoredProperties: true)
 
         XCTAssertEqual(outcome.decisions, ["4 unusedCompared": SkipReason.synthesizedConformance.description])
         XCTAssertEqual(outcome.fixed, outcome.original)
+    }
+
+    func testKeepsStoredPropertiesUnlessIncludedAndAlwaysInAFrozenType() throws {
+        let kept = try removeUnused()
+        XCTAssertEqual(kept.decisions, [
+            "4 unusedPadding": SkipReason.storedPropertyNotIncluded.description,
+            "10 unusedReserved": SkipReason.frozenType.description,
+        ])
+        XCTAssertEqual(kept.fixed, kept.original)
+
+        let included = try removeUnused(includesStoredProperties: true)
+        XCTAssertEqual(included.decisions, ["4 unusedPadding": "removed", "10 unusedReserved": SkipReason.frozenType.description])
     }
 
     func testKeepsTheDeclarationsOfAModuleTheProjectDoesNotDeclare() throws {
@@ -301,6 +313,7 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         scanRetainsPublic: Bool = true,
         fixRetainsPublic: Bool = false,
         includesPublic: Bool = false,
+        includesStoredProperties: Bool = false,
         ownModules: Set<String>? = nil,
         readsConditionalClauses: Bool = false,
         including isIncluded: (ScanResult) -> Bool = { _ in true }
@@ -318,6 +331,7 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
             configuration: configuration,
             uncoveredNames: readsConditionalClauses ? UncoveredConditionalNames(graph: Self.graph) : UncoveredConditionalNames(names: []),
             includesPublic: includesPublic,
+            includesStoredProperties: includesStoredProperties,
             ownModules: ownModules
         )
         let plan = makePlanner().plan([], removing: &removal)

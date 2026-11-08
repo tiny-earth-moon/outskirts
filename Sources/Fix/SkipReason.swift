@@ -45,6 +45,8 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
     case uncoveredConditionalType
     case implicitMemberWithUncoveredCode
     case publicDeclaration
+    case storedPropertyNotIncluded
+    case frozenType
     case dependencyPackage
 
     public var description: String {
@@ -94,6 +96,8 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case .uncoveredConditionalType: "member of a type declared, extended or inherited from in an #if clause that no scanned build compiled"
         case .implicitMemberWithUncoveredCode: "subscript, operator or implicitly called member, with code in an #if clause that no scanned build compiled"
         case .publicDeclaration: "public API, use --include-public"
+        case .storedPropertyNotIncluded: "stored property, use --include-stored-properties"
+        case .frozenType: "stored property of a @frozen type"
         case .dependencyPackage: "dependency package"
         }
     }
