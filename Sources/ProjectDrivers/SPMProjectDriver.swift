@@ -110,7 +110,7 @@ extension SPMProjectDriver: ProjectDriver {
             // One build at a time: concurrent builds of the same package would multiply the memory needed.
             for variant in try variants() {
                 if configuration.cleanBuild {
-                    try pkg.clean(additionalArguments: variant.scratchPath.map { ["--scratch-path", $0.string] } ?? [])
+                    try clean(variant)
                 }
                 if let scratchPath = variant.scratchPath {
                     holdCache(scratchPath, creating: true)
@@ -188,6 +188,21 @@ extension SPMProjectDriver: ProjectDriver {
         }
 
         return stores
+    }
+
+    /// Cleans the build of a variant, unless another running scan uses its scratch path.
+    private func clean(_ variant: SPMBuildVariant) throws {
+        guard let scratchPath = variant.scratchPath else {
+            try pkg.clean()
+            return
+        }
+
+        let isCleaned = try CacheManager.whileUnused(URL(fileURLWithPath: scratchPath.string)) {
+            try pkg.clean(additionalArguments: ["--scratch-path", scratchPath.string])
+        }
+        if !isCleaned {
+            logger.warn("The scratch path '\(scratchPath)' is in use by another running scan, it is not cleaned.")
+        }
     }
 
     /// Holds a scratch path. A failure is a warning: the cache housekeeping never fails the scan.

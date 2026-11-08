@@ -83,6 +83,22 @@ final class XcodebuildArgumentsTest: XCTestCase {
         XCTAssertEqual(Array(command.suffix(2)), ["-skipPackageUpdates", "$(x)"])
     }
 
+    func testRemoveDerivedData_keepsTheFolderOfAnotherRunningScan() throws {
+        let project = ProjectStub(path: FilePath("/tmp/periphery-\(UUID().uuidString)/App.xcodeproj"))
+        let path = try xcodebuild.derivedDataPath(for: project, schemes: ["A"])
+        let otherScan = CacheLease()
+        try otherScan.hold(URL(fileURLWithPath: path.string))
+        try FileManager.default.createDirectory(atPath: path.appending("Index.noindex").string, withIntermediateDirectories: true)
+        defer {
+            otherScan.release(URL(fileURLWithPath: path.string))
+            try? FileManager.default.removeItem(atPath: path.string)
+        }
+
+        try xcodebuild.removeDerivedData(for: project, allSchemes: ["A"])
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path.appending("Index.noindex").string))
+    }
+
     func testRemoveDerivedDataDeletesTheFolderWithoutAShell() throws {
         let project = ProjectStub(path: FilePath("/tmp/periphery-\(UUID().uuidString)/App.xcodeproj"))
         let path = try xcodebuild.derivedDataPath(for: project, schemes: ["A"])

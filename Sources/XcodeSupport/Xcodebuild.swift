@@ -9,6 +9,8 @@ public final class Xcodebuild {
     private let logger: Logger
     /// The directory holding the DerivedData folders, the outskirts cache when nil.
     let cacheDirectory: FilePath?
+    /// The DerivedData folders of `-list` and `-showBuildSettings`, locked so that concurrent scans never evict them.
+    private let cacheLease = CacheLease()
 
     public required init(shell: Shell, logger: Logger, cacheDirectory: FilePath? = nil) {
         self.shell = shell
@@ -61,7 +63,11 @@ public final class Xcodebuild {
         let path = try derivedDataPath(for: project, schemes: allSchemes, buildArguments: buildArguments)
         guard path.exists else { return }
 
-        try FileManager.default.removeItem(atPath: path.string)
+        let directory = URL(fileURLWithPath: path.string)
+        cacheLease.release(directory)
+        if try !CacheManager.removeUnlessInUse(directory) {
+            logger.warn("The DerivedData folder '\(path)' is in use by another running scan, it is not cleaned.")
+        }
     }
 
     public func indexStorePath(
@@ -168,7 +174,7 @@ public final class Xcodebuild {
             // `-derivedDataPath <path>/<xcode-default-hashed-folder-name>`.
             // this is not a problem, since we still can scope the folders on a per-project
             // and per-xcode-version level; the actual contents just happen to be one level deeper.
-            "-IDECustomDerivedDataLocation=\(derivedDataPath(projectIdentifier: path, schemes: []).string)",
+            "-IDECustomDerivedDataLocation=\(holdListDerivedData(projectIdentifier: path).string)",
         ] + additionalArguments
 
         let lines = try shell.exec(xcodebuild).split(separator: "\n").map { String($0).trimmed }
@@ -201,7 +207,7 @@ public final class Xcodebuild {
                 "-scheme", scheme,
                 "-showBuildSettings",
                 "-json",
-                "-IDECustomDerivedDataLocation=\(derivedDataPath(projectIdentifier: project.path.lexicallyNormalized().string, schemes: []).string)",
+                "-IDECustomDerivedDataLocation=\(holdListDerivedData(projectIdentifier: project.path.lexicallyNormalized().string).string)",
             ] + additionalArguments
 
             for platform in try Self.supportedPlatforms(fromBuildSettings: shell.exec(xcodebuild)) where !platforms.contains(platform) {
@@ -263,6 +269,18 @@ public final class Xcodebuild {
             schemes: schemes,
             buildArguments: buildArguments
         )
+    }
+
+    /// The DerivedData folder of `-list` and `-showBuildSettings`, held for the rest of the scan. A failure to hold it is
+    /// a warning: the cache housekeeping never fails the scan.
+    private func holdListDerivedData(projectIdentifier: String) throws -> FilePath {
+        let path = try derivedDataPath(projectIdentifier: projectIdentifier, schemes: [])
+        do {
+            try cacheLease.hold(URL(fileURLWithPath: path.string))
+        } catch {
+            logger.warn("Could not lock the build cache folder '\(path)': \(error.localizedDescription)")
+        }
+        return path
     }
 
     private func derivedDataPath(projectIdentifier: String, schemes: [String], buildArguments: [String] = []) throws -> FilePath {
