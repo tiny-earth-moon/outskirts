@@ -39,12 +39,15 @@ public final class SPMProjectDriver {
 
     private var skippedVariantMessages: [String] = []
 
-    /// The names of the builds scanned together, empty with `variants: default`.
+    /// The names of the variants this run built, empty with `variants: default`, `--skip-build` or
+    /// `--index-store-path`: an index store left by an earlier build may not match the sources.
     public var builtVariants: [String] {
-        guard configuration.variants != .default else { return [] }
+        guard configuration.variants != .default, configuration.indexStorePath.isEmpty else { return [] }
 
-        return resolvedVariants?.map(\.name) ?? []
+        return builtVariantNames
     }
+
+    private var builtVariantNames: [String] = []
 
     private func description() throws -> PackageDescription {
         if let packageDescription {
@@ -114,6 +117,7 @@ extension SPMProjectDriver: ProjectDriver {
                 } catch {
                     throw PeripheryError.packageError(message: "The build of the variant '\(variant.name)' failed:\n\(error)")
                 }
+                builtVariantNames.append(variant.name)
             }
         }
     }
