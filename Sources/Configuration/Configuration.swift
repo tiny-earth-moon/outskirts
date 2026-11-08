@@ -222,10 +222,10 @@ public final class Configuration {
     @Setting(key: "json_package_manifest_path", description: "Package manifest as JSON (from 'swift package describe --type json', or written by hand).", defaultValue: nil, convert: SettingConverter.filePath)
     public var jsonPackageManifestPath: FilePath?
 
-    @Setting(key: "cache_max_age_days", description: "Age in days after which unused Xcode build caches are evicted at the end of a scan; 0 disables the age rule. Caches of projects that no longer exist are always evicted.", defaultValue: 14)
+    @Setting(key: "cache_max_age_days", description: "Age in days after which unused Xcode build caches are evicted at the end of a scan, checked at most once an hour; 0 disables the age rule. Caches of projects that no longer exist are always evicted. A cache that another running scan uses is never evicted.", defaultValue: 14)
     public var cacheMaxAgeDays: Int
 
-    @Setting(key: "cache_max_size_gb", description: "Total size in gigabytes above which the least recently used Xcode build caches are evicted at the end of a scan; 0 disables the limit.", defaultValue: 20)
+    @Setting(key: "cache_max_size_gb", description: "Total size in gigabytes above which the least recently used Xcode build caches are evicted at the end of a scan, checked at most once an hour; 0 disables the limit. A cache that another running scan uses is never evicted.", defaultValue: 20)
     public var cacheMaxSizeGB: Int
 
     @Setting(key: "baseline", description: "Baseline file whose entries are hidden from the results.", defaultValue: nil, convert: SettingConverter.filePath)

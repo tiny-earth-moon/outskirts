@@ -2,6 +2,7 @@ import Foundation
 import Logger
 import Shared
 import SystemPackage
+import TestShared
 @testable import XcodeSupport
 import XCTest
 
@@ -40,7 +41,7 @@ final class XcodebuildArgumentsTest: XCTestCase {
     override func setUp() {
         super.setUp()
         shell = RecordingShell()
-        xcodebuild = Xcodebuild(shell: shell, logger: Logger(quiet: true, verbose: false, colorMode: .never))
+        xcodebuild = Xcodebuild(shell: shell, logger: Logger(quiet: true, verbose: false, colorMode: .never), cacheDirectory: TestCacheDirectory.path)
     }
 
     func testBuildPassesSchemeProjectAndBuildArgumentsAsLiteralArguments() throws {
@@ -80,6 +81,22 @@ final class XcodebuildArgumentsTest: XCTestCase {
         XCTAssertTrue(command[5].hasPrefix("-IDECustomDerivedDataLocation=/"), command[5])
         XCTAssertFalse(command[5].contains("'"), command[5])
         XCTAssertEqual(Array(command.suffix(2)), ["-skipPackageUpdates", "$(x)"])
+    }
+
+    func testRemoveDerivedData_keepsTheFolderOfAnotherRunningScan() throws {
+        let project = ProjectStub(path: FilePath("/tmp/periphery-\(UUID().uuidString)/App.xcodeproj"))
+        let path = try xcodebuild.derivedDataPath(for: project, schemes: ["A"])
+        let otherScan = CacheLease()
+        try otherScan.hold(URL(fileURLWithPath: path.string))
+        try FileManager.default.createDirectory(atPath: path.appending("Index.noindex").string, withIntermediateDirectories: true)
+        defer {
+            otherScan.release(URL(fileURLWithPath: path.string))
+            try? FileManager.default.removeItem(atPath: path.string)
+        }
+
+        try xcodebuild.removeDerivedData(for: project, allSchemes: ["A"])
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path.appending("Index.noindex").string))
     }
 
     func testRemoveDerivedDataDeletesTheFolderWithoutAShell() throws {

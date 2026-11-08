@@ -1,4 +1,5 @@
 import Foundation
+import Logger
 
 struct CacheEntryError: Error, CustomStringConvertible {
     let path: String
@@ -18,18 +19,54 @@ struct CacheClearError: Error, LocalizedError {
     }
 }
 
-public struct EvictedCacheEntry: Equatable {
-    public let name: String
-    public let size: Int64
+struct CacheEntryInUseError: Error, LocalizedError {
+    var errorDescription: String? {
+        "in use by a running scan"
+    }
+}
+
+struct EvictedCacheEntry: Equatable {
+    let name: String
+    let size: Int64
+}
+
+/// What a cache refresh did. Housekeeping failures never fail the scan: they are reported as warnings.
+public struct CacheRefreshResult {
+    var evicted: [EvictedCacheEntry] = []
+    var failures: [CacheEntryError] = []
+
+    public func report(to logger: Logger) {
+        for entry in evicted {
+            let size = ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .file)
+            logger.info("Evicted unused build cache \(entry.name) (\(size))")
+        }
+        for failure in failures {
+            logger.warn("Could not maintain the build cache: \(failure.description)")
+        }
+    }
+}
+
+/// Hooks around the file operations of the cache, for the tests.
+struct CacheEvents: Sendable {
+    var willList: @Sendable (URL) -> Void = { _ in }
+    var willRemove: @Sendable (URL) -> Void = { _ in }
 }
 
 public enum CacheManager {
+    @TaskLocal static var events = CacheEvents()
+
     static let derivedDataPrefix = "DerivedData-"
     /// The scratch paths of the Swift package builds of the `variants` setting.
     public static let packageBuildPrefix = "PackageBuild-"
     /// The cache entries subject to eviction.
     static let evictablePrefixes = [derivedDataPrefix, packageBuildPrefix]
     static let projectSidecarName = ".outskirts-project"
+    /// The prefix of a build folder renamed for removal, out of reach of the scans that start meanwhile.
+    static let evictingPrefix = ".evicting-"
+    /// Its modification date is the start of the last eviction sweep of the cache.
+    static let evictionStampName = ".outskirts-last-eviction"
+    /// A scan sweeps the cache at most once per interval: a sweep measures every build folder.
+    static let evictionInterval: TimeInterval = 3600
 
     /// Clears the outskirts cache directory and the one left by releases that predate the rename.
     public static func clearIncludingLegacy(cachesDirectory: URL? = nil, fileManager: FileManager = .default) throws {
@@ -38,7 +75,7 @@ public enum CacheManager {
     }
 
     /// Removes every entry of the cache directory, then the directory itself. Entries that have already
-    /// vanished are ignored. Symbolic links are removed, never followed.
+    /// vanished are ignored, the build folders a running scan holds are reported. Symbolic links are removed, never followed.
     static func clear(cacheDirectory: URL, fileManager: FileManager = .default) throws {
         let entries: [URL]
         do {
@@ -57,7 +94,9 @@ public enum CacheManager {
         var failures: [CacheEntryError] = []
         for entry in entries {
             do {
-                try fileManager.removeItem(at: entry)
+                if try !removeUnlessInUse(entry, fileManager: fileManager) {
+                    failures.append(CacheEntryError(path: entry.path, underlying: CacheEntryInUseError()))
+                }
             } catch {
                 if !isMissing(error) {
                     failures.append(CacheEntryError(path: entry.path, underlying: error))
@@ -65,14 +104,10 @@ public enum CacheManager {
             }
         }
 
-        if failures.isEmpty {
-            do {
-                try fileManager.removeItem(at: cacheDirectory)
-            } catch {
-                if !isMissing(error) {
-                    failures.append(CacheEntryError(path: cacheDirectory.path, underlying: error))
-                }
-            }
+        // Not recursive: a scan may have created and locked a build folder since the listing.
+        if failures.isEmpty, rmdir(cacheDirectory.path) != 0, ![ENOENT, ENOTEMPTY, EEXIST].contains(errno) {
+            let error = NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSFilePathErrorKey: cacheDirectory.path])
+            failures.append(CacheEntryError(path: cacheDirectory.path, underlying: error))
         }
 
         if !failures.isEmpty {
@@ -81,26 +116,49 @@ public enum CacheManager {
     }
 
     /// Records the project in each build folder of the current scan (DerivedData folder or scratch path) and marks it
-    /// as used, then evicts the stale folders from the cache, keeping the current ones. Returns the evicted entries.
+    /// as used, then evicts the stale folders from the cache, keeping the current ones, unless the cache was swept less
+    /// than `evictionInterval` ago. Never throws: the failures are returned with the evicted entries.
     public static func refresh(
         directories: [URL],
         projectPath: String,
         maxAgeDays: Int,
         maxSizeGB: Int,
         cacheDirectory: URL? = nil,
+        now: Date = Date(),
         fileManager: FileManager = .default
-    ) throws -> [EvictedCacheEntry] {
+    ) -> CacheRefreshResult {
+        var failures: [CacheEntryError] = []
         for directory in directories where fileManager.fileExists(atPath: directory.path) {
-            try recordProject(projectPath, in: directory, fileManager: fileManager)
-            try touch(directory, fileManager: fileManager)
+            do {
+                try recordProject(projectPath, in: directory, fileManager: fileManager)
+                try touch(directory, fileManager: fileManager)
+            } catch {
+                failures.append(error as? CacheEntryError ?? CacheEntryError(path: directory.path, underlying: error))
+            }
         }
-        return try evictStale(
-            cacheDirectory: cacheDirectory ?? URL(fileURLWithPath: Constants.cachePath().string),
+
+        let cache: URL
+        if let cacheDirectory {
+            cache = cacheDirectory
+        } else {
+            do {
+                cache = try URL(fileURLWithPath: Constants.cachePath().string)
+            } catch {
+                return CacheRefreshResult(failures: failures + [CacheEntryError(path: "cache directory", underlying: error)])
+            }
+        }
+
+        var result = evictStale(
+            cacheDirectory: cache,
             maxAgeDays: maxAgeDays,
             maxSizeBytes: Int64(maxSizeGB) << 30,
             keeping: directories,
+            minimumInterval: evictionInterval,
+            now: now,
             fileManager: fileManager
         )
+        result.failures.insert(contentsOf: failures, at: 0)
+        return result
     }
 
     /// Marks a DerivedData folder as used now.
@@ -127,8 +185,8 @@ public enum CacheManager {
         keeping: URL?,
         now: Date = Date(),
         fileManager: FileManager = .default
-    ) throws -> [EvictedCacheEntry] {
-        try evictStale(
+    ) -> CacheRefreshResult {
+        evictStale(
             cacheDirectory: cacheDirectory,
             maxAgeDays: maxAgeDays,
             maxSizeBytes: maxSizeBytes,
@@ -138,37 +196,71 @@ public enum CacheManager {
         )
     }
 
-    /// Removes the `DerivedData-*` and `PackageBuild-*` folders of the cache, except `keeping`, that are stale. A folder is stale when
+    /// Removes the `DerivedData-*` and `PackageBuild-*` folders of the cache, except `keeping` and the folders a running
+    /// scan holds (see `CacheLease`), that are stale. A folder is stale when
     /// the project recorded in its sidecar no longer exists, or when its modification date is older than
     /// `maxAgeDays` (0 disables this age rule). Then, when `maxSizeBytes` is above 0, the least recently
     /// used folders are removed until the folders left fit in `maxSizeBytes` bytes (the size of `keeping` counts).
+    /// The folders that cannot be removed are returned as failures, never thrown. When `minimumInterval` is above 0,
+    /// nothing is read when the previous sweep started less than `minimumInterval` seconds before `now`.
     @discardableResult
     static func evictStale(
         cacheDirectory: URL,
         maxAgeDays: Int,
         maxSizeBytes: Int64 = 0,
         keeping: [URL],
+        minimumInterval: TimeInterval = 0,
         now: Date = Date(),
         fileManager: FileManager = .default
-    ) throws -> [EvictedCacheEntry] {
-        guard fileManager.fileExists(atPath: cacheDirectory.path) else { return [] }
+    ) -> CacheRefreshResult {
+        guard fileManager.fileExists(atPath: cacheDirectory.path) else { return CacheRefreshResult() }
+
+        var failures: [CacheEntryError] = []
+        if minimumInterval > 0 {
+            let stamp = cacheDirectory.appendingPathComponent(evictionStampName)
+            do {
+                if let last = try lastSweep(stamp, fileManager: fileManager), last <= now, now.timeIntervalSince(last) < minimumInterval {
+                    return CacheRefreshResult()
+                }
+                try markSweep(stamp, now: now, fileManager: fileManager)
+            } catch {
+                failures.append(CacheEntryError(path: stamp.path, underlying: error))
+            }
+        }
 
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86400)
         let keptNames = Set(keeping.map(\.lastPathComponent))
-        let entries = try fileManager.contentsOfDirectory(
-            at: cacheDirectory,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: []
-        )
+        let entries: [URL]
+        do {
+            events.willList(cacheDirectory)
+            entries = try fileManager.contentsOfDirectory(
+                at: cacheDirectory,
+                includingPropertiesForKeys: [.contentModificationDateKey],
+                options: []
+            )
+        } catch {
+            return CacheRefreshResult(failures: failures + [CacheEntryError(path: cacheDirectory.path, underlying: error)])
+        }
 
         var evicted: [EvictedCacheEntry] = []
-        var failures: [CacheEntryError] = []
         var remaining: [(url: URL, modified: Date, size: Int64)] = []
         var keptSize: Int64 = 0
 
-        func remove(_ entry: URL, size: Int64) -> Bool {
+        // Leftovers of removals that were interrupted: no scan uses them.
+        for entry in entries where entry.lastPathComponent.hasPrefix(evictingPrefix) {
             do {
                 try fileManager.removeItem(at: entry)
+            } catch {
+                if !isMissing(error) {
+                    failures.append(CacheEntryError(path: entry.path, underlying: error))
+                }
+            }
+        }
+
+        func remove(_ entry: URL, size: Int64) -> Bool {
+            do {
+                guard try removeUnlessInUse(entry, fileManager: fileManager) else { return false }
+
                 evicted.append(EvictedCacheEntry(name: entry.lastPathComponent, size: size))
                 return true
             } catch {
@@ -182,7 +274,13 @@ public enum CacheManager {
 
         for entry in entries where evictablePrefixes.contains(where: entry.lastPathComponent.hasPrefix) {
             let isKept = keptNames.contains(entry.lastPathComponent)
-            let modified = try entry.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            let modified: Date?
+            do {
+                modified = try entry.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            } catch {
+                failures.append(CacheEntryError(path: entry.path, underlying: error))
+                continue
+            }
             let isStale = !isKept
                 && (isOrphan(entry, fileManager: fileManager) || (maxAgeDays > 0 && (modified.map { $0 < cutoff } ?? false)))
             if !isStale, maxSizeBytes == 0 {
@@ -190,9 +288,11 @@ public enum CacheManager {
             }
 
             let size = directorySize(entry, fileManager: fileManager)
-            if isStale {
-                _ = remove(entry, size: size)
-            } else if isKept {
+            if isStale, remove(entry, size: size) {
+                continue
+            }
+            if isStale || isKept {
+                // A stale folder left in place, in use or not removable, still takes room.
                 keptSize += size
             } else {
                 remaining.append((entry, modified ?? .distantPast, size))
@@ -209,26 +309,82 @@ public enum CacheManager {
             }
         }
 
-        if !failures.isEmpty {
-            throw CacheClearError(failures: failures)
-        }
-        return evicted
+        return CacheRefreshResult(evicted: evicted, failures: failures)
     }
 
     // MARK: - Private
 
-    /// Whether the folder records a project path that no longer exists. A folder without a sidecar is never an orphan.
+    private static func lastSweep(_ stamp: URL, fileManager: FileManager) throws -> Date? {
+        guard fileManager.fileExists(atPath: stamp.path) else { return nil }
+
+        return try fileManager.attributesOfItem(atPath: stamp.path)[.modificationDate] as? Date
+    }
+
+    private static func markSweep(_ stamp: URL, now: Date, fileManager: FileManager) throws {
+        if !fileManager.fileExists(atPath: stamp.path), !fileManager.createFile(atPath: stamp.path, contents: nil) {
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: stamp.path])
+        }
+        try fileManager.setAttributes([.modificationDate: now], ofItemAtPath: stamp.path)
+    }
+
+    /// Removes a build folder, unless a running scan holds it. Returns false when it is in use. Under an exclusive lock,
+    /// the folder is first renamed out of reach, then removed: a scan that starts meanwhile never sees it half removed.
+    public static func removeUnlessInUse(_ entry: URL, fileManager: FileManager = .default) throws -> Bool {
+        let type = try fileManager.attributesOfItem(atPath: entry.path)[.type] as? FileAttributeType
+        guard type == .typeDirectory, !entry.lastPathComponent.hasPrefix(evictingPrefix) else {
+            events.willRemove(entry)
+            try fileManager.removeItem(at: entry)
+            return true
+        }
+        guard let descriptor = try CacheLock.tryExclusive(in: entry) else { return false }
+
+        let renamed = entry.deletingLastPathComponent().appendingPathComponent("\(evictingPrefix)\(UUID().uuidString)")
+        do {
+            try fileManager.moveItem(at: entry, to: renamed)
+        } catch {
+            close(descriptor)
+            throw error
+        }
+        close(descriptor)
+        events.willRemove(renamed)
+        try fileManager.removeItem(at: renamed)
+        return true
+    }
+
+    /// Runs `body`, which changes a build folder, under an exclusive lock unless a running scan holds the folder. Returns
+    /// false, without running `body`, when it is in use. A missing folder is not locked.
+    public static func whileUnused(_ directory: URL, _ body: () throws -> Void) throws -> Bool {
+        guard FileManager.default.fileExists(atPath: directory.path) else {
+            try body()
+            return true
+        }
+        guard let descriptor = try CacheLock.tryExclusive(in: directory) else { return false }
+
+        defer { close(descriptor) }
+        try body()
+        return true
+    }
+
+    /// Whether the folder records a project path that no longer exists. A folder without a sidecar is never an orphan,
+    /// nor is one whose project is on a volume that is not mounted: the age and size rules apply to it.
     private static func isOrphan(_ directory: URL, fileManager: FileManager) -> Bool {
         let sidecar = directory.appendingPathComponent(projectSidecarName)
         guard let data = fileManager.contents(atPath: sidecar.path),
               let path = String(data: data, encoding: .utf8), !path.isEmpty else { return false }
 
+        let components = URL(fileURLWithPath: path).pathComponents
+        if components.count > 2, components[1] == "Volumes",
+           !fileManager.fileExists(atPath: "/Volumes/\(components[2])")
+        {
+            return false
+        }
         return !fileManager.fileExists(atPath: path)
     }
 
     private static func isMissing(_ error: Error) -> Bool {
         let nsError = error as NSError
-        return nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileNoSuchFileError
+        return (nsError.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(nsError.code))
+            || (nsError.domain == NSPOSIXErrorDomain && nsError.code == Int(ENOENT))
     }
 
     private static func directorySize(_ url: URL, fileManager: FileManager) -> Int64 {

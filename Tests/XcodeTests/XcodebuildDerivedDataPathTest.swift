@@ -5,6 +5,7 @@
     @testable import ProjectDrivers
     import Shared
     import SystemPackage
+    import TestShared
     @testable import XcodeSupport
     import XCTest
 
@@ -33,7 +34,7 @@
 
         private func makeXcodebuild() -> (Xcodebuild, RecordingShell) {
             let shell = RecordingShell()
-            return (Xcodebuild(shell: shell, logger: logger), shell)
+            return (Xcodebuild(shell: shell, logger: logger, cacheDirectory: TestCacheDirectory.path), shell)
         }
 
         private func derivedDataPath(
@@ -92,7 +93,7 @@
 
             let path = try derivedDataPath()
 
-            let expected = try Constants.cachePath().appending("DerivedData-\(version)-\(projectHash)-\(schemesHash)").string
+            let expected = TestCacheDirectory.path.appending("DerivedData-\(version)-\(projectHash)-\(schemesHash)").string
             XCTAssertEqual(path, expected)
         }
 

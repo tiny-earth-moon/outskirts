@@ -17,19 +17,22 @@
         private let shell: Shell
         /// The builds of the `variants` setting, resolved once.
         private var resolvedVariants: [XcodeBuildVariant]?
+        /// The DerivedData folders of this scan, locked so that concurrent scans never evict them.
+        private let cacheLease = CacheLease()
 
         public convenience init(
             projectPath: FilePath,
             configuration: Configuration,
             shell: Shell,
-            logger: Logger
+            logger: Logger,
+            cacheDirectory: FilePath? = nil
         ) throws {
             if configuration.outputFormat.supportsAuxiliaryOutput {
                 let asterisk = logger.colorize("*", .boldGreen)
                 logger.info("\(asterisk) Inspecting project...")
             }
 
-            let xcodebuild = Xcodebuild(shell: shell, logger: logger)
+            let xcodebuild = Xcodebuild(shell: shell, logger: logger, cacheDirectory: cacheDirectory)
 
             guard !configuration.schemes.isEmpty else {
                 throw PeripheryError.usageError("The '--schemes' option is required.")
@@ -162,6 +165,7 @@
             if configuration.cleanBuild {
                 try xcodebuild.removeDerivedData(for: project, allSchemes: Array(schemes), buildArguments: configuration.buildArguments)
             }
+            holdCache(buildArguments: configuration.buildArguments, creating: true)
 
             for scheme in schemes {
                 if configuration.outputFormat.supportsAuxiliaryOutput {
@@ -177,6 +181,12 @@
         }
 
         public func plan(logger: ContextualLogger) throws -> IndexPlan {
+            if configuration.indexStorePath.isEmpty {
+                for buildArguments in try buildArgumentsOfEachBuild() {
+                    holdCache(buildArguments: buildArguments, creating: false)
+                }
+            }
+
             let indexStorePaths: Set<FilePath> = if !configuration.indexStorePath.isEmpty {
                 Set(configuration.indexStorePath)
             } else {
@@ -186,17 +196,13 @@
             }
 
             if configuration.indexStorePath.isEmpty {
-                let evicted = try xcodebuild.refreshCache(
+                try xcodebuild.refreshCache(
                     project: project,
                     schemes: Array(schemes),
                     buildArgumentsOfEachBuild: buildArgumentsOfEachBuild(),
                     maxAgeDays: configuration.cacheMaxAgeDays,
                     maxSizeGB: configuration.cacheMaxSizeGB
-                )
-                for entry in evicted {
-                    let size = ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .file)
-                    self.logger.info("Evicted unused build cache \(entry.name) (\(size))")
-                }
+                ).report(to: self.logger)
             }
 
             let targets = project.targets
@@ -236,6 +242,15 @@
 
         // MARK: - Private
 
+        /// Holds the DerivedData folder of a build. A failure is a warning: the cache housekeeping never fails the scan.
+        private func holdCache(buildArguments: [String], creating: Bool) {
+            do {
+                try xcodebuild.holdCache(cacheLease, project: project, schemes: Array(schemes), buildArguments: buildArguments, creating: creating)
+            } catch {
+                logger.warn("Could not lock the build cache folder of this scan: \(error.localizedDescription)")
+            }
+        }
+
         /// One build of the schemes per variant, one after the other: concurrent builds would multiply the memory needed.
         private func buildVariants() throws {
             for variant in try variants() {
@@ -243,6 +258,7 @@
                 if configuration.cleanBuild {
                     try xcodebuild.removeDerivedData(for: project, allSchemes: Array(schemes), buildArguments: buildArguments)
                 }
+                holdCache(buildArguments: buildArguments, creating: true)
 
                 for scheme in schemes {
                     if configuration.outputFormat.supportsAuxiliaryOutput {

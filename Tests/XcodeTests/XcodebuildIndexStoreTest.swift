@@ -2,6 +2,7 @@ import Foundation
 import Logger
 import Shared
 import SystemPackage
+import TestShared
 @testable import XcodeSupport
 import XCTest
 
@@ -16,7 +17,7 @@ final class XcodebuildIndexStoreTest: XCTestCase {
         let tmp = FilePath(NSTemporaryDirectory()).appending("periphery-index-store-\(UUID().uuidString)")
         try FileManager.default.createDirectory(atPath: tmp.string, withIntermediateDirectories: true)
         root = tmp
-        xcodebuild = Xcodebuild(shell: shell, logger: logger)
+        xcodebuild = Xcodebuild(shell: shell, logger: logger, cacheDirectory: TestCacheDirectory.path)
         var loaded: Set<FilePath> = []
         project = try XcodeProject(path: UIKitProjectPath, loadedProjectPaths: &loaded, xcodebuild: xcodebuild, shell: shell, logger: logger)
     }

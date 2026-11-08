@@ -11,7 +11,8 @@ class XcodeSourceGraphTestCase: SourceGraphTestCase {
                 projectPath: projectPath,
                 configuration: configuration,
                 shell: shell,
-                logger: logger
+                logger: logger,
+                cacheDirectory: TestCacheDirectory.path
             )
             try! driver.build()
             plan = try! driver.plan(logger: logger.contextualized(with: "index"))
