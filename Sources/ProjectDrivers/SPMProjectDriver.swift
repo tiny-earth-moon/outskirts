@@ -148,7 +148,7 @@ extension SPMProjectDriver: ProjectDriver {
             logger: logger,
             configuration: configuration
         )
-        let (sourceFiles, indexExcludedSourceFiles) = try collector.collectWithIndexExcludedFiles()
+        let (sourceFiles, indexExcludedSourceFiles, unreadableUnits) = try collector.collectWithIndexExcludedFiles()
         let xibPaths = projectFiles(of: .interfaceBuilder, from: description)
         let xcDataModelPaths = projectFiles(of: .xcDataModel, from: description)
         let xcStringsPaths = projectFiles(of: .xcStrings, from: description)
@@ -161,6 +161,7 @@ extension SPMProjectDriver: ProjectDriver {
             xcStringsPaths: xcStringsPaths,
             xcStringsModules: projectFileModules(of: .xcStrings, from: description),
             expectedSourceFiles: expectedSourceFiles(from: description, excluding: excludedTestTargets),
+            unreadableUnits: unreadableUnits,
             indexStorePaths: indexStorePaths
         )
     }

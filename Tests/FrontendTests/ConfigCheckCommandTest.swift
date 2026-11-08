@@ -147,7 +147,8 @@ final class ConfigCheckCommandTest: XCTestCase {
         let printed = try run(["config", "migrate"], [])
 
         XCTAssertEqual(printed.status, 0, printed.stderr)
-        XCTAssertTrue(printed.stdout.contains("version: 2\nexclude:\n"), printed.stdout)
+        XCTAssertTrue(printed.stdout.contains("version: 2\nrules:\n"), printed.stdout)
+        XCTAssertFalse(printed.stdout.contains("exclude:"), printed.stdout)
         XCTAssertTrue(printed.stdout.contains("rules:\n  unused-import: off\n"), printed.stdout)
         XCTAssertTrue(printed.stdout.contains("report:\n  # Gate.\n  strict: true\n"), printed.stdout)
         XCTAssertEqual(try String(contentsOf: directory.appendingPathComponent(".outskirts.yml"), encoding: .utf8), v1, "the file is untouched without --apply")

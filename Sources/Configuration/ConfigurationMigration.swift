@@ -6,7 +6,7 @@ import Yams
 
 public extension Configuration {
     /// The configuration v2 equivalent of a v1 file, which loads into the same settings. The values are kept as
-    /// written, `index_exclude` is written with its default globs and `index_defaults: false`, and the relative globs
+    /// written, `exclude.index_defaults` is left out as v1 always keeps the default globs, and the relative globs
     /// are rewritten from `projectRoot` to the directory of the file, which v2 resolves them from. Comments are kept:
     /// those above an option and at the end of its line move with it, those inside a value move above it, the header
     /// stays at the top, and the schema comment points to the v2 schema. A file that warns, or already declares
@@ -26,7 +26,8 @@ public extension Configuration {
         }
 
         var warnings: [String] = []
-        try Configuration().load(from: path) { warnings.append($0) }
+        let v1 = Configuration()
+        try v1.load(from: path) { warnings.append($0) }
         guard warnings.isEmpty else {
             throw PeripheryError.usageError("Fix the configuration before migrating it:\n" + warnings.joined(separator: "\n"))
         }
@@ -39,10 +40,16 @@ public extension Configuration {
         comments.header.insert(v2SchemaComment, at: 0)
         let migrated = try ConfigurationV2Writer.render(entries, comments: comments)
 
+        let v2 = Configuration()
         do {
-            try Configuration().loadV2(yaml: migrated, path: path)
+            try v2.loadV2(yaml: migrated, path: path)
         } catch let error as ConfigurationFileError {
             throw PeripheryError.usageError("The migrated configuration does not load, please report it:\n" + error.problems.joined(separator: "\n"))
+        }
+
+        let differences = ConfigurationMigration.differences(v1: v1, anchoredTo: projectRoot, v2: v2)
+        guard differences.isEmpty else {
+            throw PeripheryError.usageError("The migrated configuration differs from \(path.string), please report it:\n" + differences.joined(separator: "\n"))
         }
 
         return migrated
@@ -54,7 +61,7 @@ enum ConfigurationMigration {
     static let globKeys: Set = ["index_exclude", "report_exclude", "report_include", "retain_files", "localized_string_catalog_exclude"]
 
     /// The values of the v1 keys of a file, as written, read the way the v1 loader reads them: `retain_public` with a
-    /// list is `retain_public_modules`, and `index_exclude` holds its default globs first.
+    /// list is `retain_public_modules`. `index_exclude` is kept as written: v2 adds the default globs as v1 does.
     static func v1Values(of mapping: Node.Mapping?, rebase: @escaping (String) -> String) throws -> [String: Node] {
         var values: [String: Node] = [:]
 
@@ -72,12 +79,40 @@ enum ConfigurationMigration {
             }
         }
 
-        let defaults = Configuration().$indexExclude.defaultValue
-        let given = values["index_exclude"].map(strings) ?? []
-        let globs = defaults + given.filter { !defaults.contains($0) }
-        values["index_exclude"] = .sequence(.init(globs.map { Node($0) }))
-
         return values
+    }
+
+    /// The settings that a v1 configuration and its migration set differently, the v1 globs anchored to `root` as v2
+    /// anchors its globs to the directory of the file. `index_exclude` is compared as a set, and the platform
+    /// conditional retention by the retention it resolves to.
+    static func differences(v1: Configuration, anchoredTo root: FilePath, v2: Configuration) -> [String] {
+        let anchor = { (glob: String) in Configuration.anchor(glob, to: root) }
+        v1.indexExclude = v1.indexExclude.map(anchor)
+        v1.reportInclude = v1.reportInclude.map(anchor)
+        v1.retainFiles = v1.retainFiles.map(anchor)
+        v1.localizedStringCatalogExclude = v1.localizedStringCatalogExclude.map(anchor)
+        v1.reportExclude = v1.reportExclude.map { entry in
+            switch entry {
+            case let .pattern(glob): .pattern(anchor(glob))
+            case let .scoped(path, kinds): .scoped(path: anchor(path), kinds: kinds)
+            case .malformed: entry
+            }
+        }
+
+        func effective(_ configuration: Configuration) -> [String: String] {
+            Dictionary(uniqueKeysWithValues: configuration.settings.map { setting in
+                if ["disable_platform_conditional_retention", "platform_conditional_retention"].contains(setting.key) {
+                    return (setting.key, "\(configuration.resolvedPlatformConditionalRetention)")
+                }
+                if setting.key == "index_exclude", let globs = setting.wrappedValue as? [String] {
+                    return (setting.key, "\(Set(globs).sorted())")
+                }
+                return (setting.key, "\(setting.wrappedValue)")
+            })
+        }
+
+        let (lhs, rhs) = (effective(v1), effective(v2))
+        return lhs.keys.sorted().filter { lhs[$0] != rhs[$0] }.map { "\($0): \(lhs[$0] ?? "") became \(rhs[$0] ?? "")" }
     }
 
     /// Rewrites a glob relative to `root` as relative to `directory`; a glob that starts with `/` or `*` is kept, as v2
@@ -176,13 +211,6 @@ enum ConfigurationMigration {
     }
 
     // MARK: - Private
-
-    private static func strings(_ node: Node) -> [String] {
-        if let string = node.string {
-            return [string]
-        }
-        return node.sequence?.compactMap(\.string) ?? []
-    }
 
     /// A glob value with its globs rebased: a glob (also `<glob>:kinds`), the `path` of a mapping, or a list of them.
     private static func rebasing(_ node: Node, with rebase: (String) -> String) -> Node {

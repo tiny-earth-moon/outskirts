@@ -6,12 +6,13 @@ import SystemPackage
 import XCTest
 
 /// Pins which files count as clients outside the declaring module for the redundant public and redundant open
-/// analyses: a file of another module that does not `@testable import` the declaring module. Files may belong to
+/// analyses: a file of another module that is not a test file `@testable import`ing the declaring module. Files may belong to
 /// several modules, and so may the declaration.
 final class CrossModuleClientAccessibilityTest: XCTestCase {
     private struct Client {
         let modules: Set<String>
         var testableImports: [String] = []
+        var isTestFile = true
     }
 
     private static let cases: [(declModules: Set<String>, client: Client, isCrossModule: Bool)] = [
@@ -25,6 +26,9 @@ final class CrossModuleClientAccessibilityTest: XCTestCase {
         (["A", "B"], Client(modules: ["C"]), true),
         (["A", "B"], Client(modules: ["C"], testableImports: ["B"]), false),
         (["A", "B"], Client(modules: ["B", "C"]), true),
+        (["A"], Client(modules: ["B"], testableImports: ["A"], isTestFile: false), true),
+        (["A"], Client(modules: ["A", "B"], testableImports: ["A"], isTestFile: false), true),
+        (["A"], Client(modules: ["A"], testableImports: ["A"], isTestFile: false), false),
     ]
 
     private var swiftVersion: SwiftVersion!
@@ -105,10 +109,11 @@ final class CrossModuleClientAccessibilityTest: XCTestCase {
         let path = "\(client == nil ? "Decl" : "Client")\(modules.sorted().joined()).swift"
         let file = SourceFile(path: FilePath(path), modules: modules)
         let location = Location(file: file, line: 1, column: 1)
-        file.importStatements = (client?.testableImports ?? []).map {
+        let imports = (client?.testableImports ?? []).map { ($0, true) } + (client?.isTestFile == true ? [("XCTest", false)] : [])
+        file.importStatements = imports.map {
             ImportStatement(
-                module: $0,
-                isTestable: true,
+                module: $0.0,
+                isTestable: $0.1,
                 isExported: false,
                 isConditional: false,
                 location: location,

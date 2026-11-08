@@ -1924,6 +1924,14 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    func testRetainsPropertyWrapperEnclosingInstanceSubscript() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureEnclosingInstanceWrapper")) {
+                self.assertReferenced(.functionSubscript("subscript(_enclosingInstance:wrapped:storage:)"))
+            }
+        }
+    }
+
     func testRetainsPropertyWrappers() {
         analyze(retainPublic: true) {
             assertReferenced(.class("Fixture111")) {

@@ -5,6 +5,7 @@ import Shared
 final class PropertyWrapperRetainer: SourceGraphMutator {
     private let graph: SourceGraph
     private let specialProperties = ["wrappedValue", "projectedValue"]
+    private let enclosingInstanceSubscriptName = "subscript(_enclosingInstance:wrapped:storage:)"
     private let parameterWrapperInitializerPrefixes = ["init(wrappedValue:", "init(projectedValue:"]
 
     required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
@@ -15,6 +16,12 @@ final class PropertyWrapperRetainer: SourceGraphMutator {
         for decl in graph.declarations(ofKinds: Declaration.Kind.toplevelAttributableKind) where decl.attributes.contains(where: { $0.name == "propertyWrapper" }) {
             decl.declarations
                 .filter { $0.kind == .varInstance && specialProperties.contains($0.name) }
+                .forEach { graph.markRetained($0, reason: RetentionReason(Self.self, "property wrapper requirement")) }
+
+            // The compiler reads and writes a wrapped property of a class through this static subscript, and the
+            // index store records no reference to it.
+            decl.declarations
+                .filter { $0.kind == .functionSubscript && $0.name == enclosingInstanceSubscriptName }
                 .forEach { graph.markRetained($0, reason: RetentionReason(Self.self, "property wrapper requirement")) }
 
             // A wrapper applied to a parameter is initialized by the compiler at every call site, from the argument

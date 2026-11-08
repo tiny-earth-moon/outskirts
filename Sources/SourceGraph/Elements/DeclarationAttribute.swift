@@ -1,4 +1,4 @@
-public struct DeclarationAttribute: Hashable, CustomStringConvertible {
+public struct DeclarationAttribute: Hashable, Sendable, CustomStringConvertible {
     let name: String
     let arguments: String?
 
@@ -6,6 +6,10 @@ public struct DeclarationAttribute: Hashable, CustomStringConvertible {
         self.name = name
         self.arguments = arguments
     }
+
+    /// Marks a Metal function attributed with `[[stitchable]]` or `[[visible]]`, which a client of the library may
+    /// look up by name.
+    public static let metalExported = DeclarationAttribute(name: "metal_exported", arguments: nil)
 
     public var description: String {
         if let arguments {

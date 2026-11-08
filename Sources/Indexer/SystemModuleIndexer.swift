@@ -43,8 +43,14 @@ final class SystemModuleIndexer {
 
         for storePath in indexStorePaths {
             let store = try IndexStore(path: storePath.string)
+            let (units, unreadable) = store.readUnits()
 
-            for unit in store.units where unit.isSystem {
+            // The source file collector reports unreadable units; a system one only loses import precision.
+            if !unreadable.isEmpty {
+                logger.debug("Unreadable units in \(storePath.string): \(unreadable.joined(separator: ", "))")
+            }
+
+            for unit in units where unit.isSystem {
                 let module = Self.topLevelModule(unit.moduleName)
                 guard !module.isEmpty else { continue }
 

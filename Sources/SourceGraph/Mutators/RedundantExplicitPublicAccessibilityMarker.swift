@@ -222,10 +222,10 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
                     // Property wrappers and result builders are applied as attributes, which cannot be
                     // expressed through a publicly exposable reference role.
                     return $0.parent
-                } else if let parent = $0.parent, parent.attributes.contains(where: { $0.name == "inlinable" }) {
-                    // Declarations referenced within a public @inlinable function must either be
-                    // public or @useableFromInline.
-                    return parent
+                } else if let parent = $0.parent, let inlinedDecl = inlinedDeclaration(containing: parent) {
+                    // Declarations referenced within a public @inlinable, @_alwaysEmitIntoClient or
+                    // @backDeployed body must either be public or @usableFromInline.
+                    return inlinedDecl
                 }
 
                 return nil
@@ -247,6 +247,20 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
             return false
         }
     }
+
+    /// The declaration whose body is emitted into clients and contains `decl`: `decl` itself, or the property or
+    /// subscript of an accessor when either carries the attribute.
+    private func inlinedDeclaration(containing decl: Declaration) -> Declaration? {
+        let owner = decl.kind.isAccessorKind ? decl.parent : nil
+        let isInlined = [decl, owner].compactMap(\.self).contains {
+            $0.attributes.contains { Self.clientEmittedBodyAttributes.contains($0.name) }
+        }
+        guard isInlined else { return nil }
+
+        return owner ?? decl
+    }
+
+    private static let clientEmittedBodyAttributes: Set<String> = ["inlinable", "_alwaysEmitIntoClient", "backDeployed"]
 
     func isReferencedCrossModule(_ decl: Declaration) -> Bool {
         let modules = decl.location.file.modules

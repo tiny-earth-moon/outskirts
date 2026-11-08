@@ -39,6 +39,8 @@ public protocol PeripherySyntaxNodeVisitor: AnyObject {
     func visit(_ node: IdentifierTypeSyntax)
     func visit(_ node: SequenceExprSyntax)
     func visit(_ node: InfixOperatorExprSyntax)
+    func visit(_ node: MemberAccessExprSyntax)
+    func visit(_ node: SubscriptCallExprSyntax)
     func visit(_ node: SwitchCaseItemSyntax)
     func visit(_ node: MatchingPatternConditionSyntax)
     func visit(_ node: ForStmtSyntax)
@@ -56,6 +58,7 @@ public protocol PeripherySyntaxNodeVisitor: AnyObject {
     func visitPost(_ node: InitializerDeclSyntax)
     func visitPost(_ node: DeinitializerDeclSyntax)
     func visitPost(_ node: SubscriptDeclSyntax)
+    func visitPost(_ node: AccessorDeclSyntax)
     func visitPost(_ node: VariableDeclSyntax)
     func visitPost(_ node: TypeAliasDeclSyntax)
     func visitPost(_ node: AssociatedTypeDeclSyntax)
@@ -77,6 +80,8 @@ public extension PeripherySyntaxNodeVisitor {
     func visit(_: IdentifierTypeSyntax) {}
     func visit(_: SequenceExprSyntax) {}
     func visit(_: InfixOperatorExprSyntax) {}
+    func visit(_: MemberAccessExprSyntax) {}
+    func visit(_: SubscriptCallExprSyntax) {}
     func visit(_: SwitchCaseItemSyntax) {}
     func visit(_: MatchingPatternConditionSyntax) {}
     func visit(_: ForStmtSyntax) {}
@@ -122,6 +127,7 @@ public extension PeripherySyntaxNodeVisitor {
     func visitPost(_: InitializerDeclSyntax) {}
     func visitPost(_: DeinitializerDeclSyntax) {}
     func visitPost(_: SubscriptDeclSyntax) {}
+    func visitPost(_: AccessorDeclSyntax) {}
     func visitPost(_: VariableDeclSyntax) {}
     func visitPost(_: TypeAliasDeclSyntax) {}
     func visitPost(_: AssociatedTypeDeclSyntax) {}
@@ -162,6 +168,16 @@ public class ForwardingSyntaxVisitor: SyntaxVisitor {
     }
 
     override public final func visit(_ node: InfixOperatorExprSyntax) -> SyntaxVisitorContinueKind {
+        visitors.forEach { $0.visit(node) }
+        return .visitChildren
+    }
+
+    override public final func visit(_ node: MemberAccessExprSyntax) -> SyntaxVisitorContinueKind {
+        visitors.forEach { $0.visit(node) }
+        return .visitChildren
+    }
+
+    override public final func visit(_ node: SubscriptCallExprSyntax) -> SyntaxVisitorContinueKind {
         visitors.forEach { $0.visit(node) }
         return .visitChildren
     }
@@ -372,6 +388,10 @@ public class ForwardingSyntaxVisitor: SyntaxVisitor {
     }
 
     override public final func visitPost(_ node: SubscriptDeclSyntax) {
+        visitors.forEach { $0.visitPost(node) }
+    }
+
+    override public final func visitPost(_ node: AccessorDeclSyntax) {
         visitors.forEach { $0.visitPost(node) }
     }
 
