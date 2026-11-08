@@ -71,7 +71,7 @@ struct ListRulesCommand: ParsableCommand {
         let overridable: Bool
 
         func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
+            var container = encoder.container(keyedBy: RuleCodingKey.self)
             try container.encode(id, forKey: .id)
             try container.encode(enabledByDefault, forKey: .enabledByDefault)
             try container.encode(v2Key, forKey: .v2Key)
@@ -87,4 +87,13 @@ struct ListRulesCommand: ParsableCommand {
 
         return rule.v1KeyTurnsRuleOff ? "\(key) (true turns it off)" : key
     }
+}
+
+private enum RuleCodingKey: String, CodingKey {
+    case id
+    case enabledByDefault
+    case v2Key
+    case v1Key
+    case v1KeyTurnsRuleOff
+    case overridable
 }
