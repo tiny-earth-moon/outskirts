@@ -56,6 +56,22 @@ With `--format agent`, prints at most this many results, a file entirely unused 
 
 See [Output formats: agent](output-formats.md#agent).
 
+### `--enable-rule`
+
+Since 3.22.0.
+
+Turns a rule on, by its id as `outskirts list-rules` prints it, whatever the format of the configuration file; repeat the option to give several rules. It sets the option of the rule: `--enable-rule missing-final` is `--enable-open-final-analysis`, which also turns `redundant-open` on.
+
+See [Configuration: Rules](configuration.md#rules).
+
+### `--disable-rule`
+
+Since 3.22.0.
+
+Turns a rule off, by its id as `outskirts list-rules` prints it; repeat the option to give several rules. It sets the option of the rule: `--disable-rule unused-import` is `--disable-unused-import-analysis`. A rule always checked cannot be turned off, and giving a rule both values, also through its own option, is an error.
+
+See [Configuration: Rules](configuration.md#rules).
+
 ## Project and build
 
 ### `--project`
@@ -78,7 +94,7 @@ Arguments passed to the underlying build tool (swift build or xcodebuild).
 
 Key `build_arguments` · list of strings · default empty.
 
-See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x).
+See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--variants`
 
@@ -94,7 +110,7 @@ Extra arguments for the 'xcodebuild -list' call that lists schemes (guided setup
 
 Key `xcode_list_arguments` · configuration file only · list of strings · default empty.
 
-See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x), [Configuration: Command line and file](configuration.md#command-line-and-file).
+See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x), [Configuration: Command line and file](configuration.md#command-line-and-file), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--clean-build`
 
@@ -102,7 +118,7 @@ Remove existing build artifacts before building.
 
 Key `clean_build` · flag, `--no-clean-build` to switch off · default `false`.
 
-See [Troubleshooting: Results in the wrong place or false positives in one file](troubleshooting.md#results-in-the-wrong-place-or-false-positives-in-one-file), [Troubleshooting: Variants](troubleshooting.md#variants), [Credits: External contributions](credits.md#external-contributions).
+See [Troubleshooting: Results in the wrong place or false positives in one file](troubleshooting.md#results-in-the-wrong-place-or-false-positives-in-one-file), [Troubleshooting: Variants](troubleshooting.md#variants), [Credits: External contributions](credits.md#external-contributions), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--skip-build`
 
@@ -117,6 +133,8 @@ See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [G
 Do not check that the schemes exist.
 
 Key `skip_schemes_validation` · flag, `--no-skip-schemes-validation` to switch off · default `false`.
+
+See [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--index-store-path`
 
@@ -134,7 +152,7 @@ Fail the scan when a source file is newer than its index data, instead of warnin
 
 Key `strict_index` · flag, `--no-strict-index` to switch off · default `false`.
 
-See [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Troubleshooting: Index data older than its source](troubleshooting.md#index-data-older-than-its-source), [Roadmap: Published](roadmap.md#published).
+See [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Troubleshooting: Index data older than its source](troubleshooting.md#index-data-older-than-its-source), [Roadmap: Published](roadmap.md#published), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--json-package-manifest-path`
 
@@ -142,7 +160,7 @@ Package manifest as JSON (from 'swift package describe --type json', or written 
 
 Key `json_package_manifest_path` · string · default none.
 
-See [Configuration: Paths](configuration.md#paths).
+See [Configuration: Paths](configuration.md#paths), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--generic-project-config`
 
@@ -150,7 +168,7 @@ Project configuration file for other build systems.
 
 Key `generic_project_config` · string · default none.
 
-See [Configuration: Paths](configuration.md#paths), [Fixing results: Options](fixing-results.md#options).
+See [Configuration: Paths](configuration.md#paths), [Fixing results: Options](fixing-results.md#options), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--cache-max-age-days`
 
@@ -158,7 +176,7 @@ Age in days after which unused Xcode build caches are evicted at the end of a sc
 
 Key `cache_max_age_days` · integer · default `14`.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Troubleshooting: Variants](troubleshooting.md#variants).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Troubleshooting: Variants](troubleshooting.md#variants).
 
 ### `--cache-max-size-gb`
 
@@ -166,7 +184,7 @@ Total size in gigabytes above which the least recently used Xcode build caches a
 
 Key `cache_max_size_gb` · integer · default `20`.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Troubleshooting: Variants](troubleshooting.md#variants), [Roadmap: Published](roadmap.md#published).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Troubleshooting: Variants](troubleshooting.md#variants), [Roadmap: Published](roadmap.md#published).
 
 ## Files and scope
 
@@ -176,7 +194,7 @@ Targets to exclude from indexing.
 
 Key `exclude_targets` · list of strings · default empty.
 
-See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation).
+See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--exclude-tests`
 
@@ -184,7 +202,7 @@ Exclude test targets from indexing.
 
 Key `exclude_tests` · flag, `--no-exclude-tests` to switch off · default `false`.
 
-See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files).
+See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--index-exclude`
 
@@ -208,7 +226,7 @@ Source file globs to keep in the results; supersedes report_exclude; the other f
 
 Key `report_include` · list of strings · default empty.
 
-See [Excluding files: Including results](excluding-files.md#including-results), [Continuous integration: Pull request checks](ci.md#pull-request-checks), [Configuration: Paths](configuration.md#paths), [Baselines: Baseline ratchet](baselines.md#baseline-ratchet).
+See [Excluding files: Including results](excluding-files.md#including-results), [Continuous integration: Pull request checks](ci.md#pull-request-checks), [Configuration: Paths](configuration.md#paths), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-files`
 
@@ -232,7 +250,7 @@ With changed_since, report only the results on changed lines.
 
 Key `changed_lines` · flag, `--no-changed-lines` to switch off · default `false`.
 
-See [Continuous integration: Pull request checks](ci.md#pull-request-checks), [Roadmap: Published](roadmap.md#published).
+See [Continuous integration: Pull request checks](ci.md#pull-request-checks), [Roadmap: Published](roadmap.md#published), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ## Analyses
 
@@ -242,7 +260,7 @@ Disable identification of redundant public accessibility.
 
 Key `disable_redundant_public_analysis` · flag, `--no-disable-redundant-public-analysis` to switch off · default `false`.
 
-See [Analysis: Redundant public accessibility](analysis.md#redundant-public-accessibility).
+See [Analysis: Redundant public accessibility](analysis.md#redundant-public-accessibility), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--enable-redundant-public-members`
 
@@ -250,7 +268,7 @@ Also find redundant public accessibility on the members of public types and exte
 
 Key `enable_redundant_public_members` · flag, `--no-enable-redundant-public-members` to switch off · default `false`.
 
-See [Analysis: Public members](analysis.md#public-members).
+See [Analysis: Public members](analysis.md#public-members), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--enable-open-final-analysis`
 
@@ -266,7 +284,7 @@ Find extensions that declare no member and no conformance.
 
 Key `enable_empty_extension_analysis` · flag, `--no-enable-empty-extension-analysis` to switch off · default `false`.
 
-See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Empty extensions](analysis.md#empty-extensions), [Fixing results: Rules](fixing-results.md#rules).
+See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Empty extensions](analysis.md#empty-extensions), [Fixing results: Rules](fixing-results.md#rules), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--enable-redundant-access-level-analysis`
 
@@ -274,7 +292,7 @@ Find access modifiers identical to the default of their enclosing context.
 
 Key `enable_redundant_access_level_analysis` · flag, `--no-enable-redundant-access-level-analysis` to switch off · default `false`.
 
-See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Redundant access levels](analysis.md#redundant-access-levels), [Fixing results: Rules](fixing-results.md#rules).
+See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Redundant access levels](analysis.md#redundant-access-levels), [Fixing results: Rules](fixing-results.md#rules), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--report-unused-type-parameters`
 
@@ -282,7 +300,7 @@ Also report unused generic parameters of types, ignored by default as they may b
 
 Key `report_unused_type_parameters` · flag, `--no-report-unused-type-parameters` to switch off · default `false`.
 
-See [Analysis: Generic type parameters](analysis.md#generic-type-parameters), [Roadmap: Published](roadmap.md#published).
+See [Analysis: Generic type parameters](analysis.md#generic-type-parameters), [Roadmap: Published](roadmap.md#published), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--enable-unassigned-optional-analysis`
 
@@ -290,7 +308,7 @@ Find optional properties that are read but never assigned (always nil).
 
 Key `enable_unassigned_optional_analysis` · flag, `--no-enable-unassigned-optional-analysis` to switch off · default `false`.
 
-See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Unassigned optional properties](analysis.md#unassigned-optional-properties).
+See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Unassigned optional properties](analysis.md#unassigned-optional-properties), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--enable-unconstructed-enum-case-analysis`
 
@@ -300,7 +318,7 @@ Find enum cases that are only matched in patterns and never constructed.
 
 Key `enable_unconstructed_enum_case_analysis` · flag, `--no-enable-unconstructed-enum-case-analysis` to switch off · default `false`.
 
-See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Unconstructed enum cases](analysis.md#unconstructed-enum-cases).
+See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Unconstructed enum cases](analysis.md#unconstructed-enum-cases), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--disable-unused-import-analysis`
 
@@ -308,7 +326,7 @@ Turn off the analysis of unused imports.
 
 Key `disable_unused_import_analysis` · flag, `--no-disable-unused-import-analysis` to switch off · default `false`.
 
-See [Analysis: Unused imports](analysis.md#unused-imports), [Analysis: Mixed Swift and Objective-C targets](analysis.md#mixed-swift-and-objective-c-targets).
+See [Configuration: Rules](configuration.md#rules), [Analysis: Unused imports](analysis.md#unused-imports), [Analysis: Mixed Swift and Objective-C targets](analysis.md#mixed-swift-and-objective-c-targets), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--enable-unused-system-imports`
 
@@ -316,7 +334,7 @@ Also analyze imports of system frameworks (experimental).
 
 Key `enable_unused_system_imports` · flag, `--no-enable-unused-system-imports` to switch off · default `false`.
 
-See [Analysis: System framework imports](analysis.md#system-framework-imports), [Framework conventions and retention: Platform conditionals](framework-conventions.md#platform-conditionals).
+See [Analysis: System framework imports](analysis.md#system-framework-imports), [Framework conventions and retention: Platform conditionals](framework-conventions.md#platform-conditionals), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--superfluous-ignore-comments`
 
@@ -324,7 +342,7 @@ Report ignore comments that ignore nothing.
 
 Key `superfluous_ignore_comments` · flag, `--no-superfluous-ignore-comments` to switch off · default `true`.
 
-See [Analysis: Superfluous ignore comments](analysis.md#superfluous-ignore-comments), [Fixing results: Rules](fixing-results.md#rules).
+See [Analysis: Superfluous ignore comments](analysis.md#superfluous-ignore-comments), [Fixing results: Rules](fixing-results.md#rules), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--disable-platform-conditional-retention`
 
@@ -332,7 +350,7 @@ Do not retain declarations unavailable on a platform or referenced from platform
 
 Key `disable_platform_conditional_retention` · flag, `--no-disable-platform-conditional-retention` to switch off · default `false`.
 
-See [Framework conventions and retention: Platform conditionals](framework-conventions.md#platform-conditionals), [Troubleshooting: Scanning several platforms or configurations](troubleshooting.md#scanning-several-platforms-or-configurations).
+See [Framework conventions and retention: Platform conditionals](framework-conventions.md#platform-conditionals), [Troubleshooting: Scanning several platforms or configurations](troubleshooting.md#scanning-several-platforms-or-configurations), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--platform-conditional-retention`
 
@@ -342,7 +360,7 @@ How declarations possibly used by a build missing from the index are retained: '
 
 Key `platform_conditional_retention` · one of `auto`, `all-clauses`, `off` · default `all-clauses`.
 
-See [Framework conventions and retention: Platform conditionals](framework-conventions.md#platform-conditionals), [Troubleshooting: Scanning several platforms or configurations](troubleshooting.md#scanning-several-platforms-or-configurations), [Troubleshooting: Variants](troubleshooting.md#variants), [Troubleshooting: Retaining only what the missing builds may use](troubleshooting.md#retaining-only-what-the-missing-builds-may-use).
+See [Framework conventions and retention: Platform conditionals](framework-conventions.md#platform-conditionals), [Troubleshooting: Scanning several platforms or configurations](troubleshooting.md#scanning-several-platforms-or-configurations), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Troubleshooting: Variants](troubleshooting.md#variants).
 
 ### `--detect-unused-asset-catalog-colors`
 
@@ -350,7 +368,7 @@ Find unused colors of Xcode asset catalogs.
 
 Key `detect_unused_asset_catalog_colors` · flag, `--no-detect-unused-asset-catalog-colors` to switch off · default `false`.
 
-See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Asset catalog colors](analysis.md#asset-catalog-colors).
+See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Asset catalog colors](analysis.md#asset-catalog-colors), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--detect-unused-asset-catalog-images`
 
@@ -358,7 +376,7 @@ Find unused images of Xcode asset catalogs.
 
 Key `detect_unused_asset_catalog_images` · flag, `--no-detect-unused-asset-catalog-images` to switch off · default `false`.
 
-See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Asset catalog images](analysis.md#asset-catalog-images).
+See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Asset catalog images](analysis.md#asset-catalog-images), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--detect-unused-metal-functions`
 
@@ -366,7 +384,7 @@ Find Metal functions that no Swift string literal names, and literals naming a M
 
 Key `detect_unused_metal_functions` · flag, `--no-detect-unused-metal-functions` to switch off · default `false`.
 
-See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Metal functions](analysis.md#metal-functions), [Roadmap: Published](roadmap.md#published).
+See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Metal functions](analysis.md#metal-functions), [Roadmap: Published](roadmap.md#published), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ## Localized strings
 
@@ -376,7 +394,7 @@ Turn off the analysis of unused String Catalog (xcstrings) keys.
 
 Key `disable_unused_localized_string_analysis` · flag, `--no-disable-unused-localized-string-analysis` to switch off · default `false`.
 
-See [Analysis: Unused localized strings](analysis.md#unused-localized-strings).
+See [Analysis: Unused localized strings](analysis.md#unused-localized-strings), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--localized-string-catalog-exclude`
 
@@ -384,7 +402,7 @@ String Catalog globs left out of the localized strings analysis.
 
 Key `localized_string_catalog_exclude` · list of strings · default `**/InfoPlist.xcstrings`, `**/AppShortcuts.xcstrings`.
 
-See [Analysis: Excluding catalogues](analysis.md#excluding-catalogues), [Excluding files: String Catalogs](excluding-files.md#string-catalogs), [Analysis: Literal matching](analysis.md#literal-matching).
+See [Analysis: Excluding catalogues](analysis.md#excluding-catalogues), [Excluding files: String Catalogs](excluding-files.md#string-catalogs), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Analysis: Literal matching](analysis.md#literal-matching).
 
 ### `--localized-string-key-patterns`
 
@@ -392,7 +410,7 @@ Key patterns (globs, or regular expressions between slashes) of keys used dynami
 
 Key `localized_string_key_patterns` · list of strings · default empty.
 
-See [Analysis: Key patterns](analysis.md#key-patterns), [Analysis: Keys built at runtime](analysis.md#keys-built-at-runtime), [Analysis: Literal matching](analysis.md#literal-matching).
+See [Analysis: Key patterns](analysis.md#key-patterns), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Analysis: Keys built at runtime](analysis.md#keys-built-at-runtime), [Analysis: Literal matching](analysis.md#literal-matching).
 
 ### `--localized-string-key-literal-match`
 
@@ -400,7 +418,7 @@ Retain localized string keys equal to any string literal of the source.
 
 Key `localized_string_key_literal_match` · flag, `--no-localized-string-key-literal-match` to switch off · default `false`.
 
-See [Analysis: Literal matching](analysis.md#literal-matching).
+See [Analysis: Literal matching](analysis.md#literal-matching), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-runtime-localized-keys`
 
@@ -408,7 +426,7 @@ Retain every key that a localized string key built at runtime without a literal 
 
 Key `retain_runtime_localized_keys` · flag, `--no-retain-runtime-localized-keys` to switch off · default `false`.
 
-See [Analysis: Keys built at runtime](analysis.md#keys-built-at-runtime).
+See [Analysis: Keys built at runtime](analysis.md#keys-built-at-runtime), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ## Retention
 
@@ -428,7 +446,7 @@ Modules whose public declarations are retained, for packages that mix libraries 
 
 Key `retain_public_modules` · list of strings · default empty.
 
-See [Getting started: Quick start](getting-started.md#quick-start), [Analysis: Unconstructed enum cases](analysis.md#unconstructed-enum-cases), [Framework conventions and retention: SPI](framework-conventions.md#spi).
+See [Getting started: Quick start](getting-started.md#quick-start), [Analysis: Unconstructed enum cases](analysis.md#unconstructed-enum-cases), [Framework conventions and retention: SPI](framework-conventions.md#spi), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--no-retain-spi`
 
@@ -436,7 +454,7 @@ Public SPIs to analyze even when retain_public or retain_public_modules is enabl
 
 Key `no_retain_spi` · list of strings · default empty.
 
-See [Framework conventions and retention: SPI](framework-conventions.md#spi).
+See [Framework conventions and retention: SPI](framework-conventions.md#spi), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-assign-only-properties`
 
@@ -444,7 +462,7 @@ Retain properties that are assigned but never read.
 
 Key `retain_assign_only_properties` · flag, `--no-retain-assign-only-properties` to switch off · default `false`.
 
-See [Analysis: Assign-only properties](analysis.md#assign-only-properties).
+See [Analysis: Assign-only properties](analysis.md#assign-only-properties), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-assign-only-property-types`
 
@@ -452,7 +470,7 @@ Property types to retain when assigned but never read.
 
 Key `retain_assign_only_property_types` · list of strings · default empty.
 
-See [Analysis: Assign-only properties](analysis.md#assign-only-properties).
+See [Analysis: Assign-only properties](analysis.md#assign-only-properties), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-objc-accessible`
 
@@ -468,7 +486,7 @@ Retain declarations exposed to Objective-C with @objc / @objcMembers only.
 
 Key `retain_objc_annotated` · flag, `--no-retain-objc-annotated` to switch off · default `false`.
 
-See [Framework conventions and retention: Objective-C](framework-conventions.md#objective-c), [FAQ: Does it analyze Objective-C?](faq.md#does-it-analyze-objective-c).
+See [Framework conventions and retention: Objective-C](framework-conventions.md#objective-c), [FAQ: Does it analyze Objective-C?](faq.md#does-it-analyze-objective-c), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-js-accessible`
 
@@ -476,7 +494,7 @@ Retain protocols that inherit JSExport, their members and the members of conform
 
 Key `retain_js_accessible` · flag, `--no-retain-js-accessible` to switch off · default `false`.
 
-See [Framework conventions and retention: JavaScriptCore](framework-conventions.md#javascriptcore).
+See [Framework conventions and retention: JavaScriptCore](framework-conventions.md#javascriptcore), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-unused-protocol-func-params`
 
@@ -484,7 +502,7 @@ Retain unused protocol function parameters, even if unused in all conforming fun
 
 Key `retain_unused_protocol_func_params` · flag, `--no-retain-unused-protocol-func-params` to switch off · default `false`.
 
-See [Analysis: Protocol function parameters](analysis.md#protocol-function-parameters).
+See [Analysis: Protocol function parameters](analysis.md#protocol-function-parameters), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-unused-parameters-without-default`
 
@@ -492,7 +510,7 @@ Retain unused function parameters that have no default value.
 
 Key `retain_unused_parameters_without_default` · flag, `--no-retain-unused-parameters-without-default` to switch off · default `false`.
 
-See [Framework conventions and retention: Unused parameters without a default value](framework-conventions.md#unused-parameters-without-a-default-value).
+See [Framework conventions and retention: Unused parameters without a default value](framework-conventions.md#unused-parameters-without-a-default-value), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-swift-ui-previews`
 
@@ -500,7 +518,7 @@ Retain SwiftUI previews.
 
 Key `retain_swift_ui_previews` · flag, `--no-retain-swift-ui-previews` to switch off · default `false`.
 
-See [Framework conventions and retention: SwiftUI](framework-conventions.md#swiftui).
+See [Framework conventions and retention: SwiftUI](framework-conventions.md#swiftui), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-unused-imported-modules`
 
@@ -508,7 +526,7 @@ Names of imported modules to retain even when unused.
 
 Key `retain_unused_imported_modules` · list of strings · default empty.
 
-See [Analysis: Unused imports](analysis.md#unused-imports), [Analysis: System framework imports](analysis.md#system-framework-imports).
+See [Analysis: Unused imports](analysis.md#unused-imports), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Analysis: System framework imports](analysis.md#system-framework-imports).
 
 ### `--external-encodable-protocols`
 
@@ -516,7 +534,7 @@ External protocols that inherit Encodable; the properties and CodingKey enums of
 
 Key `external_encodable_protocols` · list of strings · default empty.
 
-See [Framework conventions and retention: Codable](framework-conventions.md#codable).
+See [Framework conventions and retention: Codable](framework-conventions.md#codable), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--external-codable-protocols`
 
@@ -524,7 +542,7 @@ External protocols that inherit Codable; the properties and CodingKey enums of c
 
 Key `external_codable_protocols` · list of strings · default empty.
 
-See [Framework conventions and retention: Codable](framework-conventions.md#codable).
+See [Framework conventions and retention: Codable](framework-conventions.md#codable), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--external-test-case-classes`
 
@@ -532,7 +550,7 @@ XCTestCase subclasses that live in external targets.
 
 Key `external_test_case_classes` · list of strings · default empty.
 
-See [Framework conventions and retention: XCTestCase](framework-conventions.md#xctestcase).
+See [Framework conventions and retention: XCTestCase](framework-conventions.md#xctestcase), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-codable-properties`
 
@@ -540,7 +558,7 @@ Retain properties on Codable types (including Encodable and Decodable).
 
 Key `retain_codable_properties` · flag, `--no-retain-codable-properties` to switch off · default `false`.
 
-See [Framework conventions and retention: Codable](framework-conventions.md#codable).
+See [Framework conventions and retention: Codable](framework-conventions.md#codable), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-encodable-properties`
 
@@ -548,7 +566,7 @@ Retain properties on Encodable types only.
 
 Key `retain_encodable_properties` · flag, `--no-retain-encodable-properties` to switch off · default `false`.
 
-See [Framework conventions and retention: Codable](framework-conventions.md#codable).
+See [Framework conventions and retention: Codable](framework-conventions.md#codable), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-equatable-properties`
 
@@ -556,7 +574,7 @@ Retain properties on Equatable types, including Hashable types.
 
 Key `retain_equatable_properties` · flag, `--no-retain-equatable-properties` to switch off · default `false`.
 
-See [Framework conventions and retention: Equatable and Hashable](framework-conventions.md#equatable-and-hashable).
+See [Framework conventions and retention: Equatable and Hashable](framework-conventions.md#equatable-and-hashable), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-hashable-properties`
 
@@ -564,7 +582,7 @@ Retain properties on Hashable types.
 
 Key `retain_hashable_properties` · flag, `--no-retain-hashable-properties` to switch off · default `false`.
 
-See [Framework conventions and retention: Equatable and Hashable](framework-conventions.md#equatable-and-hashable).
+See [Framework conventions and retention: Equatable and Hashable](framework-conventions.md#equatable-and-hashable), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-synthesized-uses`
 
@@ -572,7 +590,7 @@ Retain stored properties of types whose values are described through reflection 
 
 Key `retain_synthesized_uses` · flag, `--no-retain-synthesized-uses` to switch off · default `false`.
 
-See [Framework conventions and retention: Synthesized uses](framework-conventions.md#synthesized-uses), [Framework conventions and retention: Equatable and Hashable](framework-conventions.md#equatable-and-hashable).
+See [Framework conventions and retention: Synthesized uses](framework-conventions.md#synthesized-uses), [Framework conventions and retention: Equatable and Hashable](framework-conventions.md#equatable-and-hashable), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--retain-attributes`
 
@@ -580,7 +598,7 @@ Retain declarations that have one of the given attributes (without the @), optio
 
 Key `retain_attributes` · list of strings · default empty.
 
-See [Framework conventions and retention: Retaining by attribute](framework-conventions.md#retaining-by-attribute), [Comment commands: Other ways to keep code](comment-commands.md#other-ways-to-keep-code), [Configuration: Checking a configuration file](configuration.md#checking-a-configuration-file).
+See [Framework conventions and retention: Retaining by attribute](framework-conventions.md#retaining-by-attribute), [Comment commands: Other ways to keep code](comment-commands.md#other-ways-to-keep-code), [Configuration: Checking a configuration file](configuration.md#checking-a-configuration-file), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ## Output
 
@@ -664,7 +682,7 @@ Exit status contract: v1 exits with status 1 on any failure, v2 tells findings (
 
 Key `exit_codes` · one of `v1`, `v2` · default `v1`.
 
-See [Getting started: Exit status](getting-started.md#exit-status), [Continuous integration: Quiet reports](ci.md#quiet-reports).
+See [Getting started: Exit status](getting-started.md#exit-status), [Continuous integration: Quiet reports](ci.md#quiet-reports), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--disable-update-check`
 
@@ -672,7 +690,7 @@ Do not check for a new version.
 
 Key `disable_update_check` · flag, `--no-disable-update-check` to switch off · default `false`.
 
-See [Continuous integration: Reusing the build](ci.md#reusing-the-build), [FAQ: Does it send data anywhere?](faq.md#does-it-send-data-anywhere).
+See [Continuous integration: Reusing the build](ci.md#reusing-the-build), [FAQ: Does it send data anywhere?](faq.md#does-it-send-data-anywhere), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ## Baselines
 

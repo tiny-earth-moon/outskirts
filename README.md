@@ -120,7 +120,7 @@ outskirts scan --project MyApp.xcodeproj --schemes MyApp
 outskirts scan
 ```
 
-Keep your options in a `.outskirts.yml` file at the project root, see [Configuration](https://outskirts.dev/docs/configuration/). To keep a declaration on purpose, add a `// outskirts:ignore` comment above it, see [Comment commands](https://outskirts.dev/docs/comment-commands/). Every option is listed in the [options reference](https://outskirts.dev/docs/options/), and `outskirts help scan` prints them for your version.
+Keep your options in a `.outskirts.yml` file at the project root, see [Configuration](https://outskirts.dev/docs/configuration/); `outskirts config migrate` moves it to the [format 2](https://outskirts.dev/docs/configuration/#format-2), with grouped options and strict validation. To keep a declaration on purpose, add a `// outskirts:ignore` comment above it, see [Comment commands](https://outskirts.dev/docs/comment-commands/). Every option is listed in the [options reference](https://outskirts.dev/docs/options/), and `outskirts help scan` prints them for your version.
 
 The guided setup is meant as an introduction. Once you know which options your project needs, run `outskirts scan` with them, or with a configuration file.
 

@@ -70,13 +70,33 @@ public enum RuleIdentifier: String, CaseIterable, Codable, CodingKeyRepresentabl
         }
     }
 
+    /// Whether an entry of `overrides` can turn the rule off.
+    public var isOverridable: Bool {
+        ConfigurationOverride.overridableRules.contains(self)
+    }
+
+    /// The path of the rule in a v2 file.
+    public var v2Path: String {
+        "rules.\(rawValue)"
+    }
+
     /// The value of `v1Key` that gives the rule the given state.
-    func v1Value(enabled: Bool) -> Bool {
+    public func v1Value(enabled: Bool) -> Bool {
         enabled != v1KeyTurnsRuleOff
     }
 }
 
 public extension Configuration {
+    /// Turns the rule on or off through its v1 key, as `--enable-rule` and `--disable-rule` do. A rule always checked
+    /// is left as it is.
+    func setEnabled(_ rule: RuleIdentifier, _ enabled: Bool) {
+        guard let key = rule.v1Key, let setting = settings.first(where: { $0.key == key }) else { return }
+
+        if let message = setting.assign(rule.v1Value(enabled: enabled)) {
+            preconditionFailure("The v1 key '\(key)' of the rule '\(rule.rawValue)' rejects a boolean: \(message)")
+        }
+    }
+
     /// Whether the rule is checked with this configuration.
     func isEnabled(_ rule: RuleIdentifier) -> Bool {
         guard let key = rule.v1Key else { return true }

@@ -50,6 +50,8 @@ struct ScanCommand: ParsableCommand {
             throw ValidationError("'--max-results' must be at least 1")
         }
 
+        try validateRuleOptions()
+
         if !buildOptions.variants.isEmpty {
             do {
                 _ = try BuildVariants(arguments: buildOptions.variants)
@@ -153,6 +155,59 @@ struct ScanCommand: ParsableCommand {
         configuration.apply(\.$detectUnusedAssetCatalogColors, analysisOptions.detectUnusedAssetCatalogColors)
         configuration.apply(\.$detectUnusedAssetCatalogImages, analysisOptions.detectUnusedAssetCatalogImages)
         configuration.apply(\.$detectUnusedMetalFunctions, analysisOptions.detectUnusedMetalFunctions)
+
+        for (rule, enabled) in ruleOptionValues where rule.v1Key != nil {
+            configuration.setEnabled(rule, enabled)
+        }
+    }
+
+    /// The rules that `--enable-rule` and `--disable-rule` turn on or off.
+    var ruleOptionValues: [(RuleIdentifier, Bool)] {
+        analysisOptions.enableRule.map { ($0, true) } + analysisOptions.disableRule.map { ($0, false) }
+    }
+
+    /// A rule always checked cannot be turned off, and a rule cannot be turned both on and off, also through its own
+    /// option or a rule sharing its option.
+    func validateRuleOptions() throws(ValidationError) {
+        var keyValues: [String: (option: String, value: Bool)] = [:]
+
+        for (key, value) in ruleOptionsGiven {
+            keyValues[key] = ("--\(value ? "" : "no-")\(key.replacingOccurrences(of: "_", with: "-"))", value)
+        }
+
+        for (rule, enabled) in ruleOptionValues {
+            let option = "--\(enabled ? "enable" : "disable")-rule \(rule.rawValue)"
+            guard let key = rule.v1Key else {
+                if enabled {
+                    continue
+                }
+                throw ValidationError("'\(option)': the rule is always checked")
+            }
+
+            let value = rule.v1Value(enabled: enabled)
+            if let previous = keyValues[key], previous.value != value {
+                throw ValidationError("'\(option)' contradicts '\(previous.option)'")
+            }
+            keyValues[key] = (option, value)
+        }
+    }
+
+    /// The values given to the options that turn a rule on or off, by key.
+    private var ruleOptionsGiven: [(String, Bool)] {
+        let options: [(String, Bool?)] = [
+            ("disable_unused_import_analysis", analysisOptions.disableUnusedImportAnalysis),
+            ("disable_unused_localized_string_analysis", localizedStringOptions.disableUnusedLocalizedStringAnalysis),
+            ("detect_unused_asset_catalog_colors", analysisOptions.detectUnusedAssetCatalogColors),
+            ("detect_unused_asset_catalog_images", analysisOptions.detectUnusedAssetCatalogImages),
+            ("retain_assign_only_properties", retentionOptions.retainAssignOnlyProperties),
+            ("enable_unassigned_optional_analysis", analysisOptions.enableUnassignedOptionalAnalysis),
+            ("disable_redundant_public_analysis", analysisOptions.disableRedundantPublicAnalysis),
+            ("enable_open_final_analysis", analysisOptions.enableOpenFinalAnalysis),
+            ("enable_redundant_access_level_analysis", analysisOptions.enableRedundantAccessLevelAnalysis),
+            ("enable_empty_extension_analysis", analysisOptions.enableEmptyExtensionAnalysis),
+            ("superfluous_ignore_comments", analysisOptions.superfluousIgnoreComments),
+        ]
+        return options.compactMap { key, value in value.map { (key, $0) } }
     }
 
     /// What a command needs to run the scan pipeline: the loaded configuration, the logger and the project.
@@ -365,6 +420,7 @@ extension OutputFormat: ArgumentParser.ExpressibleByArgument {}
 extension ColorOption: ArgumentParser.ExpressibleByArgument {}
 extension PlatformConditionalRetention: ArgumentParser.ExpressibleByArgument {}
 extension ExitCodes: ArgumentParser.ExpressibleByArgument {}
+extension RuleIdentifier: ArgumentParser.ExpressibleByArgument {}
 
 extension FilePath: ArgumentParser.ExpressibleByArgument {
     public init?(argument: String) {

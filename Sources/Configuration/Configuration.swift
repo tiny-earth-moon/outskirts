@@ -272,6 +272,12 @@ public final class Configuration {
     /// the `xcode` format and left out of the `json` format.
     public var summary: Bool?
 
+    /// The configuration files the last load read, the files a v2 file extends first.
+    public internal(set) var loadedFiles: [FilePath] = []
+
+    /// The format of the configuration file the last load read: 1 when none was read.
+    public internal(set) var loadedVersion = 1
+
     /// The entries of `overrides` of a configuration v2 file, in order: a later one wins over an earlier one.
     public internal(set) var overrides: [ConfigurationOverride] = []
 
