@@ -162,6 +162,27 @@ final class CacheManagerTest: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: folder.path))
     }
 
+    func testRefresh_sweepsTheCacheAtMostOncePerInterval() throws {
+        let fileManager = CountingFileManager()
+        let now = Date()
+        func refresh(at date: Date) -> CacheRefreshResult {
+            CacheManager.refresh(directories: [], projectPath: root.path, maxAgeDays: 14, maxSizeGB: 1, cacheDirectory: cache, now: date, fileManager: fileManager)
+        }
+        _ = try makeDerivedData("DerivedData-first", ageDays: 30)
+
+        XCTAssertEqual(refresh(at: now).evicted.map(\.name), ["DerivedData-first"])
+        XCTAssertGreaterThan(fileManager.reads, 0)
+
+        let second = try makeDerivedData("DerivedData-second", ageDays: 30)
+        fileManager.reads = 0
+        XCTAssertTrue(refresh(at: now.addingTimeInterval(CacheManager.evictionInterval - 1)).evicted.isEmpty)
+        XCTAssertEqual(fileManager.reads, 0)
+        XCTAssertTrue(fm.fileExists(atPath: second.path))
+
+        XCTAssertEqual(refresh(at: now.addingTimeInterval(CacheManager.evictionInterval)).evicted.map(\.name), ["DerivedData-second"])
+        XCTAssertGreaterThan(fileManager.reads, 0)
+    }
+
     func testEvict_removesStaleKeepsRecentAndCurrent() throws {
         let stale = try makeDerivedData("DerivedData-stale", ageDays: 30)
         let recent = try makeDerivedData("DerivedData-recent", ageDays: 2)
@@ -344,5 +365,15 @@ extension CacheManagerTest {
 
         XCTAssertFalse(fm.fileExists(atPath: legacy.path))
         XCTAssertFalse(fm.fileExists(atPath: current.path))
+    }
+}
+
+/// Counts the directory listings: a cache sweep starts with one, and measures only the folders it lists.
+private final class CountingFileManager: FileManager, @unchecked Sendable {
+    var reads = 0
+
+    override func contentsOfDirectory(at url: URL, includingPropertiesForKeys keys: [URLResourceKey]?, options mask: FileManager.DirectoryEnumerationOptions = []) throws -> [URL] {
+        reads += 1
+        return try super.contentsOfDirectory(at: url, includingPropertiesForKeys: keys, options: mask)
     }
 }

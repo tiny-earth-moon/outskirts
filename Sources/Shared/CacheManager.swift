@@ -53,6 +53,10 @@ public enum CacheManager {
     /// The cache entries subject to eviction.
     static let evictablePrefixes = [derivedDataPrefix, packageBuildPrefix]
     static let projectSidecarName = ".outskirts-project"
+    /// Its modification date is the start of the last eviction sweep of the cache.
+    static let evictionStampName = ".outskirts-last-eviction"
+    /// A scan sweeps the cache at most once per interval: a sweep measures every build folder.
+    static let evictionInterval: TimeInterval = 3600
 
     /// Clears the outskirts cache directory and the one left by releases that predate the rename.
     public static func clearIncludingLegacy(cachesDirectory: URL? = nil, fileManager: FileManager = .default) throws {
@@ -106,14 +110,15 @@ public enum CacheManager {
     }
 
     /// Records the project in each build folder of the current scan (DerivedData folder or scratch path) and marks it
-    /// as used, then evicts the stale folders from the cache, keeping the current ones. Never throws: the failures are
-    /// returned with the evicted entries.
+    /// as used, then evicts the stale folders from the cache, keeping the current ones, unless the cache was swept less
+    /// than `evictionInterval` ago. Never throws: the failures are returned with the evicted entries.
     public static func refresh(
         directories: [URL],
         projectPath: String,
         maxAgeDays: Int,
         maxSizeGB: Int,
         cacheDirectory: URL? = nil,
+        now: Date = Date(),
         fileManager: FileManager = .default
     ) -> CacheRefreshResult {
         var failures: [CacheEntryError] = []
@@ -142,6 +147,8 @@ public enum CacheManager {
             maxAgeDays: maxAgeDays,
             maxSizeBytes: Int64(maxSizeGB) << 30,
             keeping: directories,
+            minimumInterval: evictionInterval,
+            now: now,
             fileManager: fileManager
         )
         result.failures.insert(contentsOf: failures, at: 0)
@@ -188,17 +195,32 @@ public enum CacheManager {
     /// the project recorded in its sidecar no longer exists, or when its modification date is older than
     /// `maxAgeDays` (0 disables this age rule). Then, when `maxSizeBytes` is above 0, the least recently
     /// used folders are removed until the folders left fit in `maxSizeBytes` bytes (the size of `keeping` counts).
-    /// The folders that cannot be removed are returned as failures, never thrown.
+    /// The folders that cannot be removed are returned as failures, never thrown. When `minimumInterval` is above 0,
+    /// nothing is read when the previous sweep started less than `minimumInterval` seconds before `now`.
     @discardableResult
     static func evictStale(
         cacheDirectory: URL,
         maxAgeDays: Int,
         maxSizeBytes: Int64 = 0,
         keeping: [URL],
+        minimumInterval: TimeInterval = 0,
         now: Date = Date(),
         fileManager: FileManager = .default
     ) -> CacheRefreshResult {
         guard fileManager.fileExists(atPath: cacheDirectory.path) else { return CacheRefreshResult() }
+
+        var failures: [CacheEntryError] = []
+        if minimumInterval > 0 {
+            let stamp = cacheDirectory.appendingPathComponent(evictionStampName)
+            do {
+                if let last = try lastSweep(stamp, fileManager: fileManager), last <= now, now.timeIntervalSince(last) < minimumInterval {
+                    return CacheRefreshResult()
+                }
+                try markSweep(stamp, now: now, fileManager: fileManager)
+            } catch {
+                failures.append(CacheEntryError(path: stamp.path, underlying: error))
+            }
+        }
 
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86400)
         let keptNames = Set(keeping.map(\.lastPathComponent))
@@ -210,11 +232,10 @@ public enum CacheManager {
                 options: []
             )
         } catch {
-            return CacheRefreshResult(failures: [CacheEntryError(path: cacheDirectory.path, underlying: error)])
+            return CacheRefreshResult(failures: failures + [CacheEntryError(path: cacheDirectory.path, underlying: error)])
         }
 
         var evicted: [EvictedCacheEntry] = []
-        var failures: [CacheEntryError] = []
         var remaining: [(url: URL, modified: Date, size: Int64)] = []
         var keptSize: Int64 = 0
 
@@ -274,6 +295,19 @@ public enum CacheManager {
     }
 
     // MARK: - Private
+
+    private static func lastSweep(_ stamp: URL, fileManager: FileManager) throws -> Date? {
+        guard fileManager.fileExists(atPath: stamp.path) else { return nil }
+
+        return try fileManager.attributesOfItem(atPath: stamp.path)[.modificationDate] as? Date
+    }
+
+    private static func markSweep(_ stamp: URL, now: Date, fileManager: FileManager) throws {
+        if !fileManager.fileExists(atPath: stamp.path), !fileManager.createFile(atPath: stamp.path, contents: nil) {
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: stamp.path])
+        }
+        try fileManager.setAttributes([.modificationDate: now], ofItemAtPath: stamp.path)
+    }
 
     /// Removes a cache entry under an exclusive lock, unless a running scan holds it. Returns false when it is in use.
     private static func removeUnlessInUse(_ entry: URL, fileManager: FileManager) throws -> Bool {
