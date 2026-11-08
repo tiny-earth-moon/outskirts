@@ -350,19 +350,23 @@ final class FixCommandEndToEndTest: XCTestCase {
     }
 
     func testIterateStopsAtTheLimitOfPasses() throws {
-        try write(Self.cascade, to: "Sources/Lib/Dead.swift")
+        // Each helper is only called in a release clause of the previous one, so each pass frees one more.
+        let chain = (1 ... 6).map { level in
+            "func chain\(level)() -> Int {\n    #if !DEBUG\n        chain\(level + 1)()\n    #else\n        0\n    #endif\n}\n"
+        }
+        try write(Self.cascade.replacingOccurrences(of: "deadHelper()\n", with: "chain1()\n") + chain.joined(separator: "\n") + "\nfunc chain7() -> Int { 7 }\n", to: "Sources/Lib/Dead.swift")
         try commitAll()
 
-        let output = try run(Self.iterate + ["--max-passes", "1"])
+        let output = try run(Self.iterate)
 
         XCTAssertEqual(output.status, 0, output.stderr)
-        XCTAssertTrue(output.stderr.contains("Pass 1 of at most 1:\n"), output.stderr)
-        XCTAssertTrue(output.stderr.contains("\nApplied 2 fixes in 1 file, skipped 2.\n"), output.stderr)
-        XCTAssertFalse(output.stderr.contains("Pass 2"), output.stderr)
-        XCTAssertTrue(output.stderr.contains("Stopped at the limit of 1 pass: 2 fixes in 1 file."), output.stderr)
+        XCTAssertTrue(output.stderr.contains("Pass 5 of at most 5:\n"), output.stderr)
+        XCTAssertFalse(output.stderr.contains("Pass 6"), output.stderr)
+        XCTAssertTrue(output.stderr.contains("Stopped at the limit of 5 passes: 7 fixes in 1 file. The last pass still fixed something: run the command again to fix what it left."), output.stderr)
         let fixed = try read("Sources/Lib/Dead.swift")
         XCTAssertFalse(fixed.contains("DeadType"), fixed)
-        XCTAssertTrue(fixed.contains("func deadHelper() -> Int { 2 }"), fixed)
+        XCTAssertFalse(fixed.contains("func chain4()"), fixed)
+        XCTAssertTrue(fixed.contains("func chain5() -> Int {"), fixed)
     }
 
     func testIterateUndoesOnlyThePassWhoseVerificationFails() throws {
@@ -390,8 +394,6 @@ final class FixCommandEndToEndTest: XCTestCase {
         for (arguments, message) in [
             (["--rule", "unused", "--iterate"], "'--iterate' scans again the files that each pass wrote, it requires '--apply'"),
             (["--apply", "--iterate"], "'--iterate' only applies to '--rule unused'"),
-            (["--rule", "unused", "--apply", "--max-passes", "2"], "'--max-passes' only applies to '--iterate'"),
-            (["--rule", "unused", "--apply", "--iterate", "--max-passes", "0"], "'--max-passes' must be at least 1"),
         ] {
             let refused = try run(["fix"] + arguments)
             XCTAssertNotEqual(refused.status, 0, arguments.joined(separator: " "))

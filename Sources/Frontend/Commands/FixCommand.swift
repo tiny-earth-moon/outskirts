@@ -45,16 +45,14 @@ struct FixCommand: ParsableCommand {
     @Flag(help: "With '--rule unused', also remove stored instance properties, which changes the memory layout of their type (never in a @frozen type)")
     var includeStoredProperties: Bool = false
 
-    @Flag(help: "With '--rule unused' and '--apply', scan again after each pass and fix what it left, until a pass fixes nothing, a verification fails or '--max-passes' is reached")
+    @Flag(help: "With '--rule unused' and '--apply', scan again after each pass and fix what it left, until a pass fixes nothing, a verification fails or 5 passes are done")
     var iterate: Bool = false
-
-    @Option(help: "With '--iterate', the maximum number of passes")
-    var maxPasses: Int = Self.defaultMaxPasses
 
     @OptionGroup
     var scan: ScanCommand
 
-    static let defaultMaxPasses = 5
+    /// The passes of `--iterate`: each one scans and builds every variant again.
+    static let passLimit = 5
 
     func validate() throws {
         if scan.projectOptions.setup {
@@ -89,12 +87,6 @@ struct FixCommand: ParsableCommand {
         }
         if iterate, !apply {
             throw ValidationError("'--iterate' scans again the files that each pass wrote, it requires '--apply'")
-        }
-        if maxPasses != Self.defaultMaxPasses, !iterate {
-            throw ValidationError("'--max-passes' only applies to '--iterate'")
-        }
-        if maxPasses < 1 {
-            throw ValidationError("'--max-passes' must be at least 1")
         }
     }
 
@@ -190,8 +182,8 @@ struct FixCommand: ParsableCommand {
         var iteratedFiles = IteratedFiles()
         var keptPasses: [FixPlan] = []
 
-        for number in 1 ... maxPasses {
-            logger.info("Pass \(number) of at most \(maxPasses):")
+        for number in 1 ... Self.passLimit {
+            logger.info("Pass \(number) of at most \(Self.passLimit):")
             let pass: Pass
             do {
                 pass = try runPass(prepared, iteratedFiles: iteratedFiles)
@@ -216,7 +208,7 @@ struct FixCommand: ParsableCommand {
             configuration.cleanBuild = false
         }
 
-        logger.info("Stopped at the limit of \(Self.passes(maxPasses)): \(Self.total(of: keptPasses)). The last pass still fixed something: run again, or raise '--max-passes', to fix what it left.")
+        logger.info("Stopped at the limit of \(Self.passes(Self.passLimit)): \(Self.total(of: keptPasses)). The last pass still fixed something: run the command again to fix what it left.")
     }
 
     private static func passes(_ count: Int) -> String {

@@ -99,7 +99,7 @@ Would apply 3 fixes in 1 file, skipped 1.
 
 Removing a declaration can make others unused, such as a helper called only in an `#if` clause of a removed type: scan again to remove them, or pass `--iterate` with `--apply`.
 
-With `--iterate`, the command scans again after each pass and fixes what the pass left, until a pass fixes nothing, at most 5 passes (`--max-passes`). Every pass is a full scan and build, so the refusals and the rules above apply again to what the earlier passes left. A file written by an earlier pass now has uncommitted changes, but a later pass may still edit it as long as it holds the bytes that pass wrote, since version control can still restore its committed content.
+With `--iterate`, the command scans again after each pass and fixes what the pass left, until a pass fixes nothing, at most 5 passes. Every pass is a full scan and build, so the refusals and the rules above apply again to what the earlier passes left. A file written by an earlier pass now has uncommitted changes, but a later pass may still edit it as long as it holds the bytes that pass wrote, since version control can still restore its committed content.
 
 With `--verify`, each pass is rebuilt before the next one starts. When the build fails, only the files of that pass get back the content they had before it; the fixes of the earlier passes, which built, stay, and the command exits with a non-zero status. Without `--verify`, nothing checks a pass before the next one: a pass that breaks the build stops the run when the next pass builds the project, and the fixes of every pass so far stay written.
 
@@ -112,7 +112,7 @@ Applied 0 fixes in 0 files, skipped 1.
 Nothing left to fix after 3 passes: 3 fixes in 1 file.
 ```
 
-When the last allowed pass still fixed something, the command stops with `Stopped at the limit of 5 passes`: run it again, or raise `--max-passes`.
+When the fifth pass still fixed something, the command stops with `Stopped at the limit of 5 passes`: run it again to fix what it left.
 
 Some uses are invisible to every scan, so the declarations they reach can be reported as unused and removed:
 
@@ -135,8 +135,7 @@ Use `--verify`, run the tests, and review the diff before committing.
 - **`--allow-partial-scan`**: allow `--rule unused` on an Xcode project, whose scan only builds the listed schemes in Debug, or when `index_exclude`, `exclude_tests` or `exclude_targets` leaves code out of the scan.
 - **`--include-public`**: with `--rule unused`, also remove `public` and `open` declarations, unless `retain_public`, `retain_public_modules` or an override retains them.
 - **`--include-stored-properties`**: with `--rule unused`, also remove stored instance properties, which changes the memory layout of their type; never those of a `@frozen` type.
-- **`--iterate`**: with `--rule unused` and `--apply`, scan again after each pass and fix what it left, until a pass fixes nothing, a verification fails or the limit of passes is reached.
-- **`--max-passes <n>`**: with `--iterate`, the maximum number of passes, 5 by default.
+- **`--iterate`**: with `--rule unused` and `--apply`, scan again after each pass and fix what it left, until a pass fixes nothing, a verification fails or 5 passes are done.
 
 ## Safety
 
