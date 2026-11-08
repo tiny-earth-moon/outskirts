@@ -45,8 +45,16 @@ struct FixCommand: ParsableCommand {
     @Flag(help: "With '--rule unused', also remove stored instance properties, which changes the memory layout of their type (never in a @frozen type)")
     var includeStoredProperties: Bool = false
 
+    @Flag(help: "With '--rule unused' and '--apply', scan again after each pass and fix what it left, until a pass fixes nothing, a verification fails or '--max-passes' is reached")
+    var iterate: Bool = false
+
+    @Option(help: "With '--iterate', the maximum number of passes")
+    var maxPasses: Int = Self.defaultMaxPasses
+
     @OptionGroup
     var scan: ScanCommand
+
+    static let defaultMaxPasses = 5
 
     func validate() throws {
         if scan.projectOptions.setup {
@@ -76,6 +84,18 @@ struct FixCommand: ParsableCommand {
         if includeStoredProperties, !removesUnused {
             throw ValidationError("'--include-stored-properties' only applies to '--rule unused'")
         }
+        if iterate, !removesUnused {
+            throw ValidationError("'--iterate' only applies to '--rule unused'")
+        }
+        if iterate, !apply {
+            throw ValidationError("'--iterate' scans again the files that each pass wrote, it requires '--apply'")
+        }
+        if maxPasses != Self.defaultMaxPasses, !iterate {
+            throw ValidationError("'--max-passes' only applies to '--iterate'")
+        }
+        if maxPasses < 1 {
+            throw ValidationError("'--max-passes' must be at least 1")
+        }
     }
 
     func run() throws {
@@ -92,6 +112,32 @@ struct FixCommand: ParsableCommand {
             throw PeripheryError.usageError(refusal)
         }
 
+        guard iterate else {
+            let pass = try runPass(prepared, iteratedFiles: nil)
+            if verify, !pass.plan.changes.isEmpty {
+                try verifyBuild(of: pass.plan, driver: pass.driver, configuration: configuration, logger: logger, keptPasses: nil)
+            }
+            return
+        }
+
+        try runPasses(prepared)
+    }
+
+    // MARK: - Private
+
+    /// One scan and the fixes it planned, applied or printed.
+    private struct Pass {
+        let plan: FixPlan
+        /// The driver that built the project, to verify the fixes with the same build.
+        let driver: ProjectDriver
+    }
+
+    /// Scans, plans the fixes, then writes them or prints their diff, and logs the summary.
+    /// - Parameter iteratedFiles: the files that the earlier passes of `--iterate` wrote, nil without it.
+    private func runPass(_ prepared: ScanCommand.PreparedScan, iteratedFiles: IteratedFiles?) throws -> Pass {
+        let configuration = prepared.configuration
+        let logger = prepared.logger
+
         let scanStartedAt = Date()
         let output = try Scan(configuration: configuration, logger: logger, swiftVersion: prepared.swiftVersion)
             .perform(project: prepared.project)
@@ -101,7 +147,10 @@ struct FixCommand: ParsableCommand {
             .filter(filtered)
 
         let targets = selectTargets(from: reported, configuration: configuration)
-        let workingTree: WorkingTreeState = try allowDirty ? .ignored : GitWorkingTree.state(at: configuration.projectRoot)
+        var workingTree: WorkingTreeState = try allowDirty ? .ignored : GitWorkingTree.state(at: configuration.projectRoot)
+        if let iteratedFiles {
+            workingTree = iteratedFiles.workingTree(workingTree)
+        }
         let indexDates = IndexDates(scanStartedAt: scanStartedAt, unitDates: output.unitDates)
         let planner = FixPlanner(workingTree: workingTree, indexDates: indexDates, isIndexExcluded: configuration.isIndexExcluded)
         var plan = planner.plan(targets)
@@ -130,12 +179,64 @@ struct FixCommand: ParsableCommand {
         }
 
         logger.info(plan.summary(relativeTo: configuration.projectRoot, applying: apply))
-        if verify, !plan.changes.isEmpty {
-            try verifyBuild(of: plan, driver: output.driver, configuration: configuration, logger: logger)
-        }
+        return Pass(plan: plan, driver: output.driver)
     }
 
-    // MARK: - Private
+    /// `--iterate`: runs passes until one fixes nothing, a verification fails or the limit is reached. Every pass
+    /// scans again, so the gates and the eligibility rules apply to what the earlier passes left.
+    private func runPasses(_ prepared: ScanCommand.PreparedScan) throws {
+        let configuration = prepared.configuration
+        let logger = prepared.logger
+        var iteratedFiles = IteratedFiles()
+        var keptPasses: [FixPlan] = []
+
+        for number in 1 ... maxPasses {
+            logger.info("Pass \(number) of at most \(maxPasses):")
+            let pass: Pass
+            do {
+                pass = try runPass(prepared, iteratedFiles: iteratedFiles)
+            } catch {
+                if !keptPasses.isEmpty {
+                    logger.error("Pass \(number) failed. \(Self.keptSummary(of: keptPasses))")
+                }
+                throw error
+            }
+
+            guard !pass.plan.changes.isEmpty else {
+                logger.info("Nothing left to fix after \(Self.passes(number)): \(Self.total(of: keptPasses)).")
+                return
+            }
+
+            if verify {
+                try verifyBuild(of: pass.plan, driver: pass.driver, configuration: configuration, logger: logger, keptPasses: keptPasses)
+            }
+            keptPasses.append(pass.plan)
+            iteratedFiles.record(pass.plan)
+            // The first pass cleaned the build if asked to: the next ones only rebuild the fixed files.
+            configuration.cleanBuild = false
+        }
+
+        logger.info("Stopped at the limit of \(Self.passes(maxPasses)): \(Self.total(of: keptPasses)). The last pass still fixed something: run again, or raise '--max-passes', to fix what it left.")
+    }
+
+    private static func passes(_ count: Int) -> String {
+        "\(count) pass\(count == 1 ? "" : "es")"
+    }
+
+    /// The fixes of the passes, counting each file once.
+    static func total(of plans: [FixPlan]) -> String {
+        let fixes = plans.reduce(0) { $0 + $1.applied.count }
+        let files = Set(plans.flatMap { $0.changes.map(\.path) }).count
+        return "\(fixes) fix\(fixes == 1 ? "" : "es") in \(files) file\(files == 1 ? "" : "s")"
+    }
+
+    /// What `--iterate` keeps when a pass fails: the fixes of the earlier passes, which were written (and verified,
+    /// with `--verify`).
+    static func keptSummary(of plans: [FixPlan]) -> String {
+        guard !plans.isEmpty else { return "No earlier pass wrote a fix." }
+
+        return "The fixes of \(plans.count == 1 ? "pass 1" : "passes 1 to \(plans.count)") are kept: \(total(of: plans))."
+    }
 
     private var removesUnused: Bool {
         rules.contains(.unused)
@@ -194,8 +295,9 @@ struct FixCommand: ParsableCommand {
         }
     }
 
-    /// Rebuilds the project; when the build fails, writes back every original buffer and fails.
-    private func verifyBuild(of plan: FixPlan, driver: ProjectDriver, configuration: Configuration, logger: Logger) throws {
+    /// Rebuilds the project; when the build fails, writes back every original buffer of this plan and fails.
+    /// - Parameter keptPasses: with `--iterate`, the earlier passes, whose fixes stay.
+    private func verifyBuild(of plan: FixPlan, driver: ProjectDriver, configuration: Configuration, logger: Logger, keptPasses: [FixPlan]?) throws {
         // The scan already cleaned the build if asked to: only the fixed files need to be rebuilt.
         configuration.cleanBuild = false
         do {
@@ -203,7 +305,11 @@ struct FixCommand: ParsableCommand {
         } catch {
             let restoration = FixWriter.restore(plan)
             logger.error("The build failed after the fixes were applied:\n\(error.localizedDescription)")
-            throw PeripheryError.buildFailed(message: restoration.summary(relativeTo: configuration.projectRoot, changeCount: plan.changes.count))
+            var message = restoration.summary(relativeTo: configuration.projectRoot, changeCount: plan.changes.count)
+            if let keptPasses {
+                message += "\nPass \(keptPasses.count + 1) is undone. \(Self.keptSummary(of: keptPasses))"
+            }
+            throw PeripheryError.buildFailed(message: message)
         }
         logger.info("The project builds with the fixes.")
     }
