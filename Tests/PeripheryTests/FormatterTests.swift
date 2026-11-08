@@ -136,6 +136,15 @@ final class FormatterTests: XCTestCase {
         }
     }
 
+    /// The v2 variants of the formats that gained the output v2 id and rule.
+    private static let outputV2Variants: [OutputFormat] = [.csvV2, .checkstyleV2, .codeclimateV2, .gitlabCodeQualityV2]
+
+    func testOutputV2Variants_matchTheirSnapshots() throws {
+        for format in Self.outputV2Variants {
+            try assertMatchesSnapshot(format, relativeResults: true)
+        }
+    }
+
     func testJsonOutput_matchesTheGoldenFile() throws {
         try assertMatchesGolden(.json, named: "json.json")
     }

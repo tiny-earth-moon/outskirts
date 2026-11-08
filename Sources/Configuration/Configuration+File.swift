@@ -151,6 +151,12 @@ extension PlatformConditionalRetention: Yams.ScalarRepresentable {
     }
 }
 
+extension BaselineFormat: Yams.ScalarRepresentable {
+    public func represented() -> Node.Scalar {
+        rawValue.represented()
+    }
+}
+
 extension ExitCodes: Yams.ScalarRepresentable {
     public func represented() -> Node.Scalar {
         rawValue.represented()
