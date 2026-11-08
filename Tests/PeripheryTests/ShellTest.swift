@@ -8,6 +8,7 @@
 import Foundation
 import Logger
 @testable import Shared
+import Synchronization
 import XCTest
 
 final class ShellTest: XCTestCase {
@@ -77,6 +78,24 @@ final class ShellTest: XCTestCase {
 
         XCTAssertTrue(store.isStopping)
         XCTAssertFalse(process.isRunning)
+    }
+
+    func testCancellation_runsTheHooksOnceTheProcessesHaveStopped() throws {
+        let store = ShellProcessStore()
+        let hooks = CancellationHooks()
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        process.arguments = ["30"]
+        try process.run()
+        store.add(process)
+        let events = Mutex<[String]>([])
+        hooks.add { events.withLock { $0.append("hook, build running: \(process.isRunning)") } }
+
+        let status = ShellImpl.cancel(signal: SIGINT, sigintHandler: { events.withLock { $0.append("handler") } }, store: store, hooks: hooks)
+
+        XCTAssertEqual(status, 130)
+        XCTAssertEqual(events.withLock { $0 }, ["handler", "hook, build running: false"])
+        XCTAssertEqual(ShellImpl.cancel(signal: SIGTERM, sigintHandler: {}, store: ShellProcessStore(), hooks: CancellationHooks()), 143)
     }
 
     func testPassesArgumentsLiterallyWithoutAShell() throws {

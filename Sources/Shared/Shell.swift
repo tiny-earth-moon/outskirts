@@ -35,6 +35,21 @@ final class ShellProcessStore: Sendable {
     }
 }
 
+/// The work registered with `ShellImpl.onCancellation`, run once the running processes have stopped.
+final class CancellationHooks: Sendable {
+    private let hooks = Mutex<[@Sendable () -> Void]>([])
+
+    func add(_ hook: @escaping @Sendable () -> Void) {
+        hooks.withLock { $0.append(hook) }
+    }
+
+    func run() {
+        for hook in hooks.withLock({ $0 }) {
+            hook()
+        }
+    }
+}
+
 public protocol Shell: Sendable {
     @discardableResult
     func exec(_ args: [String]) throws -> String
@@ -43,29 +58,44 @@ public protocol Shell: Sendable {
 public final class ShellImpl: Shell {
     private let logger: ContextualLogger
     private let store: ShellProcessStore
+    private let cancellationHooks: CancellationHooks
     // outskirts:ignore - assign-only on purpose: holding the sources keeps the signal handlers installed
     /// Only kept alive here, never read; the `Mutex` makes the class `Sendable` on Linux, where
     /// `DispatchSourceSignal` is not.
     private let signalSources: Mutex<[DispatchSourceSignal]>
 
-    /// `sigintHandler` runs when `SIGINT` or `SIGTERM` is received, before the running processes are stopped. The
-    /// program then exits with the conventional status of the signal, 130 for `SIGINT` and 143 for `SIGTERM`.
+    /// `sigintHandler` runs when `SIGINT` or `SIGTERM` is received, before the running processes are stopped, and the
+    /// hooks given to `onCancellation` run once they have stopped. The program then exits with the conventional status
+    /// of the signal, 130 for `SIGINT` and 143 for `SIGTERM`.
     public required init(logger: Logger, sigintHandler: @escaping @Sendable () -> Void = {}) {
         self.logger = logger.contextualized(with: "shell")
         store = ShellProcessStore()
+        cancellationHooks = CancellationHooks()
 
-        let sources = [SIGINT, SIGTERM].map { [store] signalNumber in
+        let sources = [SIGINT, SIGTERM].map { [store, cancellationHooks] signalNumber in
             signal(signalNumber, SIG_IGN)
             let source = DispatchSource.makeSignalSource(signal: signalNumber, queue: .global())
             source.setEventHandler {
-                sigintHandler()
-                store.stopRunning(signal: signalNumber)
-                exit(128 + signalNumber)
+                exit(Self.cancel(signal: signalNumber, sigintHandler: sigintHandler, store: store, hooks: cancellationHooks))
             }
             source.resume()
             return source
         }
         signalSources = Mutex(sources)
+    }
+
+    /// Registers work to run when `SIGINT` or `SIGTERM` cancels the program, once the running processes have stopped
+    /// and before it exits, such as writing back files that an unfinished operation changed.
+    public func onCancellation(_ hook: @escaping @Sendable () -> Void) {
+        cancellationHooks.add(hook)
+    }
+
+    /// What a cancellation does before the program exits, in order; returns the exit status of the signal.
+    static func cancel(signal: Int32, sigintHandler: () -> Void, store: ShellProcessStore, hooks: CancellationHooks) -> Int32 {
+        sigintHandler()
+        store.stopRunning(signal: signal)
+        hooks.run()
+        return 128 + signal
     }
 
     @discardableResult

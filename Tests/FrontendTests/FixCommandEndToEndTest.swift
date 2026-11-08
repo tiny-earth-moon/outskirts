@@ -293,7 +293,7 @@ final class FixCommandEndToEndTest: XCTestCase {
         let output = try run(["fix", "--apply", "--verify"])
 
         XCTAssertEqual(output.status, 0, output.stderr)
-        XCTAssertTrue(output.stderr.contains("The project builds with the fixes."), output.stderr)
+        XCTAssertTrue(output.stderr.contains("The project builds with the fixes. Rebuilt: the debug configuration, for the default platform. Other configurations (such as release)"), output.stderr)
         XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.fixedLibrary)
     }
 
@@ -348,6 +348,10 @@ final class FixCommandEndToEndTest: XCTestCase {
         let analysisDisabled = try run(["fix", "--aggressive"])
         XCTAssertEqual(analysisDisabled.status, 0, analysisDisabled.stderr)
         XCTAssertFalse(analysisDisabled.stdout.contains("final class Box"), analysisDisabled.stdout)
+
+        let namedWithAnalysisDisabled = try run(["fix", "--aggressive", "--rule", "missing-final", "--variants", "auto"])
+        XCTAssertEqual(namedWithAnalysisDisabled.status, 0, namedWithAnalysisDisabled.stderr)
+        XCTAssertTrue(namedWithAnalysisDisabled.stderr.contains("'--rule missing-final' applies nothing: the missing-final analysis is turned off. Turn it on with '--enable-rule missing-final'."), namedWithAnalysisDisabled.stderr)
 
         let ruleWithoutFlag = try run(["fix", "--rule", "missing-final"])
         XCTAssertNotEqual(ruleWithoutFlag.status, 0)

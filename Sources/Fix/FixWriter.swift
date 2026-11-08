@@ -91,9 +91,10 @@ public struct FixRestoration: Equatable {
     internal(set) var restored: [FilePath] = []
     internal(set) var notRestored: [FilePath] = []
 
-    /// What a failed verification did to the files: each restored file, and each file left as it is.
-    public func summary(relativeTo root: FilePath, changeCount: Int) -> String {
-        var lines = ["The fixes break the build, restored \(restored.count) of \(changeCount) file\(changeCount == 1 ? "" : "s"):"]
+    /// What a failed verification, or another `cause`, did to the files: each restored file, and each file left as it
+    /// is.
+    public func summary(relativeTo root: FilePath, changeCount: Int, cause: String = "The fixes break the build") -> String {
+        var lines = ["\(cause), restored \(restored.count) of \(changeCount) file\(changeCount == 1 ? "" : "s"):"]
         lines += restored.map { "  restored \($0.relativePath(from: root))" }
         lines += notRestored.map { "  not restored \($0.relativePath(from: root)): changed after the fixes were written" }
         return lines.joined(separator: "\n")
