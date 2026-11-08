@@ -15,7 +15,7 @@ import SystemPackage
 ///
 /// The clauses are read broadly rather than resolved: every identifier counts, whether it refers to a declaration,
 /// declares one or names a parameter, since a declaration in such a clause can override, implement or extend one.
-public struct UncoveredConditionalNames {
+struct UncoveredConditionalNames {
     /// Every identifier and operator written in the clauses.
     let names: Set<String>
     /// The types declared, extended, inherited from, constrained to or used as an attribute in the clauses, and the
@@ -26,13 +26,13 @@ public struct UncoveredConditionalNames {
     /// (`~=`), a string interpolation or a dynamic member without writing its name.
     let hasCode: Bool
 
-    public init(names: Set<String>, typeNames: Set<String> = [], hasCode: Bool = false) {
+    init(names: Set<String>, typeNames: Set<String> = [], hasCode: Bool = false) {
         self.names = names
         self.typeNames = typeNames
         self.hasCode = hasCode
     }
 
-    public init(graph: SourceGraph) throws {
+    init(graph: SourceGraph) throws {
         var collected = UncoveredConditionalNames(names: [])
         for file in graph.indexedSourceFiles {
             let source = try String(contentsOfFile: file.path.string, encoding: .utf8)

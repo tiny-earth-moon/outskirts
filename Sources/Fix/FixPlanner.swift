@@ -189,7 +189,7 @@ private struct TargetPosition: Hashable {
 /// The edits of a fix run, and the results that were applied or skipped.
 public struct FixPlan {
     public struct Change {
-        public let path: FilePath
+        let path: FilePath
         let original: [UInt8]
         let fixed: [UInt8]
     }
@@ -200,7 +200,7 @@ public struct FixPlan {
     }
 
     public internal(set) var changes: [Change] = []
-    public internal(set) var applied: [FixTarget] = []
+    internal(set) var applied: [FixTarget] = []
     internal(set) var skipped: [Skip] = []
 
     /// The unified diff of every change, with paths relative to the given directory.
