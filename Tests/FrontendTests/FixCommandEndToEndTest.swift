@@ -129,6 +129,14 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertTrue(output.stderr.contains("Would apply 2 fixes in 1 file, skipped 0.\n  unused-parameter: 2"), output.stderr)
     }
 
+    func testUnusedIsAnUnknownRule() throws {
+        let output = try run(["fix", "--rule", "unused"])
+
+        XCTAssertNotEqual(output.status, 0)
+        XCTAssertTrue(output.stderr.contains("The value 'unused' is invalid for '--rule <rule>'"), output.stderr)
+        XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.library)
+    }
+
     // MARK: - Verify
 
     func testVerifyKeepsTheFixesWhenTheProjectBuilds() throws {
@@ -194,109 +202,6 @@ final class FixCommandEndToEndTest: XCTestCase {
         let ruleWithoutFlag = try run(["fix", "--rule", "missing-final"])
         XCTAssertNotEqual(ruleWithoutFlag.status, 0)
         XCTAssertTrue(ruleWithoutFlag.stderr.contains("'missing-final' is a tier-2 rule, it requires '--aggressive'"), ruleWithoutFlag.stderr)
-    }
-
-    // MARK: - Unused
-
-    private static let deadCode = """
-    struct DeadType {
-        func deadMember() -> Int { 1 }
-    }
-
-    extension DeadType {
-        func deadExtensionMember() {}
-    }
-
-    func deadFunction() -> Int { 2 }
-
-    """
-
-    func testUnusedRuleIsRefusedAfterASingleVariantScan() throws {
-        try write(Self.deadCode, to: "Sources/Lib/Dead.swift")
-        try commitAll()
-
-        let refused = try run(["fix", "--rule", "unused", "--apply"])
-        XCTAssertNotEqual(refused.status, 0)
-        XCTAssertTrue(refused.stderr.contains("'--rule unused' removes declarations, which is only safe once every variant that ships is scanned"), refused.stderr)
-        XCTAssertEqual(try read("Sources/Lib/Dead.swift"), Self.deadCode)
-
-        let defaultRules = try run(["fix", "--variants", "auto"])
-        XCTAssertEqual(defaultRules.status, 0, defaultRules.stderr)
-        XCTAssertFalse(defaultRules.stdout.contains("DeadType"), defaultRules.stdout)
-        XCTAssertTrue(refused.stderr.contains("or pass '--allow-partial-scan'."), refused.stderr)
-
-        let removedFlag = try run(["fix", "--rule", "unused", "--allow-partial-variants"])
-        XCTAssertNotEqual(removedFlag.status, 0)
-        XCTAssertTrue(removedFlag.stderr.contains("--allow-partial-variants"), removedFlag.stderr)
-    }
-
-    func testUnusedRuleRemovesATypeWithItsExtensionAfterAScanOfEveryVariant() throws {
-        try write(Self.deadCode, to: "Sources/Lib/Dead.swift")
-        let releaseOnly = "func releaseOnly() -> Int { 3 }\n"
-        try write(releaseOnly, to: "Sources/App/Release.swift")
-        try write("import Lib\n\nprint(Widget().render(width: 1, 2))\n#if !DEBUG\n    print(releaseOnly())\n#endif\n", to: "Sources/App/main.swift")
-        try commitAll()
-
-        let output = try run(["fix", "--rule", "unused", "--variants", "auto", "--apply", "--verify"])
-
-        XCTAssertEqual(output.status, 0, output.stderr)
-        XCTAssertTrue(output.stderr.contains("Applied 3 fixes in 1 file, skipped 2.\n"), output.stderr)
-        XCTAssertTrue(output.stderr.contains("  removed unused 'DeadType' at Sources/Lib/Dead.swift:1:8 [p2_"), output.stderr)
-        // Only a release build calls it, which a debug scan does not see.
-        XCTAssertTrue(output.stderr.contains("  skipped unused 'releaseOnly()' at Sources/App/Release.swift:1:6: name written in an #if clause that no scanned build compiled"), output.stderr)
-        XCTAssertTrue(output.stderr.contains("  skipped unused 'helperValue()' at Sources/Helpers/Helpers.swift:1:13: public API, use --include-public"), output.stderr)
-        XCTAssertTrue(output.stderr.contains("The project builds with the fixes."), output.stderr)
-        XCTAssertEqual(try read("Sources/Lib/Dead.swift"), "")
-        XCTAssertEqual(try read("Sources/App/Release.swift"), releaseOnly)
-        XCTAssertEqual(try read("Sources/Lib/Lib.swift"), Self.library)
-    }
-
-    func testUnusedRuleIsRefusedWhenAnOptionLeavesCodeOutOfTheScan() throws {
-        for (option, key) in [
-            (["--index-exclude", "Sources/App/**"], "index_exclude"),
-            (["--exclude-tests"], "exclude_tests"),
-            (["--exclude-targets", "App"], "exclude_targets"),
-        ] {
-            let refused = try run(["fix", "--rule", "unused", "--variants", "auto"] + option)
-            XCTAssertNotEqual(refused.status, 0)
-            XCTAssertTrue(refused.stderr.contains("but '\(key)' leaves code out of the scan"), refused.stderr)
-        }
-
-        let flagWithoutRule = try run(["fix", "--allow-partial-scan"])
-        XCTAssertNotEqual(flagWithoutRule.status, 0)
-        XCTAssertTrue(flagWithoutRule.stderr.contains("'--allow-partial-scan' only applies to '--rule unused'"), flagWithoutRule.stderr)
-    }
-
-    func testUnusedRuleKeepsTheFilesOfALocalDependencyPackage() throws {
-        try write("""
-        // swift-tools-version:5.9
-        import PackageDescription
-        let package = Package(name: "Core", products: [.library(name: "Core", targets: ["Core"])], targets: [
-            .target(name: "Core"),
-            .testTarget(name: "CoreTests", dependencies: ["Core"]),
-        ])
-        """, to: "Modules/Core/Package.swift")
-        let core = "public func coreValue() -> Int { 1 }\nfunc coreHelperForTests() -> Int { 2 }\n"
-        try write(core, to: "Modules/Core/Sources/Core/Core.swift")
-        try write("@testable import Core\nimport XCTest\n\nfinal class CoreTests: XCTestCase {\n    func testHelper() { XCTAssertEqual(coreHelperForTests(), 2) }\n}\n", to: "Modules/Core/Tests/CoreTests/CoreTests.swift")
-        try write("""
-        // swift-tools-version:5.9
-        import PackageDescription
-        let package = Package(name: "Fixture", dependencies: [.package(path: "Modules/Core")], targets: [
-            .target(name: "Helpers"),
-            .target(name: "Lib", dependencies: ["Helpers"]),
-            .executableTarget(name: "App", dependencies: ["Lib", .product(name: "Core", package: "Core")]),
-        ])
-        """, to: "Package.swift")
-        try write("import Core\nimport Lib\n\nprint(Widget().render(width: 1, 2), coreValue())\n", to: "Sources/App/main.swift")
-        try commitAll()
-
-        let output = try run(["fix", "--rule", "unused", "--variants", "auto"])
-
-        XCTAssertEqual(output.status, 0, output.stderr)
-        // The tests of the dependency use it, but only the root package is built.
-        XCTAssertTrue(output.stderr.contains("  skipped unused 'coreHelperForTests()' at Modules/Core/Sources/Core/Core.swift:2:6: dependency package"), output.stderr)
-        XCTAssertFalse(output.stdout.contains("coreHelperForTests"), output.stdout)
     }
 
     // MARK: - Private

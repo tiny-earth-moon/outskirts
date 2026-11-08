@@ -14,10 +14,6 @@ public struct FixTarget: Hashable, Sendable {
     let accessibility: Accessibility?
     /// Whether the declaration carries an `override location=` comment, so its reported position is not its own.
     let hasLocationOverride: Bool
-    /// The output v2 id of the result, which keys its edit; nil for a target that is not built from a result.
-    let id: String?
-    /// For `unused`, why the declaration may not be removed if it turns out to be a stored property.
-    let storedPropertyRefusal: SkipReason?
 
     init(
         rule: FixRule,
@@ -27,9 +23,7 @@ public struct FixTarget: Hashable, Sendable {
         line: Int,
         column: Int,
         accessibility: Accessibility? = nil,
-        hasLocationOverride: Bool = false,
-        id: String? = nil,
-        storedPropertyRefusal: SkipReason? = nil
+        hasLocationOverride: Bool = false
     ) {
         self.rule = rule
         self.name = name
@@ -39,29 +33,17 @@ public struct FixTarget: Hashable, Sendable {
         self.column = column
         self.accessibility = accessibility
         self.hasLocationOverride = hasLocationOverride
-        self.id = id
-        self.storedPropertyRefusal = storedPropertyRefusal
-    }
-
-    /// The same target, with the reason that applies if it is a stored property.
-    func refusingStoredProperty(_ reason: SkipReason?) -> FixTarget {
-        FixTarget(
-            rule: rule, name: name, kind: kind, file: file, line: line, column: column, accessibility: accessibility,
-            hasLocationOverride: hasLocationOverride, id: id, storedPropertyRefusal: reason
-        )
     }
 
     /// The target of a scan result, or nil when no rule applies to it.
     public init?(result: ScanResult) {
+        guard let fixableKind = result.fixableKind else { return nil }
+
         let declaration = result.resultDeclaration
         let rule: FixRule
         var accessibility: Accessibility?
 
-        switch result.fixableKind {
-        case nil:
-            guard result.isUnusedDeclaration else { return nil }
-
-            rule = .unused
+        switch fixableKind {
         case .redundantPublic: rule = .redundantPublic
         case .redundantOpen: rule = .redundantOpen
         case let .redundantAccessLevel(level):
@@ -84,8 +66,7 @@ public struct FixTarget: Hashable, Sendable {
             column: location.column,
             accessibility: accessibility,
             hasLocationOverride: declaration.commentCommands.locationOverride != nil
-                || declaration.parent?.commentCommands.locationOverride != nil,
-            id: result.outputV2Id
+                || declaration.parent?.commentCommands.locationOverride != nil
         )
     }
 }

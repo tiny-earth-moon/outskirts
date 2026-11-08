@@ -133,6 +133,26 @@ final class FixCommandTest: XCTestCase {
         XCTAssertEqual(try apply(plan), "struct S {}\n")
     }
 
+    func testRemovedExtensionTakesItsAttachedCommentCommandsButNotIgnoreAll() throws {
+        let source = """
+        // periphery:ignore:all
+        /// Doc.
+        // periphery:ignore
+        extension Int {}
+
+        // outskirts:ignore - kept for the next one
+        extension Double {}
+        func next(a: Int) {}
+
+        """
+        let fixed = try fix(source, [
+            target(.emptyExtension, "Int", .extension, at: "Int {}", in: source),
+            target(.emptyExtension, "Double", .extension, at: "Double {}", in: source),
+        ])
+
+        XCTAssertEqual(fixed, "// periphery:ignore:all\n\nfunc next(a: Int) {}\n")
+    }
+
     func testExtensionWithAConformanceIsNotRemoved() throws {
         let source = "struct S {}\nextension S: Sendable {}\n"
         let plan = try planned(source, [target(.emptyExtension, "S", .extension, at: "S: Sendable", in: source)])
@@ -495,58 +515,6 @@ final class FixCommandTest: XCTestCase {
         XCTAssertThrowsError(try FixWriter.apply(plan))
         XCTAssertEqual(try String(contentsOfFile: file.string, encoding: .utf8), source)
         XCTAssertEqual(try String(contentsOfFile: other.string, encoding: .utf8), "import C\nimport D\n")
-    }
-
-    // MARK: - Unused declarations
-
-    func testRemovedDeclarationTakesItsAttachedCommentCommandsButNotIgnoreAll() throws {
-        let source = """
-        // periphery:ignore:all
-        /// Doc.
-        // periphery:ignore:parameters a
-        func dead(a: Int) {}
-
-        // outskirts:ignore:parameters a - kept for the next one
-        func dead2(a: Int) {}
-        func next(a: Int) {}
-
-        """
-        let fixed = try fix(source, [
-            target(.unused, "dead(a:)", .functionFree, at: "dead(", in: source),
-            target(.unused, "dead2(a:)", .functionFree, at: "dead2(", in: source),
-        ])
-
-        XCTAssertEqual(fixed, "// periphery:ignore:all\n\nfunc next(a: Int) {}\n")
-    }
-
-    func testCaseOfAnEnumWithAnUnresolvedRawTypeIsKept() throws {
-        let source = """
-        typealias Code = Int
-        enum Status: Code {
-            case ok
-            case unused
-            case fail
-        }
-        enum CStatus: CInt {
-            case ok
-            case unused
-            case fail
-        }
-        enum Plain: Equatable {
-            case ok
-            case unused
-            case fail
-        }
-
-        """
-        let plan = try planned(source, [
-            target(.unused, "unused", .enumelement, at: "unused", in: source),
-            target(.unused, "unused", .enumelement, at: "unused", in: source, occurrence: 2),
-            target(.unused, "unused", .enumelement, at: "unused", in: source, occurrence: 3),
-        ])
-
-        XCTAssertEqual(plan.skipped.map { "\($0.target.line) \($0.reason)" }, ["4 \(SkipReason.implicitRawValues)", "9 \(SkipReason.implicitRawValues)"])
-        XCTAssertEqual(plan.applied.map(\.line), [14])
     }
 
     // MARK: - Diff, idempotence and trivia

@@ -5,7 +5,7 @@ import SwiftSyntax
 import SyntaxAnalysis
 import SystemPackage
 
-/// What the `#if` clauses that no scanned build compiled may use, so that `fix --rule unused` keeps it.
+/// What the `#if` clauses that no scanned build compiled may use, so that `fix` keeps what they reach.
 ///
 /// The index only holds the references of the compiled clauses. The scan retains the names of the platform clauses
 /// it did not compile, but not those of other conditions: a call made only under `#if !DEBUG`, a custom flag,

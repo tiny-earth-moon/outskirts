@@ -61,7 +61,7 @@ final class SPMVariantResolverTest: XCTestCase {
         let platforms = [PackageDescription.Platform(name: "maccatalyst", version: "17.0"), PackageDescription.Platform(name: "visionos", version: "2.0")]
 
         XCTAssertEqual(resolver(installed: []).platformVariants(for: platforms).map(\.triple), ["arm64-apple-xros2.0-simulator"])
-        // A warning makes the variant skipped, which `fix --rule unused` refuses.
+        // A warning makes the variant skipped, which the complete-scan guard of `fix` refuses.
         XCTAssertEqual(warnings.count, 1)
         XCTAssertTrue(warnings.first?.hasPrefix("Skipping the declared platform 'maccatalyst'") == true, "\(warnings)")
     }
