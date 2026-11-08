@@ -265,9 +265,15 @@ public struct FixPlan {
 }
 
 public extension FilePath {
+    /// The path from the root, with `..` components for a path outside it, so that a diff header stays usable.
     func relativePath(from root: FilePath) -> String {
-        let rootString = root.string.hasSuffix("/") ? root.string : root.string + "/"
-        return string.hasPrefix(rootString) ? String(string.dropFirst(rootString.count)) : string
+        guard isAbsolute, root.isAbsolute else { return string }
+
+        let rootComponents = Array(root.lexicallyNormalized().components)
+        let components = Array(lexicallyNormalized().components)
+        let common = zip(rootComponents, components).prefix { $0 == $1 }.count
+        let parts = Array(repeating: "..", count: rootComponents.count - common) + components[common...].map(\.string)
+        return parts.joined(separator: "/")
     }
 }
 

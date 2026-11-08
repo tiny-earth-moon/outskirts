@@ -541,6 +541,16 @@ final class FixCommandTest: XCTestCase {
         XCTAssertEqual(try String(contentsOfFile: file.string, encoding: .utf8), source)
     }
 
+    func testDiffOfAFileOutsideTheRootIsRelative() throws {
+        let source = "public func render() {}\n"
+        let plan = try planned(source, [target(.redundantPublic, "render()", .functionFree, at: "render", in: source)])
+
+        let diff = plan.diff(relativeTo: directory.appending("App"))
+        XCTAssertTrue(diff.hasPrefix("--- a/../File.swift\n+++ b/../File.swift\n"), diff)
+        XCTAssertEqual(file.relativePath(from: directory), "File.swift")
+        XCTAssertEqual(file.relativePath(from: FilePath(directory.string + "/")), "File.swift")
+    }
+
     func testSecondRunProducesNoDiff() throws {
         let source = "/// Doc.\npublic func f(a: Int) {}\nextension Int {}\n"
         let targets = [
