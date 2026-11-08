@@ -81,7 +81,10 @@ final class CsvFormatter: OutputFormatter {
         ].map(escape).joined(separator: ",")
     }
 
-    private func escape(_ field: String) -> String {
+    /// A field that starts with `=`, `+`, `-`, `@`, a tab or a carriage return is read as a formula by spreadsheet
+    /// apps, which an operator name such as `==(_:_:)` does. Such a field is prefixed with an apostrophe.
+    private func escape(_ rawField: String) -> String {
+        let field = rawField.first.map { "=+-@\t\r".contains($0) } == true ? "'" + rawField : rawField
         guard field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r") else {
             return field
         }
