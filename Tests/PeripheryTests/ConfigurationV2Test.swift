@@ -503,6 +503,22 @@ final class ConfigurationV2Test: XCTestCase {
         }
     }
 
+    func testMigratedConfigWithCLIIndexExcludeKeepsDefaults() throws {
+        for yaml in ["index_exclude: [\"**/Gen/**\"]\n", "skip_build: true\n"] {
+            let migrated = try Configuration.migratedToV2(file: write(yaml))
+            XCTAssertFalse(migrated.contains("index_defaults"), migrated)
+            XCTAssertEqual(migrated.contains("index:"), yaml.hasPrefix("index_exclude"), migrated)
+
+            let v1 = try loadV1(yaml)
+            let v2 = try loadV2(migrated)
+            for configuration in [v1, v2] {
+                configuration.apply(\.$indexExclude, ["**/CLI/**"])
+            }
+            XCTAssertEqual(Set(v2.indexExclude), Set(v1.indexExclude), yaml)
+            XCTAssertTrue(Set(v2.indexExclude).isSuperset(of: Configuration().$indexExclude.defaultValue), yaml)
+        }
+    }
+
     func testMigrateWrapsAListKeyWrittenAsAScalar() throws {
         let keys = Configuration().settings.filter { [.stringList, .pathList].contains($0.kind) }.map(\.key)
         XCTAssertTrue(keys.contains("schemes") && keys.contains("retain_files"))
@@ -897,10 +913,7 @@ final class ConfigurationV2Test: XCTestCase {
     variants: auto
     exclude:
       index:
-      - '**/*?.build/**/*'
-      - '**/SourcePackages/checkouts/**'
-      - '**/Generated/**'
-      index_defaults: false
+      - "**/Generated/**"
       report:
       - path: "**/Legacy/**"
         kinds:

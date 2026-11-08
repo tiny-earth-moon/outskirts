@@ -6,7 +6,7 @@ import Yams
 
 public extension Configuration {
     /// The configuration v2 equivalent of a v1 file, which loads into the same settings. The values are kept as
-    /// written, `index_exclude` is written with its default globs and `index_defaults: false`, and the relative globs
+    /// written, `exclude.index_defaults` is left out as v1 always keeps the default globs, and the relative globs
     /// are rewritten from `projectRoot` to the directory of the file, which v2 resolves them from. Comments are kept:
     /// those above an option and at the end of its line move with it, those inside a value move above it, the header
     /// stays at the top, and the schema comment points to the v2 schema. A file that warns, or already declares
@@ -54,7 +54,7 @@ enum ConfigurationMigration {
     static let globKeys: Set = ["index_exclude", "report_exclude", "report_include", "retain_files", "localized_string_catalog_exclude"]
 
     /// The values of the v1 keys of a file, as written, read the way the v1 loader reads them: `retain_public` with a
-    /// list is `retain_public_modules`, and `index_exclude` holds its default globs first.
+    /// list is `retain_public_modules`. `index_exclude` is kept as written: v2 adds the default globs as v1 does.
     static func v1Values(of mapping: Node.Mapping?, rebase: @escaping (String) -> String) throws -> [String: Node] {
         var values: [String: Node] = [:]
 
@@ -71,11 +71,6 @@ enum ConfigurationMigration {
                 values[key] = globKeys.contains(key) ? rebasing(value, with: rebase) : value
             }
         }
-
-        let defaults = Configuration().$indexExclude.defaultValue
-        let given = values["index_exclude"].map(strings) ?? []
-        let globs = defaults + given.filter { !defaults.contains($0) }
-        values["index_exclude"] = .sequence(.init(globs.map { Node($0) }))
 
         return values
     }
@@ -176,13 +171,6 @@ enum ConfigurationMigration {
     }
 
     // MARK: - Private
-
-    private static func strings(_ node: Node) -> [String] {
-        if let string = node.string {
-            return [string]
-        }
-        return node.sequence?.compactMap(\.string) ?? []
-    }
 
     /// A glob value with its globs rebased: a glob (also `<glob>:kinds`), the `path` of a mapping, or a list of them.
     private static func rebasing(_ node: Node, with rebase: (String) -> String) -> Node {
