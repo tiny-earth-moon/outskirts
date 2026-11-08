@@ -36,6 +36,12 @@ final class UIKitProjectTest: XcodeSourceGraphTestCase {
             self.assertReferenced(.functionMethodInstance("clickNoParams()"))
             // IBAction with preposition first parameter
             self.assertReferenced(.functionMethodInstance("click(for:)"))
+            // IBAction sent to the First Responder
+            self.assertReferenced(.functionMethodInstance("firstResponderAction(_:)"))
+            // IBAction with an explicit Objective-C name
+            self.assertReferenced(.functionMethodInstance("tapExplicit(_:)"))
+            // IBAction with two unnamed parameters
+            self.assertReferenced(.functionMethodInstance("clickTwice(_:_:)"))
             // Unreferenced - not connected in XIB
             self.assertNotReferenced(.varInstance("unusedOutlet"))
             self.assertNotReferenced(.functionMethodInstance("unusedAction(_:)"))

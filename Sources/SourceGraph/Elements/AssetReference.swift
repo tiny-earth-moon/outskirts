@@ -33,6 +33,10 @@ public struct AssetReference: Hashable {
         self.runtimeAttributes = runtimeAttributes
     }
 
+    /// The name under which an Interface Builder file reports the actions sent to the First Responder, which any
+    /// responder of the project may implement.
+    public static let firstResponderName = "IBFirstResponder"
+
     public let name: String
     let source: ProjectFileKind
 

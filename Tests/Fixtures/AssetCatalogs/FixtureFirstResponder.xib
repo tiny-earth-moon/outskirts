@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="23504" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" colorMatched="YES">
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="FixtureOwner" customModule="Fixtures"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view contentMode="scaleToFill" id="view-1">
+            <subviews>
+                <button contentMode="scaleToFill" id="button-1">
+                    <connections>
+                        <action selector="showPreferences:" destination="-2" eventType="touchUpInside" id="act-1"/>
+                        <action selector="ownerAction:" destination="-1" eventType="touchUpInside" id="act-2"/>
+                    </connections>
+                </button>
+            </subviews>
+        </view>
+    </objects>
+</document>
