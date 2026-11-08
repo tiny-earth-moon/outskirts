@@ -83,7 +83,8 @@ public enum GitWorkingTree {
         let errorData = try results.withLock { try $0[1].get() } ?? Data()
         let command = arguments.joined(separator: " ")
         guard process.terminationStatus == 0 else {
-            let message = String(decoding: errorData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+            let message = String(bytes: errorData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+                ?? "standard error is not UTF-8"
             throw GitWorkingTreeError.failed(command: command, status: process.terminationStatus, message: message)
         }
         guard let string = String(bytes: data, encoding: .utf8) else {
