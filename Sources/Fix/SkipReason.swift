@@ -70,7 +70,7 @@ public enum SkipReason: Error, Hashable, Sendable, CustomStringConvertible {
         case let .excludedModifier(modifier): "'\(modifier)' declaration"
         case let .excludedAttribute(attribute): "'@\(attribute)' declaration"
         case .retainedAttribute: "attribute listed in retain_attributes"
-        case .containsExcludedDeclaration: "contains an @objc, dynamic or retained declaration"
+        case .containsExcludedDeclaration: "contains an @objc, dynamic, retained or ignored member"
         case .caseIterableEnumCase: "case of a CaseIterable enum"
         case .codableEnumCase: "case of a Codable enum"
         case .implicitRawValues: "later cases have implicit raw values"

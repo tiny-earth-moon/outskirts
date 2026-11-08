@@ -182,7 +182,11 @@ public struct UnusedRemovalSet {
             return reason
         }
         let descendants = declaration.descendentDeclarations.filter { !$0.isImplicit }
-        if descendants.contains(where: { Self.exclusion(of: $0, retentionRules: retentionRules, includingOverride: false) != nil }) {
+        // A member ignored by a comment command must survive.
+        if descendants.contains(where: {
+            Self.exclusion(of: $0, retentionRules: retentionRules, includingOverride: false) != nil
+                || graph.commandIgnoredDeclarations[$0] != nil
+        }) {
             return .containsExcludedDeclaration
         }
 

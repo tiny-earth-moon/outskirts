@@ -96,6 +96,13 @@ final class FixUnusedTest: FixtureSourceGraphTestCase {
         XCTAssertEqual(outcome.fixed, outcome.original)
     }
 
+    func testKeepsATypeWithAnIgnoredMember() throws {
+        let outcome = try removeUnused()
+
+        XCTAssertNotEqual(outcome.decisions["1 FixUnusedIgnoredHolder"], "removed")
+        XCTAssertEqual(outcome.fixed, outcome.original)
+    }
+
     func testKeepsDeclarationsWithARetainedAttribute() throws {
         let outcome = try removeUnused(retainAttributes: ["discardableResult"])
 
