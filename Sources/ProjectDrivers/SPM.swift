@@ -126,19 +126,19 @@ public enum SPM {
     }
 }
 
-public struct PackageDescription: Decodable {
+struct PackageDescription: Decodable {
     let targets: [Target]
     /// The `platforms` of the manifest, nil when it declares none.
     let platforms: [Platform]?
 
-    public struct Platform: Decodable, Equatable {
+    struct Platform: Decodable, Equatable {
         /// Lowercased, e.g. `macos`, `ios`, `maccatalyst`.
         let name: String
         let version: String
     }
 }
 
-public struct Target: Decodable {
+struct Target: Decodable {
     let name: String
     let c99name: String?
     let type: String
@@ -151,6 +151,6 @@ public struct Target: Decodable {
     }
 }
 
-public struct Resource: Decodable {
+struct Resource: Decodable {
     let path: String
 }

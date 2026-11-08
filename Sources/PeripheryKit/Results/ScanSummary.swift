@@ -5,7 +5,7 @@ import SystemPackage
 /// What a scan amounts to: the number of results of each kind, the files that can be removed whole and an estimate
 /// of the lines that removing the reported code would delete.
 public struct ScanSummary: Equatable {
-    public struct UnusedFile: Equatable {
+    struct UnusedFile: Equatable {
         let path: FilePath
         let lineCount: Int
     }

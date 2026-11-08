@@ -194,7 +194,7 @@ public struct FixPlan {
         let fixed: [UInt8]
     }
 
-    public struct Skip {
+    struct Skip {
         let target: FixTarget
         let reason: SkipReason
     }

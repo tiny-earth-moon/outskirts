@@ -26,7 +26,7 @@ public struct Function: Item, Hashable {
     let attributes: [Attribute]
 }
 
-public struct Attribute {
+struct Attribute {
     let name: String
     let isUnavailableOnAllPlatforms: Bool
 }
