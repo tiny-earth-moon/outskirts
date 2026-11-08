@@ -2,8 +2,8 @@ import Foundation
 import Logger
 import Shared
 import SystemPackage
-@testable import XcodeSupport
 import TestShared
+@testable import XcodeSupport
 import XCTest
 
 final class XcodebuildListDerivedDataTest: XCTestCase {
