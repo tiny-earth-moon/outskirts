@@ -227,7 +227,7 @@ outskirts scan --generic-project-config config.json
 
 ### Bazel
 
-The Bazel mode (`--bazel` and every `--bazel-*` option) was removed in 3.13.0 ([#165](https://github.com/tiny-earth-moon/outskirts/issues/165)). The `periphery` module on the Bazel Central Registry belongs to the archived upstream project and is frozen at 3.8.0, this fork is distributed through its Homebrew tap only, and the Bazel build files and CI jobs had to be updated with every change. [agoodkind/periphery](https://github.com/agoodkind/periphery) maintains a Bazel mode. With outskirts, a Bazel project can still be scanned from the index stores its build produces, through the configuration file described in [Other build systems](#other-build-systems).
+The Bazel mode (`--bazel` and every `--bazel-*` option) was removed in 3.13.0 ([#165](https://github.com/tiny-earth-moon/outskirts/issues/165)). The `periphery` module on the Bazel Central Registry belongs to the archived upstream project and is frozen at 3.8.0, this fork is distributed through its Homebrew tap only, and the Bazel build files and CI jobs had to be updated with every change. [agoodkind/periphery](https://github.com/agoodkind/periphery) maintains a Bazel mode. With outskirts, a Bazel project can still be scanned from the index stores its build produces, through the configuration file described in [Other build systems](#other-build-systems). The explicit error given for these options and for the `bazel` and `bazel_*` configuration keys is deprecated: they will eventually be reported like any unknown option or key.
 
 ## Platforms
 

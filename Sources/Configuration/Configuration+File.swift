@@ -120,6 +120,7 @@ public extension Configuration {
     }
 
     /// Keys of the Bazel mode, removed in 3.13.0, which are rejected instead of being reported as invalid keys.
+    /// - Note: Deprecated: this shim is a thin check in front of the generic unknown key handling and goes away with it.
     private static func isRemovedBazelKey(_ key: String) -> Bool {
         key == "bazel" || key.hasPrefix("bazel_")
     }
