@@ -130,6 +130,13 @@ final class SarifFormatterTest: XCTestCase {
         XCTAssertEqual(fingerprints.count, sarifResults.count)
     }
 
+    func testSarifRules_declareEveryAnnotationName() {
+        let ids = Set(SarifFormatter.rules.map(\.id))
+        for name in ResultKind.annotationNames {
+            XCTAssertTrue(ids.contains(name), "No SARIF rule for \(name)")
+        }
+    }
+
     func testSarifRules_linkToADocumentedSectionOfTheSite() throws {
         let run = try XCTUnwrap((log(format([]))["runs"] as? [[String: Any]])?.first)
         let rules = try XCTUnwrap(((run["tool"] as? [String: Any])?["driver"] as? [String: Any])?["rules"] as? [[String: Any]])

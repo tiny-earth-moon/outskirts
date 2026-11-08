@@ -19,13 +19,13 @@ final class SarifFormatter: OutputFormatter {
     /// Documentation page of every rule, followed by the section of the rule.
     static let helpBaseUri = "https://outskirts.dev/docs/"
 
-    private struct Rule {
+    struct Rule {
         let id: String
         let description: String
         let help: String
     }
 
-    private static let rules: [Rule] = [
+    static let rules: [Rule] = [
         Rule(id: "unused", description: "The declaration is never referenced", help: "analysis/#unused-declarations"),
         Rule(id: "assignOnlyProperty", description: "The property is assigned, but never read", help: "analysis/#assign-only-properties"),
         Rule(id: "unassignedOptionalProperty", description: "The optional property is never assigned and is always nil", help: "analysis/#unassigned-optional-properties"),
@@ -39,6 +39,7 @@ final class SarifFormatter: OutputFormatter {
         Rule(id: "superfluousIgnoreCommand", description: "The ignore comment is on a declaration that is referenced", help: "analysis/#superfluous-ignore-comments"),
         Rule(id: "unusedAssetCatalogColor", description: "The asset catalog color is never referenced", help: "analysis/#asset-catalog-colors"),
         Rule(id: "unusedAssetCatalogImage", description: "The asset catalog image is never referenced", help: "analysis/#asset-catalog-images"),
+        Rule(id: "missingMetalFunction", description: "The string literal names a Metal function that no Metal file declares", help: "analysis/#metal-functions"),
     ]
 
     let configuration: Configuration
