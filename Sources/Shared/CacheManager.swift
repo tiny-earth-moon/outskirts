@@ -1,11 +1,11 @@
 import Foundation
 import Logger
 
-public struct CacheEntryError: Error, CustomStringConvertible {
+struct CacheEntryError: Error, CustomStringConvertible {
     let path: String
     let underlying: Error
 
-    public var description: String {
+    var description: String {
         "\(path): \(underlying.localizedDescription)"
     }
 }
@@ -25,9 +25,9 @@ struct CacheEntryInUseError: Error, LocalizedError {
     }
 }
 
-public struct EvictedCacheEntry: Equatable {
-    public let name: String
-    public let size: Int64
+struct EvictedCacheEntry: Equatable {
+    let name: String
+    let size: Int64
 }
 
 /// What a cache refresh did. Housekeeping failures never fail the scan: they are reported as warnings.
