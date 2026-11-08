@@ -6,7 +6,8 @@ import SystemPackage
 public enum GitWorkingTree {
     public static func state(at directory: FilePath) throws -> WorkingTreeState {
         guard let root = topLevel(of: directory),
-              let status = try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"], in: directory)
+              let status = try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"], in: directory),
+              let index = try run(["ls-files", "-z", "--full-name"], in: FilePath(root))
         else { return .notARepository }
 
         let paths = status.split(separator: "\0").compactMap { entry -> String? in
@@ -14,7 +15,9 @@ public enum GitWorkingTree {
 
             return RealPath.resolve(root + "/" + entry.dropFirst(3))
         }
-        return .repository(topLevel: root, uncommitted: Set(paths))
+        // git does not track a file through a linked directory, so the paths of the index are real paths.
+        let tracked = index.split(separator: "\0").map { root + "/" + $0 }
+        return .repository(topLevel: root, uncommitted: Set(paths), tracked: Set(tracked))
     }
 
     /// The real path of the top level of the working tree that holds the directory, nil outside any working tree or

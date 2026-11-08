@@ -659,6 +659,32 @@ final class FixCommandTest: XCTestCase {
         XCTAssertEqual(try String(contentsOfFile: outsideFile.string, encoding: .utf8), source)
     }
 
+    func testIgnoredFile_isRefused() throws {
+        let source = "public func render() {}\n"
+        try write(source)
+        let vendor = directory.appending("Vendor")
+        try FileManager.default.createDirectory(atPath: vendor.string, withIntermediateDirectories: true)
+        let ignoredFile = vendor.appending("Ignored.swift")
+        let forcedFile = vendor.appending("Forced.swift")
+        for path in [ignoredFile, forcedFile] {
+            try Data(source.utf8).write(to: URL(fileURLWithPath: path.string))
+        }
+        try Data("Vendor/\n".utf8).write(to: URL(fileURLWithPath: directory.appending(".gitignore").string))
+        try git("init", "-q")
+        try git("add", "-f", "Vendor/Forced.swift")
+        try commitAll()
+
+        let planner = try FixPlanner(projectRoot: directory, workingTree: GitWorkingTree.state(at: directory), indexDates: nil) { _ in false }
+        let targets = [file, ignoredFile, forcedFile].map { path in
+            FixTarget(rule: .redundantPublic, name: "render()", kind: .functionFree, file: path, line: 1, column: 13)
+        }
+        let plan = planner.plan(targets)
+
+        XCTAssertEqual(plan.skipped.map(\.target.file), [ignoredFile])
+        XCTAssertEqual(plan.skipped.map(\.reason), [.ignoredByGit])
+        XCTAssertEqual(Set(plan.applied.map(\.file)), [file, forcedFile])
+    }
+
     func testAllowDirty_refusesFileReachedThroughDirectoryLinkOutsideRoot() throws {
         let source = "public func render() {}\n"
         try write(source)
@@ -851,7 +877,7 @@ final class FixCommandTest: XCTestCase {
     }
 
     private func uncommitted() throws -> Set<String> {
-        guard case let .repository(_, paths) = try GitWorkingTree.state(at: directory) else {
+        guard case let .repository(_, paths, _) = try GitWorkingTree.state(at: directory) else {
             XCTFail("the directory is a working tree")
             return []
         }

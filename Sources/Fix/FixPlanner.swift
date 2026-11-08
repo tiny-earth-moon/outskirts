@@ -6,9 +6,9 @@ import SystemPackage
 public enum WorkingTreeState: Sendable {
     /// Every file may be edited (`--allow-dirty`).
     case ignored
-    /// The real path of the top level of the working tree, and the real paths of its files with uncommitted changes,
-    /// untracked files included.
-    case repository(topLevel: String, uncommitted: Set<String>)
+    /// The real path of the top level of the working tree, the real paths of its files with uncommitted changes,
+    /// untracked files included, and the real paths of its tracked files: a file that is neither is ignored by git.
+    case repository(topLevel: String, uncommitted: Set<String>, tracked: Set<String>)
     /// The project is not in a git repository, so changes could not be reverted.
     case notARepository
 }
@@ -151,7 +151,7 @@ public struct FixPlanner {
     }
 
     /// Only the files that git can restore are edited: tracked by the working tree itself, not by a submodule or a
-    /// nested repository, and without uncommitted changes. Without a working tree, the real path, which follows every
+    /// nested repository, not ignored, and without uncommitted changes. Without a working tree, the real path, which follows every
     /// linked directory, must be in the project root.
     private func workingTreeRefusal(_ file: FilePath) -> SkipReason? {
         switch workingTree {
@@ -159,14 +159,17 @@ public struct FixPlanner {
             return RealPath.resolve(file.string).hasPrefix(projectRoot + "/") ? nil : .outsideProject
         case .notARepository:
             return RealPath.resolve(file.string).hasPrefix(projectRoot + "/") ? .notInGitRepository : .outsideProject
-        case let .repository(topLevel, uncommitted):
+        case let .repository(topLevel, uncommitted, tracked):
             let realPath = RealPath.resolve(file.string)
             guard realPath.hasPrefix(topLevel + "/") else { return .outsideRepository }
 
             let directory = FilePath(realPath).removingLastComponent()
             guard GitWorkingTree.topLevel(of: directory) == topLevel else { return .nestedRepository }
 
-            return uncommitted.contains(realPath) ? .uncommittedChanges : nil
+            if uncommitted.contains(realPath) {
+                return .uncommittedChanges
+            }
+            return tracked.contains(realPath) ? nil : .ignoredByGit
         }
     }
 
