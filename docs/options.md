@@ -236,7 +236,7 @@ Source file globs to keep in the results; supersedes report_exclude; the other f
 
 Key `report_include` · list of strings · default empty.
 
-See [Excluding files: Including results](excluding-files.md#including-results), [Continuous integration: Pull request checks](ci.md#pull-request-checks), [Configuration: Paths](configuration.md#paths), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
+See [Excluding files: Excluding results](excluding-files.md#excluding-results), [Excluding files: Including results](excluding-files.md#including-results), [Continuous integration: Pull request checks](ci.md#pull-request-checks), [Configuration: Paths](configuration.md#paths).
 
 ### `--retain-files`
 
