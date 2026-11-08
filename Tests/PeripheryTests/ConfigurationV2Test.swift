@@ -471,6 +471,144 @@ final class ConfigurationV2Test: XCTestCase {
         XCTAssertTrue(try loadV1("retain_public: true\n").overrides.isEmpty)
     }
 
+    // MARK: - Migration
+
+    func testEveryV1KeyRoundTripsThroughMigrate() throws {
+        let lines = Self.fullV1.split(separator: "\n").map(String.init) + [
+            "disable_platform_conditional_retention: true",
+            "disable_platform_conditional_retention: false",
+            "retain_public: [Kit, Core]",
+            "retain_objc_accessible: false",
+            "retain_hashable_properties: true",
+            "index_exclude: Generated/**",
+            "report_exclude: [\"Legacy/**:unused.function\", {path: Kit/**, kinds: [unused.var]}]",
+            "retain_files: [Sources/Legacy.swift, /abs/**, \"*.generated.swift\"]",
+        ]
+
+        for line in lines + [Self.fullV1, ""] {
+            let file = try write(line + "\n")
+            let migrated = try Configuration.migratedToV2(file: file)
+
+            let (v2, v1) = try (migratedEffective(migrated), anchoredV1Effective(file))
+            XCTAssertEqual(v2.keys.filter { v2[$0] != v1[$0] }.sorted().map { "\($0): \(v2[$0] ?? "") != \(v1[$0] ?? "")" }, [], line)
+        }
+    }
+
+    func testMigrateAnchorsTheGlobsRelativeToTheFile() throws {
+        let root = FilePath(directory.path)
+        let file = try write("report_include: [Sources/**, \"**/Kit/**\"]\n", named: "config/outskirts.yml")
+
+        let migrated = try Configuration.migratedToV2(file: file, projectRoot: root)
+
+        XCTAssertTrue(migrated.contains("  include:\n  - ../Sources/**\n  - \"**/Kit/**\"\n"), migrated)
+    }
+
+    func testMigrateOutputIsStable() throws {
+        let file = try write("""
+        # yaml-language-server: $schema=https://raw.githubusercontent.com/tiny-earth-moon/outskirts/master/outskirts.schema.json
+        # Scenario: an app with a framework.
+
+        # The workspace.
+        project: App.xcworkspace
+        schemes:
+          - App
+          # The framework is built by the app scheme.
+          - Kit  # second scheme
+        retain_objc_accessible: true
+        disable_unused_import_analysis: true  # noisy
+        enable_open_final_analysis: true
+        retain_codable_properties: true
+        disable_update_check: true
+        format: json
+        index_exclude: ["**/Generated/**"]
+        report_exclude:
+          - path: "**/Legacy/**"
+            kinds: [unused.function]
+        variants: auto
+
+        # Trailing notes.
+        """)
+
+        let migrated = try Configuration.migratedToV2(file: file)
+
+        XCTAssertEqual(migrated, Self.migratedGolden)
+        XCTAssertEqual(try Configuration.migratedToV2(file: write(String(contentsOf: file.url, encoding: .utf8), named: "again.yml")), migrated)
+    }
+
+    func testMigrateRejectsAFileThatWarnsOrIsAlreadyVersion2() throws {
+        for yaml in ["retain_pubic: true\n", "strict: 1\n", "version: 2\n"] {
+            XCTAssertThrowsError(try Configuration.migratedToV2(file: write(yaml)), yaml)
+        }
+    }
+
+    func testSchemaValidatesTheMigratedExamples() throws {
+        let validator = JSONSchemaValidator(schema: try Self.schema())
+        let examples = ProjectRootPath.appending("examples")
+        let files = try FileManager.default.contentsOfDirectory(atPath: examples.string).filter { $0.hasSuffix(".yml") }.sorted()
+        XCTAssertFalse(files.isEmpty)
+
+        for name in files {
+            let source = try String(contentsOfFile: examples.appending(name).string, encoding: .utf8)
+            let file = try write(source, named: name)
+            let migrated = try Configuration.migratedToV2(file: file)
+
+            // Through YAML rather than JSONSerialization: on Linux the latter turns booleans into `NSNumber` 0 and 1.
+            let document = try XCTUnwrap(try Yams.load(yaml: migrated) as? [String: Any], name)
+            XCTAssertEqual(validator.validate(document), [], name)
+            XCTAssertEqual(try migratedEffective(migrated), try anchoredV1Effective(file), name)
+            XCTAssertTrue(migrated.hasPrefix(Configuration.v2SchemaComment + "\n"), name)
+        }
+    }
+
+    // MARK: - Print
+
+    func testPrintShowsTheEffectiveV2ConfigurationWithItsOverrides() throws {
+        try write("version: 2\nreport: {format: json}\n", named: "base.yml")
+        let configuration = Configuration()
+        try configuration.load(from: write("""
+        version: 2
+        extends: base.yml
+        rules: {missing-final: on, redundant-open: on}
+        overrides:
+          - modules: ["Kit*"]
+            retain: {public: true}
+            rules: {redundant-public: off}
+        """)) { XCTFail("unexpected warning: \($0)") }
+
+        XCTAssertEqual(try configuration.effectiveYAML(all: false), """
+        # Read from \(directory.path)/base.yml, then \(directory.path)/.outskirts.yml
+        version: 2
+        rules:
+          redundant-open: on
+          missing-final: on
+        report:
+          format: json
+        overrides:
+        - modules: [Kit*]
+          retain: {public: true}
+          rules: {redundant-public: off}
+
+        """)
+    }
+
+    func testPrintedV2ConfigurationLoadsBackIntoTheSameOne() throws {
+        let configuration = try loadV2(Self.fullV2)
+
+        for all in [false, true] {
+            let printed = try configuration.effectiveYAML(all: all)
+            XCTAssertEqual(effective(try loadV2(printed)), effective(configuration), printed)
+        }
+    }
+
+    func testPrintOfAV1FileListsItsKeys() throws {
+        let configuration = try loadV1("strict: true\nretain_public: true\n")
+
+        XCTAssertEqual(try configuration.effectiveYAML(all: false), "retain_public: true\nstrict: true\n")
+
+        let all = try XCTUnwrap(try Yams.load(yaml: configuration.effectiveYAML(all: true)) as? [String: Any])
+        XCTAssertEqual(Set(all.keys), Set(configuration.settingKeys))
+    }
+
     // MARK: - Schema
 
     func testSchemaDescribesEveryV2Path() throws {
@@ -527,15 +665,48 @@ final class ConfigurationV2Test: XCTestCase {
         return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
 
-    /// The value of every setting, `index_exclude` sorted as it is a set.
-    private func effective(_ configuration: Configuration) -> [String: String] {
+    /// The value of every setting, `index_exclude` sorted as it is a set. With `resolvingAlias`, the platform
+    /// conditional retention settings, which the `disable_platform_conditional_retention` alias overrides, are replaced
+    /// by the retention they resolve to.
+    private func effective(_ configuration: Configuration, resolvingAlias: Bool = false) -> [String: String] {
         Dictionary(uniqueKeysWithValues: configuration.settings.map { setting in
             let value = setting.wrappedValue
+            if resolvingAlias, ["disable_platform_conditional_retention", "platform_conditional_retention"].contains(setting.key) {
+                return (setting.key, "\(configuration.resolvedPlatformConditionalRetention)")
+            }
             if setting.key == "index_exclude", let globs = value as? [String] {
                 return (setting.key, "\(globs.sorted())")
             }
             return (setting.key, "\(value)")
         })
+    }
+
+    /// The effective configuration of a migrated file, loaded from a file next to the v1 one.
+    private func migratedEffective(_ migrated: String) throws -> [String: String] {
+        let configuration = Configuration()
+        try configuration.load(from: write(migrated, named: "migrated.yml")) { XCTFail("unexpected warning: \($0)") }
+        return effective(configuration, resolvingAlias: true)
+    }
+
+    /// The effective configuration of a v1 file, its relative globs anchored to the current directory, which they are
+    /// relative to, as a v2 file anchors its globs to its directory.
+    private func anchoredV1Effective(_ file: FilePath) throws -> [String: String] {
+        let configuration = Configuration()
+        try configuration.load(from: file) { XCTFail("unexpected warning: \($0)") }
+
+        let anchor = { (glob: String) in Configuration.anchor(glob, to: .current) }
+        configuration.indexExclude = configuration.indexExclude.map(anchor)
+        configuration.reportInclude = configuration.reportInclude.map(anchor)
+        configuration.retainFiles = configuration.retainFiles.map(anchor)
+        configuration.localizedStringCatalogExclude = configuration.localizedStringCatalogExclude.map(anchor)
+        configuration.reportExclude = configuration.reportExclude.map { entry in
+            switch entry {
+            case let .pattern(glob): .pattern(anchor(glob))
+            case let .scoped(path, kinds): .scoped(path: anchor(path), kinds: kinds)
+            case .malformed: entry
+            }
+        }
+        return effective(configuration, resolvingAlias: true)
     }
 
     @discardableResult
@@ -653,6 +824,45 @@ final class ConfigurationV2Test: XCTestCase {
     report_unused_type_parameters: true
     enable_unconstructed_enum_case_analysis: true
     detect_unused_metal_functions: true
+    """
+
+    /// The migration of the commented file of `testMigrateOutputIsStable`.
+    private static let migratedGolden = """
+    # yaml-language-server: $schema=https://raw.githubusercontent.com/tiny-earth-moon/outskirts/master/schemas/config-v2.json
+    # Scenario: an app with a framework.
+    version: 2
+    project:
+      # The workspace.
+      path: App.xcworkspace
+      # The framework is built by the app scheme.
+      # second scheme
+      schemes:
+      - App
+      - Kit
+    variants: auto
+    exclude:
+      index:
+      - '**/*?.build/**/*'
+      - '**/SourcePackages/checkouts/**'
+      - '**/Generated/**'
+      index_defaults: false
+      report:
+      - path: "**/Legacy/**"
+        kinds:
+        - unused.function
+    rules:
+      unused-import: off  # noisy
+      redundant-open: on
+      missing-final: on
+    retain:
+      objc: accessible
+      properties_of: [Codable]
+    report:
+      format: json
+      update_check: false
+
+    # Trailing notes.
+
     """
 
     /// `fullV1` written in the format 2.

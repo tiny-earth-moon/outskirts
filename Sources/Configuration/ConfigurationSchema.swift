@@ -8,6 +8,12 @@ public extension Configuration {
     /// The comment that points YAML editors (yaml-language-server) at the schema.
     static let schemaComment = "# yaml-language-server: $schema=\(schemaURL)"
 
+    /// Where the JSON Schema of the configuration file format 2 lives, `schemas/config-v2.json`.
+    static let v2SchemaURL = "https://raw.githubusercontent.com/tiny-earth-moon/outskirts/master/schemas/config-v2.json"
+
+    /// The comment that points YAML editors at the schema of the format 2.
+    static let v2SchemaComment = "# yaml-language-server: $schema=\(v2SchemaURL)"
+
     /// The keys of the configuration file, in the order of the schema.
     var settingKeys: [String] {
         settings.map(\.key)
