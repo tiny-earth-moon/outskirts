@@ -315,6 +315,26 @@
         "fixable": {
           "type": "boolean",
           "description": "Whether 'outskirts fix' can apply the result."
+        },
+        "explanation": {
+          "type": "object",
+          "description": "Why the declaration is reported, used or retained, as '--explain' prints it; present only on the results '--explain' asked for.",
+          "required": [
+            "summary",
+            "details"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "details": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     }

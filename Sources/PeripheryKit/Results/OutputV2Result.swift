@@ -49,11 +49,19 @@ struct OutputV2Result {
     let variants: [String]
     let related: [Related]
     let fixable: Bool
+    /// Why the declaration is reported, used or retained, present only when `--explain` asked for it.
+    let explanation: Explanation?
+
+    /// The retention chain `--explain` prints: its first line, then the indented lines under it.
+    struct Explanation {
+        let summary: String
+        let details: [String]
+    }
 }
 
 extension OutputV2Result {
     var jsonObject: [String: Any] {
-        [
+        var object: [String: Any] = [
             "id": id,
             "rule": rule.rawValue,
             "message": message,
@@ -64,6 +72,10 @@ extension OutputV2Result {
             "related": related.map(\.jsonObject),
             "fixable": fixable,
         ]
+        if let explanation {
+            object["explanation"] = ["summary": explanation.summary, "details": explanation.details]
+        }
+        return object
     }
 }
 

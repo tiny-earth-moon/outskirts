@@ -226,14 +226,52 @@ final class OutputV2FormatTest: XCTestCase {
         ]
     }
 
+    // MARK: - Explanations
+
+    func testExplanation_isCarriedOnlyByTheRequestedResult() throws {
+        let results = results()
+        let requested = try XCTUnwrap(results.first { $0.rule == .unused })
+        let id = OutputV2Id.id(of: requested)
+        let output = try format(results, explanations: explainer(for: results).explanationLines([id]))
+        let document = try document(output)
+        let documentResults = try XCTUnwrap(document["results"] as? [[String: Any]])
+
+        XCTAssertEqual(try JSONSchemaValidator(schema: schema()).validate(document), [])
+        XCTAssertEqual(documentResults.filter { $0["explanation"] != nil }.compactMap { $0["id"] as? String }, [id])
+        let explanation = try XCTUnwrap(documentResults.first { $0["id"] as? String == id }?["explanation"] as? [String: Any])
+        XCTAssertEqual(explanation["summary"] as? String, "Widget (class at Sources/Lib/Widget.swift:3:14) is unused: no reference to it was found")
+        XCTAssertEqual(explanation["details"] as? [String], [])
+    }
+
+    func testExplain_anOutputV2IdExplainsTheSameDeclarationAsItsUsr() throws {
+        let results = results()
+        let requested = try XCTUnwrap(results.first { $0.rule == .unused })
+        let explainer = explainer(for: results)
+        let byId = explainer.explain([OutputV2Id.id(of: requested)])
+
+        XCTAssertEqual(byId, explainer.explain(["s:3Lib6WidgetC"]))
+        XCTAssertFalse(byId.hasPrefix("No declaration matches"))
+    }
+
+    private func explainer(for results: [ScanResult]) -> DeclarationExplainer {
+        let configuration = Configuration()
+        configuration.projectRoot = FilePath(projectRoot)
+        let graph = SourceGraph(configuration: configuration, logger: logger)
+        for result in results where result.declaration.parent == nil {
+            graph.add(result.declaration)
+        }
+        return DeclarationExplainer(graph: graph, configuration: configuration)
+    }
+
     // MARK: - Private
 
-    private func format(_ results: [ScanResult], root: String? = nil) throws -> String {
+    private func format(_ results: [ScanResult], root: String? = nil, explanations: [Declaration: [String]] = [:]) throws -> String {
         let configuration = Configuration()
         configuration.projectRoot = FilePath(root ?? projectRoot)
         let formatter = JsonV2Formatter(configuration: configuration, logger: logger)
         formatter.toolVersion = "0.0.0"
         formatter.variants = ["arm64-apple-macosx"]
+        formatter.explanations = explanations
         return try XCTUnwrap(formatter.format(results, colored: false))
     }
 

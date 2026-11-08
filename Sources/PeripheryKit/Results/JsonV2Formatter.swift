@@ -17,6 +17,8 @@ public final class JsonV2Formatter: OutputFormatter {
     public lazy var currentFilePath: FilePath = configuration.projectRoot.isEmpty ? .current : configuration.projectRoot
     /// The variants the scan built, as the summary names them.
     public var variants: [String] = []
+    /// The lines `--explain` prints for each requested declaration, carried by its results.
+    public var explanations: [Declaration: [String]] = [:]
     var toolVersion = PeripheryVersion
 
     public init(configuration: Configuration, logger: Logger) {
@@ -73,8 +75,13 @@ public final class JsonV2Formatter: OutputFormatter {
             asset: asset,
             variants: [],
             related: related,
-            fixable: result.fixableKind != nil
+            fixable: result.fixableKind != nil,
+            explanation: explanations[declaration].map { .init(summary: $0[0], details: $0.dropFirst().map(trimmedDetail)) }
         )
+    }
+
+    private func trimmedDetail(_ line: String) -> String {
+        line.trimmingCharacters(in: .whitespaces)
     }
 
     private func location(_ location: Location, end: SourcePosition?) -> OutputV2Result.Location {
