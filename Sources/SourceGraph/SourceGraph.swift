@@ -37,6 +37,15 @@ public final class SourceGraph {
     private(set) var platformConditionalNames: Set<String> = []
     private(set) var parameterAttributeNames: Set<String> = []
     private(set) var platformConditionalNamesByFile: [SourceFile: Set<String>] = [:]
+    /// The conformances declared by extensions written in platform conditional clauses.
+    private(set) var platformConditionalConformances: Set<PlatformConditionalConformance> = []
+    /// The names of the members declared `override` in platform conditional clauses, by file.
+    private(set) var platformConditionalOverrideNamesByFile: [SourceFile: Set<String>] = [:]
+    /// The names inherited by the classes and protocols declared in platform conditional clauses, by file.
+    private(set) var platformConditionalSuperclassNamesByFile: [SourceFile: Set<String>] = [:]
+    /// The names written in the `#if` blocks whose condition does not involve the platform, by file, which only
+    /// account for imports.
+    private(set) var otherConditionalNamesByFile: [SourceFile: Set<String>] = [:]
     private(set) var usedLocalizedStringKeys: Set<String> = []
     /// Literal prefixes of keys built at runtime and looked up in the calling module's bundle, by module.
     public private(set) var runtimeLocalizedStringKeyPrefixesByModule: [String: Set<String>] = [:]
@@ -474,9 +483,20 @@ public final class SourceGraph {
         indexedSourceFiles.append(file)
     }
 
-    public func addPlatformConditionalNames(_ names: Set<String>, in file: SourceFile) {
-        platformConditionalNames.formUnion(names)
-        platformConditionalNamesByFile[file, default: []].formUnion(names)
+    public func addPlatformConditionalNames(_ names: PlatformConditionalNames, in file: SourceFile) {
+        platformConditionalNames.formUnion(names.references)
+        platformConditionalNamesByFile[file, default: []].formUnion(names.references)
+        platformConditionalConformances.formUnion(names.conformances)
+
+        if !names.overriddenNames.isEmpty {
+            platformConditionalOverrideNamesByFile[file, default: []].formUnion(names.overriddenNames)
+        }
+        if !names.inheritedNames.isEmpty {
+            platformConditionalSuperclassNamesByFile[file, default: []].formUnion(names.inheritedNames)
+        }
+        if !names.otherClauseNames.isEmpty {
+            otherConditionalNamesByFile[file, default: []].formUnion(names.otherClauseNames)
+        }
     }
 
     public func addParameterAttributeNames(_ names: Set<String>) {

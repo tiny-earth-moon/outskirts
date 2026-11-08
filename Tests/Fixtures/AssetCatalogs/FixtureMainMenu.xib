@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none">
+    <objects>
+        <customObject id="-2" userLabel="File's Owner" customClass="NSApplication"/>
+        <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
+        <menu title="Main Menu" systemMenu="main" id="menu-1">
+            <items>
+                <menuItem title="Preferences…" keyEquivalent="," id="item-1">
+                    <connections>
+                        <action selector="showPreferences:" target="-1" id="act-1"/>
+                    </connections>
+                </menuItem>
+            </items>
+        </menu>
+    </objects>
+</document>

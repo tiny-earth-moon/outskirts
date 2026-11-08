@@ -1,5 +1,6 @@
 import Foundation
 @testable import SourceGraph
+import SystemPackage
 import XCTest
 
 /// Tests for InterfaceBuilderPropertyRetainer's Swift-to-Objective-C selector conversion.
@@ -35,6 +36,28 @@ final class InterfaceBuilderPropertyRetainerTest: XCTestCase {
         // func handleTap(_:forEvent:) → handleTap:forEvent:
         XCTAssertEqual(InterfaceBuilderPropertyRetainer.swiftNameToSelector("handleTap(_:forEvent:)"), "handleTap:forEvent:")
         XCTAssertEqual(InterfaceBuilderPropertyRetainer.swiftNameToSelector("doSomething(_:withValue:andExtra:)"), "doSomething:withValue:andExtra:")
+    }
+
+    func testMultipleUnnamedParameters() {
+        // func handle(_:_:) → handle::
+        XCTAssertEqual(InterfaceBuilderPropertyRetainer.swiftNameToSelector("handle(_:_:)"), "handle::")
+        XCTAssertEqual(InterfaceBuilderPropertyRetainer.swiftNameToSelector("handle(_:forEvent:_:)"), "handle:forEvent::")
+    }
+
+    // MARK: - Explicit Objective-C Name
+
+    func testSelectorUsesExplicitObjcName() {
+        let decl = Declaration(
+            name: "tap(_:)",
+            kind: .functionMethodInstance,
+            usrs: ["s:4Demo3tapyyF"],
+            location: Location(file: SourceFile(path: FilePath("Sources/Demo/main.swift"), modules: ["Demo"]), line: 1, column: 1)
+        )
+        decl.attributes = [DeclarationAttribute(name: "IBAction", arguments: nil), DeclarationAttribute(name: "objc", arguments: "didTapButton:")]
+        XCTAssertEqual(InterfaceBuilderPropertyRetainer.selector(of: decl), "didTapButton:")
+
+        decl.attributes = [DeclarationAttribute(name: "IBAction", arguments: nil), DeclarationAttribute(name: "objc", arguments: nil)]
+        XCTAssertEqual(InterfaceBuilderPropertyRetainer.selector(of: decl), "tap:")
     }
 
     // MARK: - Multiple Parameters with Named First
