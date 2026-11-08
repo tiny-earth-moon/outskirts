@@ -60,6 +60,29 @@ final class XcodeTargetTest: XCTestCase {
         XCTAssertEqual(warnings, [])
     }
 
+    func testMissingInfoPlistOfUnbuiltConfiguration_warnsAndSkips() throws {
+        try assertMissingFileIsSkippedWithWarning(named: "Info.plist")
+    }
+
+    func testMissingXibOfUnbuiltConfiguration_warnsAndSkips() throws {
+        try assertMissingFileIsSkippedWithWarning(named: "Missing.xib")
+    }
+
+    private func assertMissingFileIsSkippedWithWarning(named name: String) throws {
+        let target = project.targets.first { $0.name == "UIKitProject" }!
+        let existing = project.sourceRoot.lexicallyNormalized().appending("UIKitProject/FileInGroupWithoutFolder.xib")
+        let missing = FilePath(NSTemporaryDirectory()).appending("periphery-missing-\(UUID().uuidString)/\(name)")
+        var warnings: [String] = []
+
+        let files = target.existingFiles(in: [existing, missing]) { warnings.append($0) }
+
+        XCTAssertEqual(files, [existing])
+        XCTAssertEqual(warnings.count, 1)
+        let warning = warnings.first ?? ""
+        XCTAssertTrue(warning.contains(missing.string), warning)
+        XCTAssertTrue(warning.contains("'UIKitProject'"), warning)
+    }
+
     func testInfoPlistSettingWithUnresolvableVariableIsSkippedWithWarning() {
         let target = project.targets.first { $0.name == "UIKitProject" }!
         let settings = ["LOOP": "$(LOOP)"]

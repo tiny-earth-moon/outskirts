@@ -5,8 +5,15 @@ import SourceGraph
 import SystemPackage
 
 final class InfoPlistIndexer: Indexer {
-    enum PlistError: Error {
+    enum PlistError: Error, CustomStringConvertible {
         case failedToParse(path: FilePath, underlyingError: Error)
+
+        var description: String {
+            switch self {
+            case let .failedToParse(path, underlyingError):
+                "Failed to parse '\(path.string)': \(underlyingError.localizedDescription)"
+            }
+        }
     }
 
     private let infoPlistFiles: Set<FilePath>
