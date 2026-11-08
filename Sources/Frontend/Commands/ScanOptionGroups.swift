@@ -240,11 +240,8 @@ struct BaselineOptions: ParsableArguments {
     @Option(help: "Baseline file path used to filter results. A relative path is resolved from '--project-root'", completion: .file())
     var baseline: FilePath?
 
-    @Option(help: "Baseline file path where results are written; with '--baseline-format v1', the default, in a readable format that lists the kind, name and file of each entry. Entries of the baseline given to '--baseline' are kept. Pass the same path to '--baseline' in subsequent scans to exclude the results recorded in the baseline. A relative path is resolved from '--project-root'.", completion: .file())
+    @Option(help: "Baseline file path where results are written: with a configuration file that declares 'version: 2', the ids of the 'json-v2' format, which include the rule; otherwise in a readable format that lists the kind, name and file of each entry. Entries of the baseline given to '--baseline' are kept. Pass the same path to '--baseline' in subsequent scans to exclude the results recorded in the baseline. A relative path is resolved from '--project-root'.", completion: .file())
     var writeBaseline: FilePath?
-
-    @Option(help: "Ids written by '--write-baseline': 'v1' the USRs of the declarations, 'v2' the ids of the 'json-v2' format, which include the rule, so that a declaration baselined for one rule is still reported for another (default: v1)")
-    var baselineFormat: BaselineFormat?
 
     @Flag(inversion: .prefixedNo, help: "Rewrite the file given to '--baseline' keeping only the entries that still match a result. Requires '--baseline'")
     var pruneBaseline: Bool?

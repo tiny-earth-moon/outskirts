@@ -508,17 +508,13 @@
           "enum": [
             "xcode",
             "csv",
-            "csv-v2",
             "json",
             "json-v2",
             "checkstyle",
-            "checkstyle-v2",
             "codeclimate",
-            "codeclimate-v2",
             "github-actions",
             "github-markdown",
             "gitlab-codequality",
-            "gitlab-codequality-v2",
             "sarif",
             "agent"
           ],
@@ -603,14 +599,6 @@
         "write": {
           "type": "string",
           "description": "Write the results to this baseline file. v1: write_baseline."
-        },
-        "format": {
-          "type": "string",
-          "enum": [
-            "v1",
-            "v2"
-          ],
-          "description": "Ids written to the baseline: v1 the declaration USRs, v2 the output v2 ids, which include the rule. v1: baseline_format."
         },
         "prune": {
           "type": "boolean",

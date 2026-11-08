@@ -616,7 +616,7 @@ See [Framework conventions and retention: Retaining by attribute](framework-conv
 
 Output format of the results.
 
-Key `format` · one of `xcode`, `csv`, `csv-v2`, `json`, `json-v2`, `checkstyle`, `checkstyle-v2`, `codeclimate`, `codeclimate-v2`, `github-actions`, `github-markdown`, `gitlab-codequality`, `gitlab-codequality-v2`, `sarif`, `agent` · default `xcode`.
+Key `format` · one of `xcode`, `csv`, `json`, `json-v2`, `checkstyle`, `codeclimate`, `github-actions`, `github-markdown`, `gitlab-codequality`, `sarif`, `agent` · default `xcode`.
 
 See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Results and messages](getting-started.md#results-and-messages), [Configuration: Command line and file](configuration.md#command-line-and-file), [Output formats](output-formats.md).
 
@@ -718,17 +718,7 @@ Write the results to a baseline file, keeping the entries of baseline.
 
 Key `write_baseline` · string · default none.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Configuration: Paths](configuration.md#paths), [Baselines: Options](baselines.md#options), [Baselines: Formats](baselines.md#formats).
-
-### `--baseline-format`
-
-Since 3.22.0.
-
-Ids written by write_baseline: v1 the USRs of the declarations, v2 the ids of the output v2, which include the rule, so that a declaration baselined for one rule is still reported for another.
-
-Key `baseline_format` · one of `v1`, `v2` · default `v1`.
-
-See [Baselines: Options](baselines.md#options), [Baselines: Formats](baselines.md#formats), [Baselines: v2](baselines.md#v2), [Output formats: json-v2](output-formats.md#json-v2).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Configuration: Paths](configuration.md#paths), [Configuration: Format 2](configuration.md#format-2), [Baselines: Options](baselines.md#options).
 
 ### `--prune-baseline`
 
