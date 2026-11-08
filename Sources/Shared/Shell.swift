@@ -15,7 +15,7 @@ final class ShellProcessStore: Sendable {
     func stopRunning(signal: Int32) {
         stopping.withLock { $0 = true }
         processes.withLock { processes in
-            for process in processes {
+            for process in processes where process.isRunning {
                 if signal == SIGINT {
                     process.interrupt()
                 } else {
@@ -98,8 +98,6 @@ public final class ShellImpl: Shell {
         process.arguments = Array(cmd.dropFirst())
 
         logger.debug(cmd.shellQuoted)
-        store.add(process)
-        defer { store.remove(process) }
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
@@ -107,6 +105,8 @@ public final class ShellImpl: Shell {
         process.standardError = stderrPipe
 
         try process.run()
+        store.add(process)
+        defer { store.remove(process) }
 
         var standardOutput = ""
         var standardError = ""

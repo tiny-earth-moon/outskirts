@@ -52,6 +52,19 @@ final class ShellTest: XCTestCase {
         }
     }
 
+    func testStopRunning_ignoresUnlaunchedProcess() {
+        let store = ShellProcessStore()
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        process.arguments = ["5"]
+        store.add(process)
+
+        store.stopRunning(signal: SIGINT)
+
+        XCTAssertTrue(store.isStopping)
+        XCTAssertFalse(process.isRunning)
+    }
+
     func testPassesArgumentsLiterallyWithoutAShell() throws {
         let shell = ShellImpl(logger: Logger(quiet: true, verbose: false, colorMode: .never))
         let marker = FileManager.default.temporaryDirectory.appendingPathComponent("periphery-shell-\(UUID().uuidString)")
