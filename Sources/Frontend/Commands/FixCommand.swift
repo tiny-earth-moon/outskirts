@@ -164,11 +164,15 @@ struct FixCommand: ParsableCommand {
         let selectedRules = rules.isEmpty ? Set(FixRule.allCases.filter { (aggressive || !$0.isAggressive) && !$0.isOptIn }) : Set(rules)
         let includeMatchers = configuration.buildFilenameMatchers(with: includes)
 
-        return GuardedTargets(results) { target in
-            selectedRules.contains(target.rule)
-                && target.rule.isEnabled(in: configuration)
-                && (includeMatchers.isEmpty || includeMatchers.anyMatch(filename: target.file.string))
-        }
+        return GuardedTargets(results.compactMap { result in
+            guard let target = FixTarget(result: result),
+                  selectedRules.contains(target.rule),
+                  target.rule.isEnabled(in: configuration),
+                  includeMatchers.isEmpty || includeMatchers.anyMatch(filename: target.file.string)
+            else { return nil }
+
+            return (target, result.resultDeclaration)
+        })
     }
 }
 

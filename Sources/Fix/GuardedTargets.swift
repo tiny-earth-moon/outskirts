@@ -1,4 +1,3 @@
-import PeripheryKit
 import SourceGraph
 
 /// The targets selected for a fix run, less those that a guard keeps before planning, with the reason of each.
@@ -6,12 +5,9 @@ public struct GuardedTargets {
     private var candidates: [(target: FixTarget, declaration: Declaration)]
     fileprivate private(set) var skipped: [FixPlan.Skip] = []
 
-    public init(_ results: [ScanResult], where isSelected: (FixTarget) -> Bool) {
-        candidates = results.compactMap { result in
-            guard let target = FixTarget(result: result), isSelected(target) else { return nil }
-
-            return (target, result.resultDeclaration)
-        }
+    /// The selected targets, each with the declaration of its result.
+    public init(_ candidates: [(target: FixTarget, declaration: Declaration)]) {
+        self.candidates = candidates
     }
 
     /// The targets left to plan.
