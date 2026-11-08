@@ -1,0 +1,6 @@
+| 4 Results |
+| :- |
+| **Unused function '==(_:_:)'**<br>Project/Sources/My Lib, Extras/Operators.swift:4:17 |
+| **Unused function '<(_:_:)'**<br>Project/Sources/My Lib, Extras/Operators.swift:8:17 |
+| **Unused function '&&(_:_:)'**<br>Project/Sources/My Lib, Extras/Operators.swift:12:17 |
+| **Unused function 'map<T>(_:) "quoted" \| piped'**<br>Project/Sources/My Lib, Extras/Operators.swift:16:10 |

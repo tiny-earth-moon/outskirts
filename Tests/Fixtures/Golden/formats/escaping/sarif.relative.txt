@@ -1,0 +1,250 @@
+{
+  "$schema" : "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs" : [
+    {
+      "originalUriBaseIds" : {
+        "%SRCROOT%" : {
+          "uri" : "file:///Checkout/"
+        }
+      },
+      "results" : [
+        {
+          "level" : "warning",
+          "locations" : [
+            {
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/My%20Lib,%20Extras/Operators.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 17,
+                  "startLine" : 4
+                }
+              }
+            }
+          ],
+          "message" : {
+            "text" : "Unused function '==(_:_:)'"
+          },
+          "partialFingerprints" : {
+            "peripheryResult/v1" : "4826b17c85b6d40c0c7742c57d72ae9c7214145ae22bad3cc44d9ba13b3b3f82"
+          },
+          "properties" : {
+            "accessibility" : "internal",
+            "kind" : "function.operator.infix",
+            "modules" : [
+              "Lib"
+            ]
+          },
+          "ruleId" : "unused",
+          "ruleIndex" : 0
+        },
+        {
+          "level" : "warning",
+          "locations" : [
+            {
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/My%20Lib,%20Extras/Operators.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 17,
+                  "startLine" : 8
+                }
+              }
+            }
+          ],
+          "message" : {
+            "text" : "Unused function '<(_:_:)'"
+          },
+          "partialFingerprints" : {
+            "peripheryResult/v1" : "83b0c7614824a3dd123175dc775762c1320cb1d66d6c316848e66e9f7557f36a"
+          },
+          "properties" : {
+            "accessibility" : "internal",
+            "kind" : "function.operator.infix",
+            "modules" : [
+              "Lib"
+            ]
+          },
+          "ruleId" : "unused",
+          "ruleIndex" : 0
+        },
+        {
+          "level" : "warning",
+          "locations" : [
+            {
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/My%20Lib,%20Extras/Operators.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 17,
+                  "startLine" : 12
+                }
+              }
+            }
+          ],
+          "message" : {
+            "text" : "Unused function '&&(_:_:)'"
+          },
+          "partialFingerprints" : {
+            "peripheryResult/v1" : "a51e5214ea21e595885f9c3065466584d0577b95eeebd7fd68dd2d2b6c57a908"
+          },
+          "properties" : {
+            "accessibility" : "internal",
+            "kind" : "function.operator.infix",
+            "modules" : [
+              "Lib"
+            ]
+          },
+          "ruleId" : "unused",
+          "ruleIndex" : 0
+        },
+        {
+          "level" : "warning",
+          "locations" : [
+            {
+              "physicalLocation" : {
+                "artifactLocation" : {
+                  "uri" : "Project/Sources/My%20Lib,%20Extras/Operators.swift",
+                  "uriBaseId" : "%SRCROOT%"
+                },
+                "region" : {
+                  "startColumn" : 10,
+                  "startLine" : 16
+                }
+              }
+            }
+          ],
+          "message" : {
+            "text" : "Unused function 'map<T>(_:) \"quoted\" | piped'"
+          },
+          "partialFingerprints" : {
+            "peripheryResult/v1" : "def4cb1ca1e297e7a29b493a3dc8c744eb283f29d8a38fd462e5f76979534140"
+          },
+          "properties" : {
+            "accessibility" : "internal",
+            "kind" : "function.method.instance",
+            "modules" : [
+              "Lib"
+            ]
+          },
+          "ruleId" : "unused",
+          "ruleIndex" : 0
+        }
+      ],
+      "tool" : {
+        "driver" : {
+          "informationUri" : "https://github.com/tiny-earth-moon/outskirts",
+          "name" : "outskirts",
+          "rules" : [
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#unused-declarations",
+              "id" : "unused",
+              "shortDescription" : {
+                "text" : "The declaration is never referenced"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#assign-only-properties",
+              "id" : "assignOnlyProperty",
+              "shortDescription" : {
+                "text" : "The property is assigned, but never read"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#unassigned-optional-properties",
+              "id" : "unassignedOptionalProperty",
+              "shortDescription" : {
+                "text" : "The optional property is never assigned and is always nil"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#unconstructed-enum-cases",
+              "id" : "enumCaseNeverConstructed",
+              "shortDescription" : {
+                "text" : "The enum case is only matched in patterns and never constructed"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#redundant-protocols",
+              "id" : "redundantProtocol",
+              "shortDescription" : {
+                "text" : "The protocol is never used as an existential type"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#redundant-public-accessibility",
+              "id" : "redundantPublicAccessibility",
+              "shortDescription" : {
+                "text" : "The declaration is public but not used outside of its module"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#open-and-final",
+              "id" : "redundantOpenAccessibility",
+              "shortDescription" : {
+                "text" : "The declaration is open but never subclassed or overridden outside of its module"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#open-and-final",
+              "id" : "missingFinal",
+              "shortDescription" : {
+                "text" : "The class or member could be final"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#redundant-access-levels",
+              "id" : "redundantAccessLevel",
+              "shortDescription" : {
+                "text" : "The access level is already the default in its context"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#empty-extensions",
+              "id" : "emptyExtension",
+              "shortDescription" : {
+                "text" : "The extension declares nothing"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#superfluous-ignore-comments",
+              "id" : "superfluousIgnoreCommand",
+              "shortDescription" : {
+                "text" : "The ignore comment is on a declaration that is referenced"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#asset-catalog-colors",
+              "id" : "unusedAssetCatalogColor",
+              "shortDescription" : {
+                "text" : "The asset catalog color is never referenced"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#asset-catalog-images",
+              "id" : "unusedAssetCatalogImage",
+              "shortDescription" : {
+                "text" : "The asset catalog image is never referenced"
+              }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#metal-functions",
+              "id" : "missingMetalFunction",
+              "shortDescription" : {
+                "text" : "The string literal names a Metal function that no Metal file declares"
+              }
+            }
+          ],
+          "version" : "3.21.0"
+        }
+      }
+    }
+  ],
+  "version" : "2.1.0"
+}
