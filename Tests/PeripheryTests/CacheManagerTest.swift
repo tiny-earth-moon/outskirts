@@ -173,6 +173,44 @@ final class CacheManagerTest: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: leftover.path))
     }
 
+    func testEvict_leftoverRemovedMeanwhileByAnotherScanIsNotAFailure() throws {
+        let leftover = try makeDerivedData(".evicting-\(UUID().uuidString)", ageDays: 0)
+        let events = CacheEvents(willRemove: { entry in
+            if entry.lastPathComponent == leftover.lastPathComponent {
+                try? FileManager.default.removeItem(at: entry)
+            }
+        })
+
+        let result = CacheManager.$events.withValue(events) {
+            CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: [])
+        }
+
+        XCTAssertTrue(result.failures.isEmpty, "\(result.failures)")
+        XCTAssertFalse(fm.fileExists(atPath: leftover.path))
+    }
+
+    func testClearCache_emptiesACacheDirectoryThatIsASymbolicLinkAndKeepsTheLink() throws {
+        _ = try makeDerivedData("DerivedData-a", ageDays: 1)
+        let link = root.appendingPathComponent("linked-cache")
+        try fm.createSymbolicLink(at: link, withDestinationURL: cache)
+
+        XCTAssertNoThrow(try CacheManager.clear(cacheDirectory: link))
+
+        XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: link.path), cache.path)
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: cache.path), [])
+    }
+
+    func testEvict_sweepsACacheDirectoryThatIsASymbolicLink() throws {
+        _ = try makeDerivedData("DerivedData-stale", ageDays: 30)
+        let link = root.appendingPathComponent("linked-cache")
+        try fm.createSymbolicLink(at: link, withDestinationURL: cache)
+
+        let result = CacheManager.evictStale(cacheDirectory: link, maxAgeDays: 14, keeping: [])
+
+        XCTAssertTrue(result.failures.isEmpty, "\(result.failures)")
+        XCTAssertEqual(result.evicted.map(\.name), ["DerivedData-stale"])
+    }
+
     func testClearCache_keepsFolderCreatedDuringTheClear() throws {
         let old = try makeDerivedData("DerivedData-old", ageDays: 1)
         let created = cache.appendingPathComponent("DerivedData-created")
