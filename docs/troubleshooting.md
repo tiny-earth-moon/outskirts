@@ -119,9 +119,9 @@ Or in `.outskirts.yml`:
 variants: auto
 ```
 
-- Swift packages: each Apple platform other than macOS is built for its simulator, e.g. `platforms: [.macOS(.v15), .iOS(.v18)]` builds `arm64-apple-macosx15.0` and `arm64-apple-ios18.0-simulator` (`x86_64` on an Intel Mac). Mac Catalyst and DriverKit have no build: each declared one is skipped with a warning, and the names written in its `#if` clauses stay retained. A package that declares no platform, and any package on Linux, is built for the host only.
-- Xcode projects and workspaces: the platforms come from the `SUPPORTED_PLATFORMS` build setting of the targets the schemes build (`xcodebuild -showBuildSettings`), each built with `xcodebuild build-for-testing -destination generic/platform=<platform>`: `macOS`, and `iOS Simulator`, `tvOS Simulator`, `watchOS Simulator` or `visionOS Simulator` for the others. Mac Catalyst (`SUPPORTS_MACCATALYST`) and DriverKit have no build: each supported one is skipped with a warning, and the names written in its `#if` clauses stay retained. When none of them can be built, the schemes are built once as without `variants`.
-- The SDK of each build comes from `xcrun --sdk <name> --show-sdk-path`. A platform whose SDK is not installed is skipped with a warning, and the names written in its `#if` clauses stay retained.
+- Swift packages: each Apple platform other than macOS is built for its simulator, e.g. `platforms: [.macOS(.v15), .iOS(.v18)]` builds `arm64-apple-macosx15.0` and `arm64-apple-ios18.0-simulator` (`x86_64` on an Intel Mac). Mac Catalyst and DriverKit have no build: each declared one is skipped with a warning, and what its `#if` clauses use is retained as with a single build. A package that declares no platform, and any package on Linux, is built for the host only.
+- Xcode projects and workspaces: the platforms come from the `SUPPORTED_PLATFORMS` build setting of the targets the schemes build (`xcodebuild -showBuildSettings`), each built with `xcodebuild build-for-testing -destination generic/platform=<platform>`: `macOS`, and `iOS Simulator`, `tvOS Simulator`, `watchOS Simulator` or `visionOS Simulator` for the others. Mac Catalyst (`SUPPORTS_MACCATALYST`) and DriverKit have no build: each supported one is skipped with a warning, and what its `#if` clauses use is retained as with a single build. When none of them can be built, the schemes are built once as without `variants`.
+- The SDK of each build comes from `xcrun --sdk <name> --show-sdk-path`. A platform whose SDK is not installed is skipped with a warning, and what its `#if` clauses use is retained as with a single build.
 - The builds run one after the other, with the build arguments given after `--` (`--build-tests` included), and the scan stops at the first one that fails, naming it. Each build has its own scratch path, or DerivedData folder for Xcode, in the outskirts cache, evicted with the other caches by [`cache_max_age_days`](options.md#--cache-max-age-days) and [`cache_max_size_gb`](options.md#--cache-max-size-gb); `--clean-build` cleans each of them.
 - The summary line lists the variants built, e.g. `* Summary: 5 results (unused: 5) across 2 variants: arm64-apple-macosx15.0, arm64-apple-ios18.0-simulator`.
 
@@ -152,7 +152,7 @@ Since 3.22.0.
 
 With [`platform_conditional_retention: auto`](options.md#--platform-conditional-retention), outskirts uses the builds found in the index stores (their target triples, listed by `--verbose` and by `--explain` for a file indexed for several builds) to retain less:
 
-- The names written in an `#if` clause are retained only when no indexed build of the file compiled that clause, including in blocks nested in another `#if` block.
+- The names written in an `#if` clause account for imports only when no indexed build of the file compiled that clause, including in blocks nested in another `#if` block (the retention of declarations always narrows nested blocks), and, with `platform_conditional_retention: names`, retain declarations only then.
 - A declaration marked `@available(X, unavailable)` is no longer retained once its file was indexed for `X` and for a platform where the declaration is available.
 
 ```sh
@@ -170,7 +170,7 @@ index_store_path:
 platform_conditional_retention: auto
 ```
 
-Code for a platform that is not built, such as an `#if os(watchOS)` clause, stays retained. With a single index store, every clause the build did not compile and every `@available(X, unavailable)` declaration stay retained, as with the default `all-clauses`. Conditions that a target triple cannot answer, such as `#if DEBUG` or `canImport()`, are not narrowed: scanning a Debug and a Release store together covers `#if DEBUG` code.
+What a clause for a platform that is not built uses, such as an `#if os(watchOS)` clause, stays retained as described in [Platform conditionals](framework-conventions.md#platform-conditionals). With a single index store, every `@available(X, unavailable)` declaration stays retained, as with the default `all-clauses`. Conditions that a target triple cannot answer, such as `#if DEBUG` or `canImport()`, are not narrowed: scanning a Debug and a Release store together covers `#if DEBUG` code.
 
 ### Merging the results of separate scans
 

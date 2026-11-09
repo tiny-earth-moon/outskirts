@@ -136,22 +136,49 @@ Limit: a type that provides its own description (`CustomStringConvertible`, `Cus
 
 ## Platform conditionals
 
-The index store only describes the platform outskirts built for, so code that is only used on another platform would be reported as unused. To avoid these false positives, outskirts retains:
+The index store only describes the platform outskirts built for, so code that is only used on another platform would be reported as unused. The exact way to avoid these false positives is to index every platform: [`variants: auto`](troubleshooting.md#variants) builds each of them and scans the stores together. With a single build, outskirts retains what it can prove the other platforms use:
 
 - Declarations marked `@available(<platform>, unavailable)` (e.g. `@available(tvOS, unavailable)`), along with their members. `@available(*, unavailable)`, `swift` and `*ApplicationExtension` platforms are not affected.
-- Declarations whose name is written inside an `#if` block conditioned on `os()`, `targetEnvironment()`, `arch()` or `canImport()`, including its `#else` branches. Matching is done by name on the syntax tree, so unrelated declarations that share the name are retained too.
-  - The clauses the indexed build compiled are already in the index store, so their names are skipped. This applies when every condition of the block combines only `os()`, `arch()` and `targetEnvironment()` with `!`, `&&` and `||`, the block is not nested in another `#if` (with `platform_conditional_retention: auto`, a nested block is narrowed too when its enclosing blocks can be), and the target triple of every index unit of the file is understood (macOS, iOS, tvOS, watchOS, visionOS, their simulators, Mac Catalyst and Linux, on `arm64` or `x86_64`). A clause counts as compiled when any of these units compiled it. Otherwise, for example with a custom flag, `canImport()` or `swift()`, every clause of the block is collected.
+- What an `#if` clause conditioned on `os()`, `targetEnvironment()`, `arch()` or `canImport()` uses, when no indexed build compiles the clause with certainty:
+  - the classes, structs, enums, protocols and type aliases it names;
+  - the members it writes on a receiver whose type the clause proves (`Camera(...).zoom()`, `Camera.shared`, `let camera: Camera`, `self.zoom()`), or bare inside a type (`zoom()` in a method of `Camera`), only in the types the receiver may be, their supertypes and subtypes;
+  - the initializers, subscripts and `callAsFunction` it calls without writing their name, the operators of a type it names alongside the operator, and the witnesses of a conformance one of its extensions declares.
 - Imports of the modules declaring a name written inside such a block, or named there. With `--enable-unused-system-imports`, a file whose blocks write a name that no scanned declaration accounts for keeps all its system imports.
 
-```swift
-func hapticFeedback() {} // retained: named in the block
+A clause counts as compiled when any indexed unit of the file compiled it. Whether a clause is compiled is known when its conditions, and those of the blocks around it, combine only `os()`, `arch()`, `targetEnvironment()`, `canImport()` and custom conditions with `!`, `&&` and `||`, and the target triple of every index unit of the file is understood (macOS, iOS, tvOS, watchOS, visionOS, their simulators, Mac Catalyst and Linux, on `arm64` or `x86_64`). `canImport()` is answered for the system modules the platform settles and the modules of the project the build compiled. The index store records whether a unit was optimized, not its configuration nor its compilation conditions, so a custom condition such as `DEBUG` only counts when it does not decide the clause: `#if DEBUG && os(iOS)` is compiled by no macOS build, while `#if DEBUG` may be. Any other clause may be compiled, and retains nothing: `#if DEBUG`, `swift()`, or `canImport()` of a module whose presence is not known, such as `canImport(Testing)`. See [Code referenced only in an #if DEBUG branch](troubleshooting.md#code-referenced-only-in-an-if-debug-branch).
 
-#if os(iOS)
-hapticFeedback()
-#endif
+```swift
+struct Haptics {
+    func impact() {} // retained: called on Haptics
+    func reset() {}  // reported on macOS: called on a value
+                     // whose type the clause does not prove
+}
+
+func play(_ engine: Engine) {
+    #if os(iOS)
+    Haptics().impact()
+    engine.haptics.reset()
+    #endif
+}
 ```
 
-This can be disabled with [`--disable-platform-conditional-retention`](options.md). When the index stores of several platforms are scanned together, [`--platform-conditional-retention auto`](troubleshooting.md#retaining-only-what-the-missing-builds-may-use) also narrows nested blocks and `@available(X, unavailable)` with the builds they contain. Other conditions, such as `#if DEBUG`, are not covered: see [Code referenced only in an #if DEBUG branch](troubleshooting.md#code-referenced-only-in-an-if-debug-branch).
+`reset()` is used on iOS, but the receiver `engine.haptics` is a property whose type the clause does not tell, and the same name may be written on any type, a local variable, a free function or a C call. Scan with [`variants: auto`](troubleshooting.md#variants), which indexes the iOS clause, or retain such names with `platform_conditional_retention: names`.
+
+The retention can be tuned with [`--platform-conditional-retention`](options.md#--platform-conditional-retention):
+
+- `all-clauses` (default): the retentions above.
+- `auto`: also stops retaining `@available(X, unavailable)` once builds for `X` and for a platform where the declaration is available are indexed, and narrows the blocks nested in another one for the imports, see [Retaining only what the missing builds may use](troubleshooting.md#retaining-only-what-the-missing-builds-may-use). `variants` other than `default` imply it.
+- `names`: also retains every declaration whose name is written bare, or on a receiver of unknown type, in a platform `#if` clause that no indexed build is known to compile, whole when the block cannot be evaluated or is nested in another one. Matching is done by name, so unrelated declarations that share the name are retained too: a call to `write` from libc retains every `write` method of the project.
+- `off`, or [`--disable-platform-conditional-retention`](options.md#--disable-platform-conditional-retention): retains none of them.
+
+### Names written in platform #if clauses
+
+Since 3.22.0.
+
+Up to 3.21, outskirts retained every declaration whose name was written in a platform `#if` clause the build did not compile, and every clause of a block it could not evaluate. On large projects this hid hundreds of unused declarations: a `set` written on an unknown receiver under `#if os(iOS)` kept 70 `set` overloads of unrelated types, and a local variable `state` under `#if canImport(UIKit)` kept every `state` property. These names now retain nothing by default, so a scan with a single build may report declarations that only another platform uses. When it does, the scan prints one warning on stderr with the number of clauses concerned (`--quiet` silences it). Then either:
+
+- index every platform with [`variants: auto`](troubleshooting.md#variants) (exact), or repeat `--index-store-path` with the stores of the other platforms, or
+- keep the former retention with `platform_conditional_retention: names` (or `retain.platform_conditional: names` in a version 2 file, `--platform-conditional-retention names` on the command line).
 
 ## Objective-C
 
