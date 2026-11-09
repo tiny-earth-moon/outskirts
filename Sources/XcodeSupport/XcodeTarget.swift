@@ -40,6 +40,20 @@ public final class XcodeTarget {
         try identifyFiles(kind: .interfaceBuilder, in: resourcesBuildPhases)
         try identifyFiles(kind: .xcStrings, in: resourcesBuildPhases)
         try identifyInfoPlistFiles()
+        files = files.mapValues { existingFiles(in: $0) { logger.warn($0) } }
+    }
+
+    /// Drops the files referenced by the project that do not exist on disk, such as the Info.plist of a configuration
+    /// that is never built or a file Xcode shows in red, with a warning instead of failing the scan.
+    func existingFiles(in paths: Set<FilePath>, warn: (String) -> Void) -> Set<FilePath> {
+        paths.filter { path in
+            guard path.exists else {
+                warn("File '\(path.string)' of target '\(target.name)' does not exist, not analyzed.")
+                return false
+            }
+
+            return true
+        }
     }
 
     /// Values of the `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME` build setting in the target configurations.

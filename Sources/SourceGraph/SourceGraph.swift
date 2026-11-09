@@ -7,6 +7,8 @@ public final class SourceGraph {
     public private(set) var allDeclarations: Set<Declaration> = []
     public private(set) var usedDeclarations: Set<Declaration> = []
     public private(set) var redundantProtocols: [Declaration: (references: Set<Reference>, inherited: Set<Reference>)] = [:]
+    /// Protocols that would be redundant were they not retained by an ignore comment.
+    public private(set) var suppressedRedundantProtocols: Set<Declaration> = []
     public private(set) var rootDeclarations: Set<Declaration> = []
     public private(set) var redundantPublicAccessibility: [Declaration: Set<String>] = [:]
     public private(set) var redundantOpenAccessibility: [Declaration: Set<String>] = [:]
@@ -120,6 +122,10 @@ public final class SourceGraph {
 
     func markRedundantProtocol(_ declaration: Declaration, references: Set<Reference>, inherited: Set<Reference>) {
         redundantProtocols[declaration] = (references, inherited)
+    }
+
+    func markSuppressedRedundantProtocol(_ declaration: Declaration) {
+        _ = suppressedRedundantProtocols.insert(declaration)
     }
 
     func markRedundantPublicAccessibility(_ declaration: Declaration, modules: Set<String>) {
@@ -417,15 +423,17 @@ public final class SourceGraph {
     }
 
     /// Records the system modules found in the index store, the modules each of them may export, and the system
-    /// modules declaring the given external USRs.
+    /// modules declaring the given external USRs. `targets` are the target triples the system units were built for.
     public func addSystemModules(
         _ modules: Set<String>,
         exports: [String: Set<String>],
-        modulesByUsr: [String: Set<String>]
+        modulesByUsr: [String: Set<String>],
+        targets: Set<String>
     ) {
         indexedSystemModules.formUnion(modules)
 
-        for (module, exportedModules) in exports.merging(SystemModuleExports.known, uniquingKeysWith: { $0.union($1) }) {
+        let knownExports = SystemModuleExports.known(forTargets: targets)
+        for (module, exportedModules) in exports.merging(knownExports, uniquingKeysWith: { $0.union($1) }) {
             for exportedModule in exportedModules
                 where exportedModule != module && !SystemModuleExports.implicitlyImported.contains(exportedModule)
             {

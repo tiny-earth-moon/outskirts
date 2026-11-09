@@ -27,13 +27,11 @@ final class DynamicMemberRetainer: SourceGraphMutator {
         // Retain the methods that a call to a @dynamicCallable value is lowered to, by name for the same reason.
         for decl in graph.declarations(ofKind: .functionMethodInstance) where Self.dynamicCallableMethodNames.contains(decl.name) {
             graph.markRetained(decl)
-            decl.unusedParameters.forEach { graph.markRetained($0) }
+            graph.markRetained(decl.unusedParameters)
         }
 
-        for decl in graph.declarations(ofKinds: Declaration.Kind.functionKinds.union(Declaration.Kind.variableKinds)) {
-            if decl.attributes.contains(where: { $0.name == "_dynamicReplacement" }) {
-                graph.markRetained(decl)
-            }
+        for decl in graph.declarations(ofKinds: Declaration.Kind.functionKinds.union(Declaration.Kind.variableKinds)) where decl.hasAttribute(named: "_dynamicReplacement") {
+            graph.markRetained(decl)
         }
     }
 }

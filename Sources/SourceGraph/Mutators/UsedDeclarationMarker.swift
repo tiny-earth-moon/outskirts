@@ -8,6 +8,12 @@ final class UsedDeclarationMarker: SourceGraphMutator {
         "s:7SwiftUI6WidgetP",
         "s:7SwiftUI13ControlWidgetP",
     ]
+    private static let previewableSuperclassUsrs: Set<String> = [
+        "c:objc(cs)NSViewController",
+        "c:objc(cs)UIViewController",
+        "c:objc(cs)NSView",
+        "c:objc(cs)UIView",
+    ]
     private static let previewProviderUsr = "s:7SwiftUI15PreviewProviderP"
 
     private let graph: SourceGraph
@@ -108,8 +114,9 @@ final class UsedDeclarationMarker: SourceGraphMutator {
             .contains { self.graph.isUsed($0) && self.isPreviewable($0) }
     }
 
-    /// Whether the type conforms to a previewable protocol (`View`, `Widget` or `ControlWidget`), directly, through a
-    /// protocol it conforms to that refines one, or through a superclass that conforms.
+    /// Whether the type conforms to a previewable protocol (`View`, `Widget` or `ControlWidget`) or subclasses an AppKit
+    /// or UIKit view or view controller, directly, through a protocol it conforms to that refines one, or through a
+    /// superclass that does.
     private func isPreviewable(_ declaration: Declaration) -> Bool {
         guard [.struct, .class, .enum].contains(declaration.kind) else { return false }
 
@@ -119,6 +126,10 @@ final class UsedDeclarationMarker: SourceGraphMutator {
         while let current = pending.popLast() {
             for related in current.related {
                 if related.declarationKind == .protocol, Self.previewableProtocolUsrs.contains(related.usr) {
+                    return true
+                }
+
+                if related.declarationKind == .class, Self.previewableSuperclassUsrs.contains(related.usr) {
                     return true
                 }
 

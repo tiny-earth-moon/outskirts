@@ -82,6 +82,7 @@ public final class Xcodebuild {
         // With --skip-build, outskirts' own DerivedData is never populated, so fall back to the one Xcode uses.
         let projectName = project.path.lexicallyNormalized().lastComponent?.stem ?? ""
         let xcodeCandidates = xcodeDerivedDataFolders(named: projectName, in: xcodeDerivedDataRoot)
+            .filter { belongs($0, to: project) }
             .flatMap { folder in relativePaths.map { folder.appending($0) } }
             .filter(\.exists)
             .sorted { modificationDate($0) > modificationDate($1) }
@@ -105,6 +106,36 @@ public final class Xcodebuild {
 
         // Xcode names folders `<ProjectName>-<hash>`; require the dash so `Foo` does not match `FooBar-<hash>`.
         return names.filter { $0.hasPrefix(projectName + "-") }.map { root.appending($0) }
+    }
+
+    /// Xcode records the opened project or workspace under `WorkspacePath` in the `info.plist` of each DerivedData
+    /// folder; worktrees, clones and other projects with the same name share the folder name prefix.
+    private func belongs(_ folder: FilePath, to project: XcodeProjectlike) -> Bool {
+        let plistPath = folder.appending("info.plist")
+        guard let data = FileManager.default.contents(atPath: plistPath.string) else {
+            logger.debug("Ignoring Xcode DerivedData without info.plist: \(folder.string)")
+            return false
+        }
+
+        let plist: Any
+        do {
+            plist = try PropertyListSerialization.propertyList(from: data, format: nil)
+        } catch {
+            logger.debug("Ignoring Xcode DerivedData with an unreadable info.plist: \(folder.string)")
+            return false
+        }
+
+        guard let workspacePath = (plist as? [String: Any])?["WorkspacePath"] as? String else { return false }
+
+        let matches = resolvedPath(workspacePath) == resolvedPath(project.path.lexicallyNormalized().string)
+        if !matches {
+            logger.debug("Ignoring Xcode DerivedData of another workspace (\(workspacePath)): \(folder.string)")
+        }
+        return matches
+    }
+
+    private func resolvedPath(_ path: String) -> String {
+        URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
     }
 
     private func modificationDate(_ path: FilePath) -> Date {

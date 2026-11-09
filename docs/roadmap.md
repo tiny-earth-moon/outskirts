@@ -12,6 +12,7 @@ Issues carry a priority label, from `P1` (first) to `P3`.
 
 Recent releases, newest first:
 
+- **3.21.2** (2026-11-09): retention fixes (property wrappers, generic `allCases`, preview helpers, protocol extension `main()`, First Responder actions); stable redundant public results; unused system imports on Linux.
 - **3.21.1** (2026-11-09): platform conditional retention off by default, as in Periphery 3.8; two false positives fixed (parameters of requirements under `#if`, catalog keys looked up at runtime).
 - **3.21.0** (2026-11-06): `retain_public` per module; warning (and `--strict-index`) when the index is older than the sources; `--version`, grouped help and shell completions; `appendInterpolation` workaround limited to Swift < 6.4.
 - **3.20.0** (2026-11-05): prebuilt archive and bottles for macOS 15, 26 and 27; assign-only analysis without type annotations; platform `#if` retention limited to uncompiled clauses.

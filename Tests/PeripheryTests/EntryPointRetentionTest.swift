@@ -28,4 +28,20 @@ final class EntryPointRetentionTest: SPMSourceGraphTestCase {
 
         XCTAssertEqual(reported.map(\.declaration.name), ["unusedHelper()"])
     }
+
+    func testRetainsMainProvidedByProtocolExtension() {
+        module("EntryPointProtocolMain") {
+            self.assertReferenced(.protocol("Runnable")) {
+                self.assertReferenced(.functionMethodStatic("runIt()"))
+            }
+            self.assertReferenced(.extensionProtocol("Runnable")) {
+                self.assertReferenced(.functionMethodStatic("main()"))
+            }
+            self.assertReferenced(.struct("Tool")) {
+                self.assertReferenced(.functionMethodStatic("runIt()"))
+                self.assertReferenced(.functionMethodStatic("helper()"))
+                self.assertNotReferenced(.functionMethodStatic("unusedHelper()"))
+            }
+        }
+    }
 }

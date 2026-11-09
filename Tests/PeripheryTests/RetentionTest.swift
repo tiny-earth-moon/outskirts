@@ -1869,6 +1869,14 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    func testRetainsPropertyWrapperEnclosingInstanceSubscript() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureEnclosingInstanceWrapper")) {
+                self.assertReferenced(.functionSubscript("subscript(_enclosingInstance:wrapped:storage:)"))
+            }
+        }
+    }
+
     func testRetainsPropertyWrappers() {
         analyze(retainPublic: true) {
             assertReferenced(.class("Fixture111")) {
@@ -2562,6 +2570,19 @@ final class RetentionTest: FixtureSourceGraphTestCase {
             assertReferenced(.protocol("SuperfluouslyIgnoredProtocol")) {
                 self.assertSuperfluousIgnoreCommand(.varInstance("superfluousProperty"))
             }
+        }
+    }
+
+    func testIgnoreCommentSuppressingRedundantProtocolIsNotSuperfluous() {
+        analyze(retainPublic: true) {
+            assertNotSuperfluousIgnoreCommand(.protocol("FixtureIgnoredRedundantProtocol"))
+            assertNotSuperfluousIgnoreCommand(.protocol("FixtureIgnoredRedundantProtocolWithMember"))
+            assertNotRedundantProtocol("FixtureIgnoredRedundantProtocol")
+            assertNotRedundantProtocol("FixtureIgnoredRedundantProtocolWithMember")
+            // Control: the same protocol without an ignore comment is reported as redundant.
+            assertRedundantProtocol("FixtureNotIgnoredRedundantProtocol", implementedBy: .class("FixtureIgnoredRedundantProtocolConformer"))
+            // Control: an ignored protocol used as an existential type suppresses nothing.
+            assertSuperfluousIgnoreCommand(.protocol("FixtureIgnoredExistentialProtocol"))
         }
     }
 

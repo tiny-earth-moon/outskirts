@@ -98,4 +98,22 @@ final class EnumCaseRetentionTest: FixtureSourceGraphTestCase {
             }
         }
     }
+
+    func testRetainsEnumCaseWitnessingStaticRequirementThroughSelf() {
+        analyze(retainPublic: true) {
+            assertReferenced(.enum("FixtureSelfDefaultableEnum")) {
+                self.assertReferenced(.enumelement("initial"))
+                self.assertNotReferenced(.enumelement("unusedCase"))
+            }
+        }
+    }
+
+    func testRetainsCaseIterableCasesUsedThroughGenericAllCases() {
+        analyze(retainPublic: true) {
+            assertReferenced(.enum("FixtureGenericAllCasesEnum")) {
+                self.assertReferenced(.enumelement("first"))
+                self.assertReferenced(.enumelement("second"))
+            }
+        }
+    }
 }

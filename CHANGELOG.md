@@ -12,6 +12,24 @@
 
 - None.
 
+## 3.21.2 (2026-11-09)
+
+##### Breaking
+
+- None.
+
+##### Enhancements
+
+- None.
+
+##### Bug Fixes
+
+- No longer reported as unused: the projected-value initializer of an implicit property wrapper, the enclosing instance subscript of a property wrapper, enum cases used through a generic `allCases`, AppKit and UIKit preview helpers, a `main()` provided by a protocol extension, and actions sent to the First Responder in Interface Builder.
+- An ignore comment that silences a redundant protocol conformance is no longer reported as superfluous.
+- Redundant public accessibility gives the same results from one scan to the next: a public protocol and its public refinement were sometimes reported, sometimes not.
+- Unused system imports are reported on Linux (#280).
+- Xcode projects: a missing Info.plist or XIB of a configuration that is not built is skipped with a warning instead of failing the scan, and `--skip-build` no longer picks the DerivedData of another workspace.
+
 ## 3.21.1 (2026-11-09)
 
 ##### Breaking

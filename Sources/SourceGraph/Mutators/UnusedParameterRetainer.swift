@@ -33,7 +33,7 @@ final class UnusedParameterRetainer: SourceGraphMutator {
                     // existential type. Leaving the function parameters as unused would put produce awkward results.
                     let allFunctionDecls = extFuncDecls + [protoFuncDecl]
                     for functionDecl in allFunctionDecls {
-                        functionDecl.unusedParameters.forEach { graph.markRetained($0) }
+                        graph.markRetained(functionDecl.unusedParameters)
                     }
                 } else {
                     let overrideDecls = conformingDecls.flatMap { graph.allOverrideDeclarations(fromBase: $0) }
@@ -41,7 +41,7 @@ final class UnusedParameterRetainer: SourceGraphMutator {
 
                     for functionDecl in allFunctionDecls {
                         if configuration.retainUnusedProtocolFuncParams {
-                            functionDecl.unusedParameters.forEach { graph.markRetained($0) }
+                            graph.markRetained(functionDecl.unusedParameters)
                         } else {
                             retain(params: Array(functionDecl.unusedParameters), usedIn: allFunctionDecls)
                         }

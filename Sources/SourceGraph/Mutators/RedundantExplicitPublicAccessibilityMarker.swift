@@ -31,6 +31,17 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
         let nonExtensionKinds = rootDeclarations.filter { !$0.kind.isExtensionKind }
         let extensionKinds = rootDeclarations.filter(\.kind.isExtensionKind)
 
+        // A verdict may depend on verdicts already made (a refined protocol, an extended type, a conformer), and the
+        // root declarations are unordered. Marks only accumulate and each check only gets stricter as they do, so
+        // repeating the passes until no new mark appears reaches the same result whatever the visiting order.
+        var markCount = -1
+        while markCount != graph.redundantPublicAccessibility.count {
+            markCount = graph.redundantPublicAccessibility.count
+            try markPass(nonExtensionKinds: nonExtensionKinds, extensionKinds: extensionKinds)
+        }
+    }
+
+    private func markPass(nonExtensionKinds: Set<Declaration>, extensionKinds: Set<Declaration>) throws {
         for decl in nonExtensionKinds {
             // Open declarations are not yet implemented.
             guard !decl.accessibility.isExplicitly(.open) else {

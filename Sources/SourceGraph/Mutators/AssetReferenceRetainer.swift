@@ -22,6 +22,9 @@ final class AssetReferenceRetainer: SourceGraphMutator {
             result.formUnion(refs.runtimeAttributes)
         }
         interfaceBuilderPropertyRetainer.retainPropertiesDeclaredInExtensions(referencedAttributes: allRuntimeAttributes)
+        interfaceBuilderPropertyRetainer.retainActionsSentToFirstResponder(
+            ibReferencesByClass[AssetReference.firstResponderName]?.actions ?? []
+        )
 
         graph
             .declarations(ofKind: .class)

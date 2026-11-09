@@ -38,6 +38,22 @@
             }
         }
 
+        func testRetainsAppKitPreviewHelpers() {
+            analyze(retainPublic: true) {
+                assertReferenced(.class("PreviewedViewController")) {
+                    self.assertReferenced(.varStatic("previewOnlyTitle"))
+                    self.assertNotReferenced(.varStatic("unreferencedTitle"))
+                }
+                assertReferenced(.class("PreviewedSubViewController")) {
+                    self.assertReferenced(.varStatic("previewOnlyTitle"))
+                }
+                assertReferenced(.class("PreviewedView")) {
+                    self.assertReferenced(.varStatic("previewOnlyFrame"))
+                }
+                assertNotReferenced(.class("DeadPreviewedView"))
+            }
+        }
+
         func testRetainsPreviewProviderOfUsedView() {
             analyze(retainPublic: true) {
                 assertReferenced(.struct("UsedProvidedPreviewView_Previews"))
