@@ -7,11 +7,31 @@ import SourceGraph
 import SystemPackage
 
 public struct SourceFileCollector {
+    private typealias CollectedUnit = (FilePath, FilePath, IndexStore, UnitReader, String, Date?, Bool)
+
     private struct StoreUnits {
         let path: FilePath
-        let collected: [(FilePath, FilePath, IndexStore, UnitReader, String, Date?, Bool)]
+        let collected: [CollectedUnit]
         let unreadable: [String]
         let hasTargetExcludedUnit: Bool
+    }
+
+    private enum UnitOutcome {
+        case skipped
+        case targetExcluded
+        case collected(CollectedUnit)
+
+        var collectedUnit: CollectedUnit? {
+            guard case let .collected(unit) = self else { return nil }
+
+            return unit
+        }
+
+        var isTargetExcluded: Bool {
+            guard case .targetExcluded = self else { return false }
+
+            return true
+        }
     }
 
     private let indexStorePaths: Set<FilePath>
@@ -43,13 +63,13 @@ public struct SourceFileCollector {
                 let (units, unreadable) = indexStore.readUnits()
 
                 let unitsDirectory = indexStorePath.appending("v5/units")
-                var hasTargetExcludedUnit = false
 
-                let collected = units.filter { !$0.isSystem }.compactMap { unit -> (FilePath, FilePath, IndexStore, UnitReader, String, Date?, Bool)? in
+                // Each unit costs a few file system calls: the units of a store are classified concurrently.
+                let outcomes = Self.concurrentMap(units.filter { !$0.isSystem }) { unit -> UnitOutcome in
                     let filePath = unit.mainFile
 
                     guard !filePath.isEmpty else {
-                        return nil
+                        return .skipped
                     }
 
                     let file = FilePath.makeAbsolute(filePath, relativeTo: currentFilePath)
@@ -57,21 +77,25 @@ public struct SourceFileCollector {
                     if !isExcluded(file) {
                         guard file.exists else {
                             logger.debug("Source file does not exist: \(file.string)")
-                            return nil
+                            return .skipped
                         }
 
                         if excludedTargets.contains(unit.moduleName) {
-                            hasTargetExcludedUnit = true
-                            return nil
+                            return .targetExcluded
                         }
 
-                        return (file, indexStorePath, indexStore, unit, unit.moduleName, Self.modificationDate(of: unitsDirectory.appending(unit.name)), false)
+                        return .collected((file, indexStorePath, indexStore, unit, unit.moduleName, Self.modificationDate(of: unitsDirectory.appending(unit.name)), false))
                     }
 
-                    return file.exists ? (file, indexStorePath, indexStore, unit, unit.moduleName, nil, true) : nil
+                    return file.exists ? .collected((file, indexStorePath, indexStore, unit, unit.moduleName, nil, true)) : .skipped
                 }
 
-                return [StoreUnits(path: indexStorePath, collected: collected, unreadable: unreadable, hasTargetExcludedUnit: hasTargetExcludedUnit)]
+                return [StoreUnits(
+                    path: indexStorePath,
+                    collected: outcomes.compactMap(\.collectedUnit),
+                    unreadable: unreadable,
+                    hasTargetExcludedUnit: outcomes.contains(where: \.isTargetExcluded)
+                )]
             }
         let unreadableUnits = storeResults.reduce(into: [FilePath: Set<String>]()) { $0[$1.path] = Set($1.unreadable) }
         if let warning = try Self.unreadableUnitsWarning(unreadableUnits, relativeTo: currentFilePath, strict: configuration.strictIndex) {
@@ -96,9 +120,10 @@ public struct SourceFileCollector {
 
         var sourceFiles: [SourceFile: [IndexUnit]] = [:]
         var outdatedFiles: [FilePath: Set<FilePath>] = [:]
+        let collectedFiles = Array(collected)
+        let sourceModificationDates = Self.concurrentMap(collectedFiles) { Self.modificationDate(of: $0.key) }
 
-        for (file, allTuples) in collected {
-            let sourceModificationDate = Self.modificationDate(of: file)
+        for ((file, allTuples), sourceModificationDate) in zip(collectedFiles, sourceModificationDates) {
             let tuples = Self.currentUnits(
                 allTuples,
                 sourceModificationDate: sourceModificationDate,
@@ -270,6 +295,25 @@ public struct SourceFileCollector {
         let shown = names.prefix(examples).joined(separator: ", ")
 
         return names.count > examples ? "\(shown) and \(names.count - examples) more" : shown
+    }
+
+    /// `elements.map(transform)`, with the transforms run concurrently.
+    private static func concurrentMap<Element, Value>(_ elements: [Element], _ transform: (Element) -> Value) -> [Value] {
+        var results = [Value?](repeating: nil, count: elements.count)
+
+        results.withUnsafeMutableBufferPointer { buffer in
+            DispatchQueue.concurrentPerform(iterations: elements.count) { index in
+                buffer[index] = transform(elements[index])
+            }
+        }
+
+        return results.map { value in
+            guard let value else {
+                preconditionFailure("concurrentPerform returned before running every iteration")
+            }
+
+            return value
+        }
     }
 
     private static func modificationDate(of path: FilePath) -> Date? {
