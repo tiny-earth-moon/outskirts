@@ -11,8 +11,10 @@ name: Bottle
 # .sha256, for tools that want a binary without Homebrew; the archive job runs it on macos-26
 # with /Applications/Xcode.app as the only Xcode.
 #
-# Read-only: bottles, JSON files and the archive are workflow artifacts. For a release, the
-# maintainer downloads them, attaches the bottles and the archive to the GitHub release and
+# Read-only: bottles, JSON files and the archive are workflow artifacts. On a release tag push, the
+# bottle job also attests their build provenance (`gh attestation verify`); outside a tag push, every
+# artifact name starts with pr-<number>- or <short sha>- so it never looks like a release one. For a
+# release, the maintainer downloads them, attaches the bottles and the archive to the GitHub release and
 # pastes the block printed by scripts/bottle-block.sh (merged over every JSON file by the block
 # job, also in its summary) into the tap formula.
 #
@@ -78,8 +80,14 @@ jobs:
             archive: false
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
+    # id-token and attestations are only used by the attestation steps, which run on tag pushes.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     outputs:
       version: ${{ steps.version.outputs.version }}
+      prefix: ${{ steps.prefix.outputs.prefix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -122,6 +130,23 @@ jobs:
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Prefix the artifact names
+        id: prefix
+        # Release tag pushes keep the release names; any other run prefixes them.
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [[ $EVENT == push && $REF_TYPE == tag ]]; then
+            prefix=
+          elif [[ $EVENT == pull_request ]]; then
+            prefix="pr-$PR_NUMBER-"
+          else
+            prefix="${SHA:0:7}-"
+          fi
+          echo "prefix=$prefix" >> "$GITHUB_OUTPUT"
       - name: Update Homebrew
         # The image's Homebrew may predate the runner's macOS and not know its bottle tag.
         run: |
@@ -300,6 +325,11 @@ jobs:
             echo "$block"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Attest the bottle
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/bottle/*.bottle.tar.gz
       - name: Package the archive
         if: matrix.archive
         # The bottled binary itself, so the archive has the same rpaths as the bottle.
@@ -317,10 +347,15 @@ jobs:
           shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
           tar -tvzf "$name.tar.gz"
           cat "$name.tar.gz.sha256"
+      - name: Attest the archive
+        if: matrix.archive && github.event_name == 'push' && github.ref_type == 'tag'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/archive/*.tar.gz
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: matrix.archive
         with:
-          name: outskirts-archive-${{ steps.version.outputs.version }}
+          name: ${{ steps.prefix.outputs.prefix }}outskirts-archive-${{ steps.version.outputs.version }}
           path: |
             ${{ runner.temp }}/archive/*.tar.gz
             ${{ runner.temp }}/archive/*.tar.gz.sha256
@@ -329,7 +364,7 @@ jobs:
           retention-days: ${{ github.event_name == 'pull_request' && 7 || 90 }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: outskirts-bottle-${{ steps.version.outputs.version }}-${{ matrix.tag }}
+          name: ${{ steps.prefix.outputs.prefix }}outskirts-bottle-${{ steps.version.outputs.version }}-${{ matrix.tag }}
           path: |
             ${{ runner.temp }}/bottle/*.bottle.tar.gz
             ${{ runner.temp }}/bottle/*.bottle.json
@@ -341,7 +376,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: homebrew-logs-${{ matrix.tag }}
+          name: ${{ steps.prefix.outputs.prefix }}homebrew-logs-${{ matrix.tag }}
           path: ~/Library/Logs/Homebrew
           if-no-files-found: ignore
           retention-days: 7
@@ -356,7 +391,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: outskirts-bottle-${{ needs.bottle.outputs.version }}-*
+          pattern: ${{ needs.bottle.outputs.prefix }}outskirts-bottle-${{ needs.bottle.outputs.version }}-*
           path: ${{ runner.temp }}/bottles
           merge-multiple: true
       - name: Print the bottle block
@@ -387,7 +422,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: outskirts-archive-${{ needs.bottle.outputs.version }}
+          name: ${{ needs.bottle.outputs.prefix }}outskirts-archive-${{ needs.bottle.outputs.version }}
           path: ${{ runner.temp }}/download
       - name: Make /Applications/Xcode.app the only Xcode
         # As on a user machine with a single Xcode: /Applications/Xcode.app is the newest Xcode 26.x, selected.
