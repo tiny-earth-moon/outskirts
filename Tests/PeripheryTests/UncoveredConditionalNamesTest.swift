@@ -1,4 +1,7 @@
+import Configuration
 @testable import Fix
+import Foundation
+import Logger
 import SourceGraph
 import SystemPackage
 @testable import TestShared
@@ -34,6 +37,24 @@ final class UncoveredConditionalNamesTest: FixtureSourceGraphTestCase {
         XCTAssertTrue(read.hasCode)
         // Without the triples of the file's builds, no clause is known to be compiled.
         XCTAssertTrue(UncoveredConditionalNames.read(source, variants: []).names.contains("onMac"))
+    }
+
+    /// Monday's iOS unit of another target, left in a shared store, predates the call added on Tuesday under
+    /// `#if os(iOS)`: only the macOS unit written by Tuesday's build tells which clauses the index holds.
+    func testUnitOlderThanTheFile_doesNotCoverItsClauses() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("Shared.swift").path
+        try "#if os(iOS)\n    helper()\n#else\n    onMac()\n#endif\n".write(toFile: path, atomically: true, encoding: .utf8)
+        let macOS = IndexVariant(triple: "arm64-apple-macosx15.0", isOptimized: false)
+        let iOS = IndexVariant(triple: "arm64-apple-ios18.0", isOptimized: false)
+        let graph = SourceGraph(configuration: Configuration(), logger: Logger(quiet: true, verbose: false, colorMode: .never))
+        graph.addIndexedSourceFile(SourceFile(path: FilePath(path), modules: ["App_iOS", "App_macOS"], variants: [macOS, iOS], currentVariants: [macOS]))
+
+        let uncovered = try UncoveredConditionalNames(graph: graph)
+
+        XCTAssertEqual(uncovered.names, ["helper"])
     }
 
     func testCollectsTheTypesAClauseDeclaresExtendsOrInheritsFrom() {

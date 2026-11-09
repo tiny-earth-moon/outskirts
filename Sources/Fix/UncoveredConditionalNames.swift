@@ -39,7 +39,9 @@ struct UncoveredConditionalNames {
         var collected = UncoveredConditionalNames(names: [])
         for file in graph.indexedSourceFiles {
             let source = try String(contentsOfFile: file.path.string, encoding: .utf8)
-            let read = Self.read(source, variants: file.variants)
+            // A unit older than the file, left in a shared store by an earlier build, misses the code added since
+            // to the clauses its build compiled.
+            let read = Self.read(source, variants: file.currentVariants)
             collected = collected.merging(read)
             if read.hasCode {
                 collected = collected.merging(UncoveredConditionalNames(names: [], filesWithCode: [file.path]))
@@ -107,10 +109,9 @@ struct UncoveredConditionalNames {
     }
 
     static func read(_ source: String, variants: Set<IndexVariant>) -> UncoveredConditionalNames {
-        let configurations = variants.map { PlatformBuildConfiguration(triple: $0.triple) }
         let clauses = PlatformConditionalNameCollector.uncompiledClauses(
             from: Parser.parse(source: source),
-            configurations: configurations.contains(nil) ? [] : configurations.compactMap(\.self)
+            configurations: PlatformBuildConfiguration.configurations(of: variants)
         )
 
         var names: Set<String> = []
