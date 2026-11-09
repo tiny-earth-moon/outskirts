@@ -39,8 +39,12 @@ public final class SourceGraph {
     private(set) var platformConditionalNamesByFile: [SourceFile: Set<String>] = [:]
     /// The conformances declared by extensions written in platform conditional clauses no indexed build compiles.
     private(set) var platformConditionalConformances: Set<PlatformConditionalConformance> = []
-    /// The names written in platform conditional clauses no indexed build compiles.
-    private(set) var platformConditionalUnnamedUseNames: Set<String> = []
+    /// The initializer calls that write no initializer name in platform conditional clauses no indexed build compiles.
+    private(set) var platformConditionalConstructions: Set<PlatformConditionalConstruction> = []
+    /// The names written in the platform conditional clauses no indexed build compiles that access a value with `[ ]`.
+    private(set) var platformConditionalSubscriptedNames: Set<String> = []
+    /// The names written in the platform conditional clauses no indexed build compiles that call a value directly.
+    private(set) var platformConditionalValueCalledNames: Set<String> = []
     /// The names of the members declared `override` in platform conditional clauses, by file.
     private(set) var platformConditionalOverrideNamesByFile: [SourceFile: Set<String>] = [:]
     /// The names inherited by the classes and protocols declared in platform conditional clauses, by file.
@@ -489,7 +493,9 @@ public final class SourceGraph {
         platformConditionalNames.formUnion(names.references)
         platformConditionalNamesByFile[file, default: []].formUnion(names.references)
         platformConditionalConformances.formUnion(names.conformances)
-        platformConditionalUnnamedUseNames.formUnion(names.unnamedUseNames)
+        platformConditionalConstructions.formUnion(names.constructions)
+        platformConditionalSubscriptedNames.formUnion(names.subscriptedNames)
+        platformConditionalValueCalledNames.formUnion(names.valueCalledNames)
 
         if !names.overriddenNames.isEmpty {
             platformConditionalOverrideNamesByFile[file, default: []].formUnion(names.overriddenNames)

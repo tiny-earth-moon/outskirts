@@ -17,15 +17,22 @@ public struct PlatformConditionalNames: Equatable, Sendable {
     /// The conformances declared by the extensions written in these clauses: the members of the type that implement a
     /// requirement of the protocol are its witnesses.
     public var conformances: Set<PlatformConditionalConformance> = []
-    /// The names written in these clauses: the initializers, subscripts and `callAsFunction` of a type named there may
-    /// be called without writing their name.
-    public var unnamedUseNames: Set<String> = []
+    /// The initializers these clauses call without writing their name: `T(...)`, `T.init(...)`, `let value: T =
+    /// .init(...)`, or `T.self`.
+    public var constructions: Set<PlatformConditionalConstruction> = []
+    /// The names written in the clauses that access a value with `[ ]`: the subscripts of a type named there may be
+    /// called.
+    public var subscriptedNames: Set<String> = []
+    /// The names written in the clauses that call a value directly, `value()`: the `callAsFunction` of a type named
+    /// there may be called.
+    public var valueCalledNames: Set<String> = []
 
     public init() {}
 
     public var isEmpty: Bool {
-        references.isEmpty && overriddenNames.isEmpty && inheritedNames.isEmpty && otherClauseNames.isEmpty
-            && conformances.isEmpty && unnamedUseNames.isEmpty
+        references.isEmpty && overriddenNames.isEmpty && inheritedNames.isEmpty
+            && otherClauseNames.isEmpty && conformances.isEmpty && constructions.isEmpty && subscriptedNames.isEmpty
+            && valueCalledNames.isEmpty
     }
 }
 
@@ -40,3 +47,47 @@ public struct PlatformConditionalConformance: Hashable, Sendable {
     }
 }
 
+/// An initializer call written in a platform conditional clause without the name of the initializer.
+public struct PlatformConditionalConstruction: Hashable, Sendable {
+    let typeName: String
+    /// The argument labels of the call, `_` for an unlabeled argument, or nil when they cannot be read (`T.self`,
+    /// `T.init` unapplied).
+    let labels: [String]?
+
+    public init(typeName: String, labels: [String]?) {
+        self.typeName = typeName
+        self.labels = labels
+    }
+
+    /// Whether the call may reach the initializer of this name, `init(value:_:)`. A parameter missing from the call
+    /// may have a default value and an unlabeled argument following another may fill the same variadic parameter, as
+    /// the graph does not record either.
+    func matches(initializerName: String) -> Bool {
+        guard let labels else { return true }
+
+        let parameterLabels = Self.parameterLabels(of: initializerName)
+        var nextParameter = parameterLabels.startIndex
+        var hasMatched = false
+
+        for label in labels {
+            if let index = parameterLabels[nextParameter...].firstIndex(of: label) {
+                nextParameter = parameterLabels.index(after: index)
+                hasMatched = true
+            } else if label != "_" || !hasMatched {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private static func parameterLabels(of declarationName: String) -> [String] {
+        guard let open = declarationName.firstIndex(of: "("), let close = declarationName.lastIndex(of: ")") else {
+            return []
+        }
+
+        return declarationName[declarationName.index(after: open) ..< close]
+            .split(separator: ":", omittingEmptySubsequences: true)
+            .map(String.init)
+    }
+}

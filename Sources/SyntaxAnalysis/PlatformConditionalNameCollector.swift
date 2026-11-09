@@ -25,8 +25,7 @@ import SwiftSyntax
 ///
 /// Besides the names written as references, operators included, `collected` tells what a clause uses without writing
 /// its name: the members it overrides and the types it inherits from. The uses that would retain members not named
-/// anywhere (the names of the types whose initializers, subscripts and `callAsFunction` it may call, conformance
-/// witnesses) are only collected from the clauses
+/// anywhere (initializers, subscripts, `callAsFunction`, conformance witnesses) are only collected from the clauses
 /// that no configuration compiles with certainty, whatever `narrowsNestedBlocks`: every enclosing block is evaluated,
 /// and `canImport()` is answered for the system modules the platform settles. A clause that may be compiled, such as
 /// the `#else` of an `#if os(Windows)` nested in another block, or a `canImport()` clause of an unknown module, is
@@ -195,15 +194,23 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     private func collectUnnamedUses(in elements: IfConfigClauseSyntax.Elements) {
+        var names: Set<String> = []
         for token in elements.tokens(viewMode: .sourceAccurate) {
             if let name = referencedName(token) {
-                collected.unnamedUseNames.insert(name)
+                names.insert(name)
             }
         }
 
         let useCollector = UnnamedUseCollector(viewMode: .sourceAccurate)
         useCollector.walk(elements)
         collected.conformances.formUnion(useCollector.conformances)
+        collected.constructions.formUnion(useCollector.constructions(namedIn: names))
+        if useCollector.accessesSubscript {
+            collected.subscriptedNames.formUnion(names)
+        }
+        if useCollector.callsValue {
+            collected.valueCalledNames.formUnion(names)
+        }
     }
 
     /// The identifier of the clause the configuration compiles, `.some(nil)` when it compiles none, or `nil` when it
@@ -386,12 +393,117 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 }
 
-/// Collects what the declarations of a clause use without writing a name: the conformances of its extensions, the
-/// members it overrides and the types its classes and protocols inherit from.
+/// Collects what the code of a clause uses without writing a name: the conformances of its extensions, the members
+/// it overrides, the types its classes and protocols inherit from, the initializers it calls, and whether it accesses
+/// a subscript or calls a value.
 private final class UnnamedUseCollector: SyntaxVisitor {
     private(set) var conformances: Set<PlatformConditionalConformance> = []
     private(set) var overriddenNames: Set<String> = []
     private(set) var inheritedNames: Set<String> = []
+    private(set) var accessesSubscript = false
+    private var typedConstructions: Set<PlatformConditionalConstruction> = []
+    /// The labels of the `.init(...)` calls whose type the syntax does not tell.
+    private var untypedConstructionLabels: Set<[String]> = []
+    /// The names called directly, `name()`, which call a value when the clause binds them.
+    private var calledNames: Set<String> = []
+    private var boundNames: Set<String> = []
+    private var callsComplexValue = false
+
+    /// Whether the clause calls a value: a name it binds (`let value = T(); value()`), `$0()`, `value?()` or the
+    /// result of a call or subscript.
+    var callsValue: Bool {
+        callsComplexValue || !calledNames.isDisjoint(with: boundNames)
+    }
+
+    /// The initializer calls, those of untyped `.init(...)` ascribed to every name written in the clause.
+    func constructions(namedIn names: Set<String>) -> Set<PlatformConditionalConstruction> {
+        var result = typedConstructions
+        for labels in untypedConstructionLabels {
+            for name in names {
+                result.insert(PlatformConditionalConstruction(typeName: name, labels: labels))
+            }
+        }
+        return result
+    }
+
+    override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
+        let labels = Self.labels(of: node)
+        let callee = node.calledExpression
+
+        if let member = callee.as(MemberAccessExprSyntax.self), Self.isInit(member.declName) {
+            if let base = member.base {
+                if let typeName = Self.typeName(of: base) {
+                    typedConstructions.insert(PlatformConditionalConstruction(typeName: typeName, labels: labels))
+                }
+            } else if let contextTypeNames = Self.contextTypeNames(of: node) {
+                for typeName in contextTypeNames {
+                    typedConstructions.insert(PlatformConditionalConstruction(typeName: typeName, labels: labels))
+                }
+            } else {
+                untypedConstructionLabels.insert(labels)
+            }
+        } else if let typeName = Self.typeName(of: callee) {
+            // A function or method call is recorded too: it only matches a type of the same name.
+            typedConstructions.insert(PlatformConditionalConstruction(typeName: typeName, labels: labels))
+        }
+
+        if let reference = callee.as(DeclReferenceExprSyntax.self) {
+            if case .dollarIdentifier = reference.baseName.tokenKind {
+                callsComplexValue = true
+            } else {
+                calledNames.insert(reference.baseName.identifier?.name ?? reference.baseName.text)
+            }
+        } else if callee.is(FunctionCallExprSyntax.self) || callee.is(SubscriptCallExprSyntax.self)
+            || callee.is(OptionalChainingExprSyntax.self) || callee.is(ForceUnwrapExprSyntax.self)
+            || callee.is(TupleExprSyntax.self)
+        {
+            callsComplexValue = true
+        }
+
+        return .visitChildren
+    }
+
+    /// `T.init` unapplied, `T.init(value:)`, and `T.self`, which a generic function may construct.
+    override func visit(_ node: MemberAccessExprSyntax) -> SyntaxVisitorContinueKind {
+        guard let base = node.base, let typeName = Self.typeName(of: base) else { return .visitChildren }
+
+        if node.declName.baseName.tokenKind == .keyword(.self) {
+            typedConstructions.insert(PlatformConditionalConstruction(typeName: typeName, labels: nil))
+        } else if Self.isInit(node.declName),
+                  node.parent?.as(FunctionCallExprSyntax.self)?.calledExpression.id != node.id
+        {
+            let labels = node.declName.argumentNames.map { $0.arguments.map(\.name.text) }
+            typedConstructions.insert(PlatformConditionalConstruction(typeName: typeName, labels: labels))
+        }
+        return .visitChildren
+    }
+
+    override func visit(_: SubscriptCallExprSyntax) -> SyntaxVisitorContinueKind {
+        accessesSubscript = true
+        return .visitChildren
+    }
+
+    override func visit(_ node: IdentifierPatternSyntax) -> SyntaxVisitorContinueKind {
+        boundNames.insert(node.identifier.identifier?.name ?? node.identifier.text)
+        return .visitChildren
+    }
+
+    override func visit(_ node: FunctionParameterSyntax) -> SyntaxVisitorContinueKind {
+        let name = node.secondName ?? node.firstName
+        boundNames.insert(name.identifier?.name ?? name.text)
+        return .visitChildren
+    }
+
+    override func visit(_ node: ClosureParameterSyntax) -> SyntaxVisitorContinueKind {
+        let name = node.secondName ?? node.firstName
+        boundNames.insert(name.identifier?.name ?? name.text)
+        return .visitChildren
+    }
+
+    override func visit(_ node: ClosureShorthandParameterSyntax) -> SyntaxVisitorContinueKind {
+        boundNames.insert(node.name.identifier?.name ?? node.name.text)
+        return .visitChildren
+    }
 
     override func visit(_ node: ExtensionDeclSyntax) -> SyntaxVisitorContinueKind {
         if let typeName = Self.typeNames(of: node.extendedType).first {
@@ -443,6 +555,57 @@ private final class UnnamedUseCollector: SyntaxVisitor {
         }
     }
 
+    private static func isInit(_ name: DeclReferenceExprSyntax) -> Bool {
+        name.baseName.tokenKind == .keyword(.`init`)
+    }
+
+    /// The argument labels of the call, `_` for an unlabeled argument, without its trailing closures, whose labels the
+    /// syntax does not tell.
+    private static func labels(of call: FunctionCallExprSyntax) -> [String] {
+        call.arguments.map { $0.label?.text ?? "_" }
+    }
+
+    /// The name of the type an expression may refer to: `T`, `Module.T`, `T<Int>`.
+    private static func typeName(of expression: ExprSyntax) -> String? {
+        if let reference = expression.as(DeclReferenceExprSyntax.self) {
+            guard case .identifier = reference.baseName.tokenKind else { return nil }
+
+            return reference.baseName.identifier?.name ?? reference.baseName.text
+        }
+        if let member = expression.as(MemberAccessExprSyntax.self), member.base != nil {
+            guard case .identifier = member.declName.baseName.tokenKind else { return nil }
+
+            return member.declName.baseName.identifier?.name ?? member.declName.baseName.text
+        }
+        if let specialization = expression.as(GenericSpecializationExprSyntax.self) {
+            return typeName(of: specialization.expression)
+        }
+        if let typeExpression = expression.as(TypeExprSyntax.self) {
+            return typeNames(of: typeExpression.type).first
+        }
+        return nil
+    }
+
+    /// The type a `.init(...)` call constructs when the syntax tells it: the annotated type of the variable or the
+    /// parameter it initializes, optional or not.
+    private static func contextTypeNames(of call: FunctionCallExprSyntax) -> [String]? {
+        var node = Syntax(call)
+        while let parent = node.parent, parent.is(TryExprSyntax.self) || parent.is(AwaitExprSyntax.self) {
+            node = parent
+        }
+        guard let initializer = node.parent?.as(InitializerClauseSyntax.self) else { return nil }
+
+        let type: TypeSyntax? = if let binding = initializer.parent?.as(PatternBindingSyntax.self) {
+            binding.typeAnnotation?.type
+        } else {
+            initializer.parent?.as(FunctionParameterSyntax.self)?.type
+        }
+        guard let type else { return nil }
+
+        let names = typeNames(of: type)
+        return names.isEmpty ? nil : names
+    }
+
     private static func isOverride(_ modifiers: DeclModifierListSyntax) -> Bool {
         modifiers.contains { $0.name.tokenKind == .keyword(.override) }
     }
@@ -464,6 +627,12 @@ private final class UnnamedUseCollector: SyntaxVisitor {
         }
         if let composition = type.as(CompositionTypeSyntax.self) {
             return composition.elements.flatMap { typeNames(of: $0.type) }
+        }
+        if let optional = type.as(OptionalTypeSyntax.self) {
+            return typeNames(of: optional.wrappedType)
+        }
+        if let optional = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
+            return typeNames(of: optional.wrappedType)
         }
         return []
     }

@@ -1,5 +1,5 @@
 @testable import Indexer
-import SourceGraph
+@testable import SourceGraph
 import SwiftParser
 import SwiftSyntax
 @testable import SyntaxAnalysis
@@ -153,9 +153,49 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
 
         let collected = collectAll(source, [macOS])
 
-        XCTAssertEqual(collected.unnamedUseNames, ["WindowsHandle", "UIKitView"])
+        XCTAssertEqual(collected.constructions, [
+            PlatformConditionalConstruction(typeName: "WindowsHandle", labels: ["descriptor"]),
+            PlatformConditionalConstruction(typeName: "UIKitView", labels: ["frame"]),
+        ])
+        XCTAssertEqual(collected.subscriptedNames, [])
         XCTAssertTrue(collected.references.isSuperset(of: ["PosixHandle", "DispatchBuffer", "LibraryValue"]))
-        XCTAssertEqual(collectAll(source, []).unnamedUseNames, [])
+        XCTAssertEqual(collectAll(source, []).constructions, [])
+    }
+
+    func testCollectsInitializerCallsThatWriteNoInitializerName() {
+        let source = """
+        #if os(iOS)
+        let camera: Camera? = .init(fieldOfView: 1, 2)
+        _ = Lens.init(radius:)
+        _ = Module.Sensor<Int>(size: 1) { _ in }
+        make(Filter.self)
+        let value = Callable()
+        value()
+        _ = list[0]
+        #endif
+        """
+
+        let collected = collectAll(source, [macOS])
+
+        XCTAssertTrue(collected.constructions.isSuperset(of: [
+            PlatformConditionalConstruction(typeName: "Camera", labels: ["fieldOfView", "_"]),
+            PlatformConditionalConstruction(typeName: "Lens", labels: ["radius"]),
+            PlatformConditionalConstruction(typeName: "Sensor", labels: ["size"]),
+            PlatformConditionalConstruction(typeName: "Filter", labels: nil),
+            PlatformConditionalConstruction(typeName: "Callable", labels: []),
+        ]))
+        XCTAssertTrue(collected.subscriptedNames.contains("list"))
+        XCTAssertTrue(collected.valueCalledNames.contains("Callable"))
+    }
+
+    func testConstructionMatchesInitializersByLabels() {
+        let call = PlatformConditionalConstruction(typeName: "T", labels: ["value", "_"])
+        XCTAssertTrue(call.matches(initializerName: "init(value:_:)"))
+        XCTAssertTrue(call.matches(initializerName: "init(value:_:scale:)"))
+        XCTAssertTrue(call.matches(initializerName: "init(value:)"), "variadic")
+        XCTAssertFalse(call.matches(initializerName: "init(label:_:)"))
+        XCTAssertFalse(PlatformConditionalConstruction(typeName: "T", labels: ["_"]).matches(initializerName: "init()"))
+        XCTAssertTrue(PlatformConditionalConstruction(typeName: "T", labels: nil).matches(initializerName: "init(a:)"))
     }
 
     func testAnswersCanImportOnlyForSettledSystemModules() throws {

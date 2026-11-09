@@ -7,9 +7,10 @@ import Shared
 ///  - declarations marked `@available(<platform>, unavailable)`, as they exist for other platforms, and
 ///  - declarations whose name is written inside a platform conditional `#if` block, as the reference may live
 ///    in a branch that was not compiled,
-///  - the members a clause that no indexed build compiles uses without writing their name: the initializers,
-///    subscripts and `callAsFunction` of a type it names, and the witnesses of a conformance one of its extensions
-///    declares.
+///  - the members a clause that no indexed build compiles uses without writing their name: the initializers it calls
+///    (`T(...)`, `.init(...)` typed `T`, `T.self`) whose labels match, the subscripts of a type it names when it
+///    accesses a value with `[ ]`, the `callAsFunction` of a type it names when it calls a value, and the witnesses of
+///    a conformance one of its extensions declares.
 ///
 /// With `platform_conditional_retention: auto`, a declaration marked unavailable is not retained when its file was
 /// indexed for one of these platforms and for a platform where it is available (see `IndexVariant.cover`), by units
@@ -24,8 +25,6 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
     ]
 
     private static let typeKinds: Set<Declaration.Kind> = [.class, .struct, .enum]
-    /// Members used without writing their name: `T(...)`, `.init(...)`, `value[0]`.
-    private static let unnamedMemberKinds: Set<Declaration.Kind> = [.functionConstructor, .functionSubscript]
 
     /// An initializer can implement an `init` requirement.
     private static let nonWitnessKinds = nonReferenceableKinds.subtracting([.functionConstructor])
@@ -66,19 +65,36 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
 
     // MARK: - Private
 
-    /// The initializers, subscripts and `callAsFunction` of the types named in a platform conditional clause no
-    /// indexed build compiles, which calls them without writing their name: `T()`, `let value: T = .init()`,
-    /// `value[0]`, `value()`.
+    /// The members that a clause no indexed build compiles calls without writing their name: the initializers of its
+    /// `T(...)`, `.init(...)` typed `T` and `T.self`, and the subscripts and `callAsFunction` of a type it names when it
+    /// accesses a value with `[ ]` or calls a value.
     private func retainUnnamedMembers() {
-        let names = graph.platformConditionalUnnamedUseNames
-        guard !names.isEmpty else { return }
+        let constructionsByType = Dictionary(grouping: graph.platformConditionalConstructions, by: \.typeName)
+        let subscriptedNames = graph.platformConditionalSubscriptedNames
+        let valueCalledNames = graph.platformConditionalValueCalledNames
+        guard !constructionsByType.isEmpty || !subscriptedNames.isEmpty || !valueCalledNames.isEmpty else { return }
 
         for type in graph.declarations(ofKinds: Self.typeKinds) {
             let typeName = Self.baseName(of: type.name)
-            guard names.contains(typeName) else { continue }
+            let constructions = constructionsByType[typeName, default: []]
+            let isSubscripted = subscriptedNames.contains(typeName)
+            let isValueCalled = valueCalledNames.contains(typeName)
+            guard !constructions.isEmpty || isSubscripted || isValueCalled else { continue }
 
-            for member in members(of: type) where Self.unnamedMemberKinds.contains(member.kind) || Self.baseName(of: member.name) == "callAsFunction" {
-                graph.markRetained(member, reason: RetentionReason(Self.self, "member of '\(typeName)', named in a platform conditional clause no indexed build compiles, used without writing its name"))
+            for member in members(of: type) {
+                let reason: String? = switch member.kind {
+                case .functionConstructor where constructions.contains(where: { $0.matches(initializerName: member.name) }):
+                    "initializer of '\(typeName)', called without its name in a platform conditional clause no indexed build compiles"
+                case .functionSubscript where isSubscripted:
+                    "subscript of '\(typeName)', named in a platform conditional clause no indexed build compiles that accesses a value with [ ]"
+                case _ where isValueCalled && Self.baseName(of: member.name) == "callAsFunction":
+                    "callAsFunction of '\(typeName)', named in a platform conditional clause no indexed build compiles that calls a value"
+                default:
+                    nil
+                }
+                if let reason {
+                    graph.markRetained(member, reason: RetentionReason(Self.self, reason))
+                }
             }
         }
     }

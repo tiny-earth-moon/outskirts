@@ -585,6 +585,30 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    /// Naming a type in a platform conditional block does not call its initializers: only `T(...)`, `.init(...)`
+    /// typed `T` and `T.self` do, and a call only reaches the initializers its labels match.
+    func testRetainsOnlyInitializersConstructedInPlatformConditionalBlocks() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureNamedOnlyCamera")) {
+                self.assertNotReferenced(.functionConstructor("init(fieldOfView:)"))
+                self.assertNotReferenced(.functionSubscript("subscript(_:)"))
+                self.assertNotReferenced(.functionMethodInstance("callAsFunction()"))
+            }
+            assertReferenced(.struct("FixtureLabeledCamera")) {
+                self.assertReferenced(.functionConstructor("init(fieldOfView:aspect:)"))
+                self.assertNotReferenced(.functionConstructor("init(label:)"))
+            }
+            assertReferenced(.struct("FixtureTypedCamera")) {
+                self.assertReferenced(.functionConstructor("init(label:)"))
+                self.assertNotReferenced(.functionConstructor("init(fieldOfView:)"))
+            }
+            assertReferenced(.struct("FixtureMetatypeCamera")) {
+                self.assertReferenced(.functionConstructor("init(label:)"))
+                self.assertReferenced(.functionConstructor("init(fieldOfView:)"))
+            }
+        }
+    }
+
     /// A clause a build compiles is in the index store: the `#else` of an `#if os(Windows)` nested in another block,
     /// and an `#if canImport(Dispatch)` on Apple platforms, retain no initializer or subscript of the types they name.
     /// An `#if canImport(UIKit)` is not compiled on macOS.
@@ -600,6 +624,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
             }
             assertReferenced(.struct("FixtureUncompiledImportView")) {
                 self.assertReferenced(.functionConstructor("init(frame:)"))
+                self.assertNotReferenced(.functionConstructor("init(coder:)"))
             }
         }
     }
