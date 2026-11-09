@@ -104,7 +104,9 @@ public enum Baseline: Equatable {
 
         switch format {
         case .v1:
-            var entries = Dictionary(uniqueKeysWithValues: (kept?.entries ?? []).map { ($0.id, $0) })
+            // A baseline may hold an id twice (a merge, a manual edit): matching reads its ids as a set, so the last
+            // entry of the id is kept.
+            var entries = Dictionary((kept?.entries ?? []).map { ($0.id, $0) }) { _, new in new }
             entries.merge(Self.entries(of: kept == nil ? matchedResults : [], projectRoot: projectRoot)) { _, new in new }
             entries.merge(Self.entries(of: results, projectRoot: projectRoot)) { _, new in new }
             return .v2(entries: entries.values.sorted { $0.id < $1.id })
