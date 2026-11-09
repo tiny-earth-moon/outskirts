@@ -129,6 +129,33 @@ final class FixCommandEndToEndTest: XCTestCase {
         XCTAssertTrue(output.stderr.contains("Would apply 2 fixes in 1 file, skipped 0.\n  unused-parameter: 2"), output.stderr)
     }
 
+    /// An override turns the rule off for the module, a later one turns it back on for its files.
+    func testOverridesTurnARuleOffForAModuleAndBackOnForItsFiles() throws {
+        try write("version: 2\noverrides:\n  - modules: [Lib]\n    rules: {unused-parameter: off}\n", to: ".outskirts.yml")
+        try commitAll()
+        let off = try run(["fix", "--rule", "unused-parameter"])
+
+        XCTAssertEqual(off.status, 0, off.stderr)
+        XCTAssertEqual(off.stdout, "")
+        XCTAssertTrue(off.stderr.contains("Would apply 0 fixes in 0 files, skipped 0."), off.stderr)
+
+        try write("""
+        version: 2
+        overrides:
+          - modules: [Lib]
+            rules: {unused-parameter: off}
+          - paths: ["**/Sources/Lib/**"]
+            rules: {unused-parameter: on}
+
+        """, to: ".outskirts.yml")
+        try commitAll()
+        let on = try run(["fix", "--rule", "unused-parameter", "--skip-build"])
+
+        XCTAssertEqual(on.status, 0, on.stderr)
+        XCTAssertTrue(on.stdout.contains("+    public func render(width _: Int, _: Int) -> Int {"), on.stdout)
+        XCTAssertTrue(on.stderr.contains("Would apply 2 fixes in 1 file, skipped 0."), on.stderr)
+    }
+
     func testUnusedIsAnUnknownRule() throws {
         let output = try run(["fix", "--rule", "unused"])
 

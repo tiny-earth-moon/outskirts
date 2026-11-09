@@ -70,4 +70,12 @@ final class IndexCoverageTest: XCTestCase {
         configuration.buildFilenameMatchers()
         XCTAssertEqual(try coverage(indexed: [a], expected: ["Lib": [a, b]], configuration: configuration).gaps(), [])
     }
+
+    /// A driver may list a file through `.` or `..` components, which the index never records.
+    func testExpectedPathsAreComparedOnceNormalized() throws {
+        let expected: Set<FilePath> = ["/pkg/Sources/./Lib/A.swift", "/pkg/Sources/App/../Lib/B.swift"]
+
+        XCTAssertEqual(try coverage(indexed: [a, b], expected: ["Lib": expected]).gaps(), [])
+        XCTAssertEqual(try coverage(indexed: [a], expected: ["Lib": expected]).gaps(), [.init(target: "Lib", files: [b])])
+    }
 }
