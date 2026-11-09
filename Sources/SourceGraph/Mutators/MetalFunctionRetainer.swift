@@ -6,6 +6,8 @@ import Shared
 /// a function that no `.metal` file declares.
 ///
 /// An expression that is not a plain string literal may name any function, so it retains every Metal function.
+/// With `retain_public`, the `[[stitchable]]` and `[[visible]]` functions are public API: a client of the library
+/// looks them up by name, through `ShaderLibrary` for instance.
 final class MetalFunctionRetainer: SourceGraphMutator {
     private let graph: SourceGraph
     private let configuration: Configuration
@@ -22,8 +24,12 @@ final class MetalFunctionRetainer: SourceGraphMutator {
         let names = Set(references.compactMap(\.name))
         let retainsEverything = references.contains { $0.name == nil }
 
-        for declaration in graph.declarations(ofKind: .metalFunction) where retainsEverything || names.contains(declaration.name) {
-            graph.markRetained(declaration)
+        for declaration in graph.declarations(ofKind: .metalFunction) {
+            if retainsEverything || names.contains(declaration.name) {
+                graph.markRetained(declaration)
+            } else if configuration.retainPublic, declaration.attributes.contains(.metalExported) {
+                graph.markRetained(declaration)
+            }
         }
 
         guard graph.declaredMetalFunctionNamesAreComplete else { return }

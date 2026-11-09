@@ -16,6 +16,9 @@ struct MetalFunctionParser {
         let column: Int
         /// Whether the function is declared inside a conditionally compiled block (`#if`, `#ifdef`, `#ifndef`).
         let isConditional: Bool
+        /// Whether the function is attributed with `[[stitchable]]` or `[[visible]]`, so that a client of the library
+        /// may look it up by name.
+        var isExported = false
     }
 
     struct Result: Equatable {
@@ -26,6 +29,7 @@ struct MetalFunctionParser {
     }
 
     static let qualifierKeywords: Set<String> = ["kernel", "vertex", "fragment"]
+    static let exportedAttributes: Set<String> = ["stitchable", "visible"]
     static let qualifierAttributes: Set<String> = [
         "kernel", "vertex", "fragment", "visible", "stitchable", "mesh", "object", "intersection",
     ]
@@ -67,6 +71,7 @@ struct MetalFunctionParser {
         var functions: [Function] = []
         var names: Set<String> = []
         var isQualified = false
+        var isExported = false
         var hostName: String?
         var candidate: Token?
         var angleDepth = 0
@@ -74,6 +79,7 @@ struct MetalFunctionParser {
 
         func reset() {
             isQualified = false
+            isExported = false
             hostName = nil
             candidate = nil
             angleDepth = 0
@@ -97,6 +103,9 @@ struct MetalFunctionParser {
                 if attributeNames.contains(where: Self.qualifierAttributes.contains) {
                     isQualified = true
                 }
+                if attributeNames.contains(where: Self.exportedAttributes.contains) {
+                    isExported = true
+                }
                 if let attributeHostName {
                     hostName = attributeHostName
                 }
@@ -116,7 +125,8 @@ struct MetalFunctionParser {
                                 name: name,
                                 line: nameToken.line,
                                 column: nameToken.column,
-                                isConditional: nameToken.isConditional
+                                isConditional: nameToken.isConditional,
+                                isExported: isExported
                             ))
                         }
                         reset()

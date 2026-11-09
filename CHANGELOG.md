@@ -12,6 +12,21 @@
 
 - None.
 
+## 3.21.3 (2026-11-10)
+
+##### Breaking
+
+- None.
+
+##### Enhancements
+
+- None.
+
+##### Bug Fixes
+
+- Metal functions looked up through SwiftUI's `ShaderLibrary` (dynamic member, `[dynamicMember:]` subscript, `ShaderFunction(library:name:)`) are no longer reported as unused, and with `--retain-public` the `[[stitchable]]` and `[[visible]]` functions are retained as public API.
+- Redundant public accessibility: a public declaration used by an `@inlinable` accessor or by a body emitted into clients is no longer reported.
+
 ## 3.21.2 (2026-11-09)
 
 ##### Breaking

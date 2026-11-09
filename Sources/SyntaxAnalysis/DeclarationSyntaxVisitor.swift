@@ -197,6 +197,18 @@ public final class DeclarationSyntaxVisitor: PeripherySyntaxVisitor {
         )
     }
 
+    public func visitPost(_ node: AccessorDeclSyntax) {
+        // Only an attributed accessor is recorded, e.g. an `@inlinable get` whose body is emitted into clients.
+        guard !node.attributes.isEmpty else { return }
+
+        parse(
+            modifiers: nil,
+            attributes: node.attributes,
+            trivia: nil,
+            at: node.accessorSpecifier.positionAfterSkippingLeadingTrivia
+        )
+    }
+
     public func visitPost(_ node: VariableDeclSyntax) {
         for binding in node.bindings {
             if binding.pattern.is(IdentifierPatternSyntax.self) {

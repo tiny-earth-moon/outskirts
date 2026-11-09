@@ -366,7 +366,7 @@ Retain all public declarations, recommended for framework and library projects. 
 
 Key `retain_public` · flag, `--no-retain-public` to switch off, or in the file a list of strings · default `false`.
 
-See [Getting started: Quick start](getting-started.md#quick-start), [Configuration: The configuration file](configuration.md#the-configuration-file), [Analysis: Open and final](analysis.md#open-and-final), [Framework conventions and retention: SPI](framework-conventions.md#spi).
+See [Getting started: Quick start](getting-started.md#quick-start), [Configuration: The configuration file](configuration.md#the-configuration-file), [Analysis: Open and final](analysis.md#open-and-final), [Analysis: Metal functions](analysis.md#metal-functions).
 
 ### `--retain-public-modules`
 

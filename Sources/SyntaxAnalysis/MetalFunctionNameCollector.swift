@@ -8,6 +8,10 @@ import SwiftSyntax
 /// Only an assignment to `MTLFunctionDescriptor.name` names a Metal function, which the indexer confirms from the
 /// index store at the position of the `name` token.
 ///
+/// SwiftUI looks a shader up by name through `ShaderLibrary`: a dynamic member (`ShaderLibrary.default.ripple`,
+/// `ShaderLibrary.bundle(.module).ripple`, `ShaderLibrary.ripple`), its `[dynamicMember:]` subscript, and the `name:`
+/// argument of `ShaderFunction(library:name:)` name a Metal function too.
+///
 /// It also collects the calls that create a Metal library from something other than the `.metal` files of the
 /// project: `makeLibrary(source:)`, `makeLibrary(URL:)`, `makeLibrary(filepath:)`, `makeLibrary(data:)`,
 /// `makeLibrary(stitchedDescriptor:)`, and anything involving an `MTLBinaryArchive`.
@@ -27,6 +31,7 @@ public final class MetalFunctionNameCollector: SyntaxVisitor {
     private static let binaryArchiveNames: Set = ["MTLBinaryArchive", "makeBinaryArchive"]
 
     private static let callNames: Set = ["makeFunction", "MTLFunctionStitchingFunctionNode"]
+    private static let shaderLibraryMembers: Set = ["default", "bundle", "init", "self", "Type"]
 
     public private(set) var candidates: [Candidate] = []
 
@@ -65,10 +70,36 @@ public final class MetalFunctionNameCollector: SyntaxVisitor {
             candidates.append(Candidate(reference: reference(to: argument.expression), propertyLocation: nil))
         }
 
+        if calleeName == "ShaderFunction",
+           let argument = node.arguments.first(where: { $0.label?.text == "name" })
+        {
+            candidates.append(Candidate(reference: reference(to: argument.expression), propertyLocation: nil))
+        }
+
         if let calleeName {
             collectRuntimeLibrary(calleeName: calleeName, call: node)
         }
 
+        return .visitChildren
+    }
+
+    override public func visit(_ node: MemberAccessExprSyntax) -> SyntaxVisitorContinueKind {
+        guard let base = node.base, Self.isShaderLibrary(base) else { return .visitChildren }
+
+        let name = node.declName.baseName.text
+        guard !Self.shaderLibraryMembers.contains(name) else { return .visitChildren }
+
+        let location = sourceLocationBuilder.location(at: node.declName.baseName.positionAfterSkippingLeadingTrivia)
+        candidates.append(Candidate(reference: MetalFunctionNameReference(name: name, location: location), propertyLocation: nil))
+        return .visitChildren
+    }
+
+    override public func visit(_ node: SubscriptCallExprSyntax) -> SyntaxVisitorContinueKind {
+        guard Self.isShaderLibrary(node.calledExpression),
+              let argument = node.arguments.first, argument.label?.text == "dynamicMember"
+        else { return .visitChildren }
+
+        candidates.append(Candidate(reference: reference(to: argument.expression), propertyLocation: nil))
         return .visitChildren
     }
 
@@ -101,6 +132,24 @@ public final class MetalFunctionNameCollector: SyntaxVisitor {
     }
 
     // MARK: - Private
+
+    /// Whether the expression is a SwiftUI shader library: `ShaderLibrary`, `ShaderLibrary.default`,
+    /// `ShaderLibrary.bundle(_:)` or `ShaderLibrary(url:)`.
+    private static func isShaderLibrary(_ expression: ExprSyntax) -> Bool {
+        if let reference = expression.as(DeclReferenceExprSyntax.self) {
+            return reference.baseName.text == "ShaderLibrary"
+        }
+        if let memberAccess = expression.as(MemberAccessExprSyntax.self), let base = memberAccess.base {
+            return memberAccess.declName.baseName.text == "default" && isShaderLibrary(base)
+        }
+        if let call = expression.as(FunctionCallExprSyntax.self) {
+            if let memberAccess = call.calledExpression.as(MemberAccessExprSyntax.self), let base = memberAccess.base {
+                return ["bundle", "init"].contains(memberAccess.declName.baseName.text) && isShaderLibrary(base)
+            }
+            return isShaderLibrary(call.calledExpression)
+        }
+        return false
+    }
 
     private func collectRuntimeLibrary(calleeName: String, call node: FunctionCallExprSyntax) {
         let position = node.positionAfterSkippingLeadingTrivia
