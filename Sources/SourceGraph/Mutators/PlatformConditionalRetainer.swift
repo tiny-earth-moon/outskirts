@@ -11,7 +11,8 @@ import Shared
 ///    a type it names, and the witnesses of a conformance one of its extensions declares.
 ///
 /// With `platform_conditional_retention: auto`, a declaration marked unavailable is not retained when its file was
-/// indexed for one of these platforms and for a platform where it is available (see `IndexVariant.cover`).
+/// indexed for one of these platforms and for a platform where it is available (see `IndexVariant.cover`), by units
+/// written since the file was last modified: an older unit misses the uses added since.
 final class PlatformConditionalRetainer: SourceGraphMutator {
     static let nonReferenceableKinds: Set<Declaration.Kind> = [
         .module, .extension, .extensionClass, .extensionEnum, .extensionProtocol, .extensionStruct,
@@ -45,7 +46,7 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
         for decl in graph.allDeclarations {
             let unavailablePlatforms = Self.unavailablePlatforms(of: decl)
             let isCovered = retention == .auto
-                && IndexVariant.cover(unavailablePlatforms: unavailablePlatforms, in: decl.location.file.variants)
+                && IndexVariant.cover(unavailablePlatforms: unavailablePlatforms, in: decl.location.file.currentVariants)
 
             if !unavailablePlatforms.isEmpty, !isCovered {
                 graph.markRetained(decl, reason: RetentionReason(Self.self, "declared unavailable on a platform with @available"))

@@ -1,5 +1,8 @@
 import Configuration
+import Logger
+import Shared
 @testable import SourceGraph
+import SystemPackage
 import XCTest
 
 final class PlatformConditionalRetentionTest: XCTestCase {
@@ -65,6 +68,23 @@ final class PlatformConditionalRetentionTest: XCTestCase {
         // A build whose platform is not known with certainty.
         XCTAssertFalse(IndexVariant.cover(unavailablePlatforms: ["macOS"], in: [macOS, iOS, linux]))
         XCTAssertFalse(IndexVariant.cover(unavailablePlatforms: [], in: [macOS, iOS]))
+    }
+
+    /// Monday's iOS unit of another target, left in a shared store, predates the iOS-only use added on Tuesday of a
+    /// declaration unavailable on macOS: with the macOS unit of Tuesday's build alone, the declaration is not covered.
+    func testUnitOlderThanTheFile_doesNotCoverAnUnavailableDeclaration() throws {
+        let configuration = Configuration()
+        configuration.variants = .auto
+        let logger = Logger(quiet: true, verbose: false, colorMode: .never)
+        let graph = SourceGraph(configuration: configuration, logger: logger)
+        let file = SourceFile(path: FilePath("/App/Shared.swift"), modules: ["App_iOS", "App_macOS"], variants: [macOS, iOS], currentVariants: [macOS])
+        let declaration = Declaration(name: "haptics()", kind: .functionFree, usrs: ["s:3App7hapticsyyF"], location: Location(file: file, line: 1, column: 1))
+        declaration.attributes = [DeclarationAttribute(name: "available", arguments: "macOS, unavailable")]
+        graph.add(declaration)
+
+        try PlatformConditionalRetainer(graph: graph, configuration: configuration, swiftVersion: SwiftVersion(shell: ShellImpl(logger: logger))).mutate()
+
+        XCTAssertTrue(graph.isRetained(declaration))
     }
 
     func testDescribesOptimizedBuilds() {

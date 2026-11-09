@@ -106,8 +106,11 @@ public struct SourceFileCollector {
                 modificationDate: \.4
             )
             let modules = tuples.compactMapSet { $0.3 }
-            let variants = tuples.mapSet { IndexVariant(triple: $0.2.target, isOptimized: !$0.2.isDebugCompilation) }
-            let sourceFile = SourceFile(path: file, modules: modules, variants: variants)
+            let variant = { (tuple: (FilePath, IndexStore, UnitReader, String, Date?)) in
+                IndexVariant(triple: tuple.2.target, isOptimized: !tuple.2.isDebugCompilation)
+            }
+            let currentVariants = Self.upToDateUnits(tuples, sourceModificationDate: sourceModificationDate, modificationDate: \.4).mapSet(variant)
+            let sourceFile = SourceFile(path: file, modules: modules, variants: tuples.mapSet(variant), currentVariants: currentVariants)
             sourceFiles[sourceFile] = tuples.map { IndexUnit(store: $0.1, unit: $0.2, modificationDate: $0.4) }
 
             for tuple in Self.outdatedUnits(tuples, sourceModificationDate: sourceModificationDate, modificationDate: \.4) {
@@ -151,6 +154,20 @@ public struct SourceFileCollector {
             guard modulesWithCurrentUnit.contains(module(unit)), modificationDate(unit) != nil else { return true }
 
             return isCurrent(unit)
+        }
+    }
+
+    /// The units written since the source file was last modified, every unit when a date is unknown: an older unit
+    /// misses the code added since, so it cannot tell that the `#if` clauses its build compiled are in the index.
+    static func upToDateUnits<Unit>(
+        _ units: [Unit],
+        sourceModificationDate: Date?,
+        modificationDate: (Unit) -> Date?
+    ) -> [Unit] {
+        units.filter { unit in
+            guard let sourceModificationDate, let date = modificationDate(unit) else { return true }
+
+            return date >= sourceModificationDate
         }
     }
 

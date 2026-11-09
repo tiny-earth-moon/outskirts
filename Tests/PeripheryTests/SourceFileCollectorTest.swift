@@ -73,6 +73,24 @@ final class SourceFileCollectorTest: XCTestCase {
         XCTAssertEqual(current(units, sourceModificationDate: nil), ["undated", "fresh", "stale"])
     }
 
+    private func upToDate(_ units: [Unit], sourceModificationDate: Date?) -> [String] {
+        SourceFileCollector.upToDateUnits(units, sourceModificationDate: sourceModificationDate, modificationDate: \.date).map(\.name)
+    }
+
+    /// A shared store keeps Monday's iOS unit of another target next to Tuesday's macOS one: both are kept as index
+    /// data, only the macOS one is up to date with the file edited in between.
+    func testUnitOlderThanSource_isNotUpToDateEvenWhenKept() {
+        let units = [
+            Unit(name: "ios", module: "App_iOS", date: edited.addingTimeInterval(-86400)),
+            Unit(name: "macos", module: "App_macOS", date: edited.addingTimeInterval(60)),
+        ]
+
+        XCTAssertEqual(current(units, sourceModificationDate: edited), ["ios", "macos"])
+        XCTAssertEqual(upToDate(units, sourceModificationDate: edited), ["macos"])
+        XCTAssertEqual(upToDate(units, sourceModificationDate: nil), ["ios", "macos"])
+        XCTAssertEqual(upToDate([Unit(name: "undated", module: "App", date: nil)], sourceModificationDate: edited), ["undated"])
+    }
+
     private func outdated(_ units: [Unit], sourceModificationDate: Date?) -> [String] {
         let kept = SourceFileCollector.currentUnits(
             units,

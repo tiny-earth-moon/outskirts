@@ -1,3 +1,4 @@
+import SourceGraph
 import SwiftIfConfig
 import SwiftSyntax
 
@@ -23,8 +24,22 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
     let architecture: String
     let environment: String?
 
+    /// The configurations of the builds, or none when one of their triples is not understood, in which case every
+    /// clause of a platform conditional is to be collected.
+    public static func configurations(of variants: Set<IndexVariant>) -> [PlatformBuildConfiguration] {
+        var configurations: Set<PlatformBuildConfiguration> = []
+
+        for variant in variants {
+            guard let configuration = PlatformBuildConfiguration(triple: variant.triple) else { return [] }
+
+            configurations.insert(configuration)
+        }
+
+        return Array(configurations)
+    }
+
     /// Returns `nil` when the triple describes a platform whose conditions are not known with certainty.
-    public init?(triple: String) {
+    init?(triple: String) {
         let components = triple.split(separator: "-", omittingEmptySubsequences: false).map(String.init)
         guard components.count == 3 || components.count == 4 else { return nil }
 
