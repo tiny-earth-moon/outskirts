@@ -447,6 +447,22 @@ final class BaselineTest: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.string), ["baseline.json"])
     }
 
+    func testWrittenFile_refusesASymbolicLinkAndLeavesItsTargetAlone() throws {
+        let directory = try makeCheckoutDirectory("out")
+        try FileManager.default.createDirectory(atPath: directory.string, withIntermediateDirectories: true)
+        let target = directory.appending("shared.json")
+        let link = directory.appending("baseline.json")
+        try Data("shared".utf8).write(to: target.url)
+        try FileManager.default.createSymbolicLink(atPath: link.string, withDestinationPath: target.string)
+
+        XCTAssertThrowsError(try Baseline.v1(usrs: ["s:3Lib1aV"]).write(to: link)) { error in
+            XCTAssertTrue("\(error)".contains("is a symbolic link"), "\(error)")
+        }
+
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: link.string), target.string)
+        XCTAssertEqual(try String(contentsOf: target.url, encoding: .utf8), "shared")
+    }
+
     // MARK: - Version 2
 
     private let versionOneFile = #"{"v1":{"usrs":["empty-extension-Used-Sources\/Lib\/Lib.swift","import-Util-Sources\/Lib\/Lib.swift","s:3Lib10unusedFuncyyF"]}}"#

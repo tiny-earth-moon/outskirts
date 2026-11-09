@@ -363,7 +363,7 @@ struct ScanCommand: ParsableCommand {
                 formattedOutput ?? ""
             }
 
-            try output.write(to: resultsPath.url, atomically: true, encoding: .utf8)
+            try OutputFile.write(Data(output.utf8), to: resultsPath)
         }
 
         logger.endInterval(interval)

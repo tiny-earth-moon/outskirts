@@ -135,10 +135,10 @@ public enum Baseline: Equatable {
         return try encoder.encode(self) + Data("\n".utf8)
     }
 
-    /// Writes the file atomically: the contents go to a temporary file that replaces the destination, so that an
-    /// interrupted run never leaves a truncated baseline.
+    /// Writes the file atomically, so that an interrupted run never leaves a truncated baseline, and never over a
+    /// symbolic link (see `OutputFile.write`).
     public func write(to path: FilePath) throws {
-        try encoded().write(to: path.url, options: .atomic)
+        try OutputFile.write(encoded(), to: path)
     }
 
     /// Reads a baseline file, reporting the key at fault when the file is not a baseline.
