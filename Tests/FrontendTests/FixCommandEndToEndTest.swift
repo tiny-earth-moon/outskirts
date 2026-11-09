@@ -54,14 +54,38 @@ final class FixCommandEndToEndTest: XCTestCase {
 
     """
 
-    private var package: URL!
+    /// Every test runs in the same directory: SwiftPM and the index store record absolute paths, so a copy of the
+    /// reference build only rebuilds incrementally where it was built.
+    private static var workingCopy: URL!
+    /// The fixture package, committed and built once per class by `outskirts fix`, with its `.build`.
+    private static var reference: URL!
+
+    private var package: URL {
+        Self.workingCopy
+    }
+
+    override static func setUp() {
+        super.setUp()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("outskirts-fix-e2e-\(UUID().uuidString)")
+        workingCopy = root.appendingPathComponent("package")
+        reference = root.appendingPathComponent("reference")
+    }
+
+    override static func tearDown() {
+        if let root = workingCopy?.deletingLastPathComponent() {
+            try? FileManager.default.removeItem(at: root)
+        }
+        super.tearDown()
+    }
 
     override func setUpWithError() throws {
-        package = FileManager.default.temporaryDirectory.appendingPathComponent("outskirts-fix-e2e-\(UUID().uuidString)")
-        addTeardownBlock { [package] in
-            if let package {
-                try? FileManager.default.removeItem(at: package)
-            }
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: package.path) {
+            try fileManager.removeItem(at: package)
+        }
+        if fileManager.fileExists(atPath: Self.reference.path) {
+            try fileManager.copyItem(at: Self.reference, to: package)
+            return
         }
 
         try write("""
@@ -79,6 +103,9 @@ final class FixCommandEndToEndTest: XCTestCase {
         try write(".build/\n", to: ".gitignore")
         try git("init", "-q")
         try commitAll()
+        let build = try run(["fix"])
+        XCTAssertEqual(build.status, 0, build.stderr)
+        try fileManager.copyItem(at: package, to: Self.reference)
     }
 
     func testFixesThePackageAndTheRescanIsClean() throws {
