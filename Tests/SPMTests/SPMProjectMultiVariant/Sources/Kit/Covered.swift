@@ -24,14 +24,17 @@ struct Epsilon {
 
 public func covered() -> Int {
     var n = 0
+    // Bound outside the clauses, whose syntax then does not tell the receiver's type.
+    let delta = Delta()
     #if os(macOS)
         n += Gamma().macOnlyCalled()
     #endif
     #if os(iOS)
         #if targetEnvironment(simulator)
-            n += Delta().paint()
+            n += delta.paint()
         #endif
     #endif
+    _ = delta
     _ = Epsilon()
     return n
 }
