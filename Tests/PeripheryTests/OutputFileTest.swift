@@ -93,10 +93,22 @@ final class OutputFileTest: XCTestCase {
         XCTAssertTrue(OutputFile.isSymbolicLink(path("project/baseline.json").string))
     }
 
-    func testConfiguredOutput_writesAPlainFileOutsideTheProjectRoot() throws {
-        try OutputFile.writeConfigured(Data("new".utf8), to: path("outside/results.txt"), projectRoot: path("project"))
+    func testConfiguredOutput_refusesAPlainPathOutsideTheProjectRoot() throws {
+        try Data("kept".utf8).write(to: root.appendingPathComponent("outside/.zshrc"))
 
-        XCTAssertEqual(try String(contentsOfFile: path("outside/results.txt").string, encoding: .utf8), "new")
+        for configured in [path("outside/.zshrc"), FilePath(path("project").string + "/../outside/.zshrc")] {
+            XCTAssertThrowsError(try OutputFile.writeConfigured(Data("new".utf8), to: configured, projectRoot: path("project"))) { error in
+                XCTAssertTrue("\(error)".contains("on the command line"), "\(error)")
+            }
+        }
+
+        XCTAssertEqual(try String(contentsOfFile: path("outside/.zshrc").string, encoding: .utf8), "kept")
+    }
+
+    func testConfiguredOutput_writesAPlainPathInsideTheProjectRoot() throws {
+        try OutputFile.writeConfigured(Data("new".utf8), to: path("project/results.txt"), projectRoot: path("project"))
+
+        XCTAssertEqual(try String(contentsOfFile: path("project/results.txt").string, encoding: .utf8), "new")
     }
 
     func testConfinedWrite_refusesALinkLeadingOutsideTheRoot() throws {

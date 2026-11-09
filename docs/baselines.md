@@ -8,7 +8,7 @@ A baseline records results so that later scans do not report them again: new unu
 
 ## Options
 
-- **`--write-baseline <path>`** (`write_baseline`): write the results of the scan to `<path>`. The entries of the baseline given to `--baseline` are kept, and the current results are added. A path named on the command line is written through a symbolic link, the link kept; a path from the configuration file (`write_baseline`, `baseline` with `--prune-baseline`) follows a link only to a file inside the project root and refuses a dangling link.
+- **`--write-baseline <path>`** (`write_baseline`): write the results of the scan to `<path>`. The entries of the baseline given to `--baseline` are kept, and the current results are added. A path named on the command line is written through a symbolic link, the link kept; a path from the configuration file (`write_baseline`, `baseline` with `--prune-baseline`, and `write_results`) must resolve inside the project root, links and `..` included, and a dangling link is refused: pass the path on the command line to write elsewhere.
 - **`--baseline <path>`** (`baseline`): hide the results recorded in `<path>`. A relative path is resolved from `--project-root`.
 - **`--prune-baseline`** (`prune_baseline`): rewrite the file given to `--baseline`, keeping only the entries that still match a result. Requires `--baseline`.
 - **`--strict-baseline`** (`strict_baseline`): exit with status 1 if the baseline holds entries that no longer match any result. Requires `--baseline`.

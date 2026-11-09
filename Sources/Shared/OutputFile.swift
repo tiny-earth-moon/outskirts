@@ -15,29 +15,17 @@ public enum OutputFile {
     }
 
     /// Writes a file whose path comes from the configuration file (`baseline`, `write_baseline`, `write_results`), which
-    /// is project content: a cloned project could link it anywhere. A symbolic link at the destination is followed only
-    /// when the file it leads to is inside `projectRoot`, and a dangling link is refused rather than creating its
-    /// target; a path inside the project root must not leave it through a linked directory either. Returns the path
-    /// written.
+    /// is project content: a cloned project could point it anywhere. The path must resolve inside `projectRoot`, once
+    /// normalized and its symbolic links resolved (a link inside the root is kept and its target written), and a
+    /// dangling link is refused rather than creating its target. Returns the path written.
     @discardableResult
     public static func writeConfigured(_ data: Data, to path: FilePath, projectRoot: FilePath) throws -> FilePath {
-        let hint = "outskirts does not write there; name the file on the command line to write it anyway."
-        let destination: FilePath
-        if isSymbolicLink(path.string) {
-            guard resolve(path) != nil else {
-                throw PeripheryError.usageError("\(path.string), from the configuration file, is a dangling symbolic link: \(hint)")
-            }
-
-            destination = try confinedRealPath(of: path, within: projectRoot, from: "the configuration file", hint: hint)
-        } else {
-            let root = FilePath(FileManager.default.currentDirectoryPath).pushing(projectRoot).lexicallyNormalized()
-            let absolute = FilePath(FileManager.default.currentDirectoryPath).pushing(path).lexicallyNormalized()
-            if try absolute.starts(with: root) || absolute.starts(with: FilePath(realPath(projectRoot))) {
-                try confinedRealPath(of: path, within: projectRoot, from: "the configuration file", hint: hint)
-            }
-            destination = path
+        let hint = "outskirts does not write there from the configuration file; pass the path on the command line to write it anyway."
+        if isSymbolicLink(path.string), resolve(path) == nil {
+            throw PeripheryError.usageError("\(path.string), from the configuration file, is a dangling symbolic link: \(hint)")
         }
 
+        let destination = try confinedRealPath(of: path, within: projectRoot, from: "the configuration file", hint: hint)
         try data.write(to: URL(fileURLWithPath: destination.string), options: .atomic)
         return destination
     }
