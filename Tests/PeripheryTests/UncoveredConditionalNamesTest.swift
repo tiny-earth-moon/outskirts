@@ -52,9 +52,36 @@ final class UncoveredConditionalNamesTest: FixtureSourceGraphTestCase {
         let graph = SourceGraph(configuration: Configuration(), logger: Logger(quiet: true, verbose: false, colorMode: .never))
         graph.addIndexedSourceFile(SourceFile(path: FilePath(path), modules: ["App_iOS", "App_macOS"], variants: [macOS, iOS], currentVariants: [macOS]))
 
-        let uncovered = try UncoveredConditionalNames(graph: graph)
+        let uncovered = UncoveredConditionalNames(graph: graph)
 
         XCTAssertEqual(uncovered.names, ["helper"])
+    }
+
+    /// A Latin-1 file cannot be read as UTF-8: fix warns and goes on, keeping what its unknown clauses may use.
+    func testNonUTF8File_isWarnedAndGuardedAsCode() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("Latin1.swift").path
+        try Data("// caf\u{E9}\n#if DEBUG\nlet x = Box()[0]\n#endif\n".utf8.map { $0 == 0xC3 ? 0xE9 : $0 }.filter { $0 != 0xA9 })
+            .write(to: URL(fileURLWithPath: path))
+        let variant = IndexVariant(triple: "arm64-apple-macosx15.0", isOptimized: false)
+        let file = SourceFile(path: FilePath(path), modules: ["App"], variants: [variant], currentVariants: [variant])
+        let graph = SourceGraph(configuration: Configuration(), logger: Logger(quiet: true, verbose: false, colorMode: .never))
+        graph.addIndexedSourceFile(file)
+        var warnings: [String] = []
+
+        let uncovered = UncoveredConditionalNames(graph: graph) { warnings.append($0) }
+
+        XCTAssertEqual(warnings.count, 1)
+        XCTAssertTrue(warnings.first?.contains(path) ?? false)
+        XCTAssertTrue(uncovered.hasCode)
+        XCTAssertEqual(uncovered.filesWithCode, [FilePath(path)])
+        let location = Location(file: file, line: 3, column: 1)
+        let importDecl = Declaration(name: "Foundation", kind: .module, usrs: ["import"], location: location)
+        XCTAssertEqual(uncovered.skipReason(for: importDecl, rule: .unusedImport), .uncoveredConditionalCode)
+        let subscriptDecl = Declaration(name: "subscript(_:)", kind: .functionSubscript, usrs: ["subscript"], location: location)
+        XCTAssertEqual(uncovered.skipReason(for: subscriptDecl, rule: .redundantPublic), .implicitMemberWithUncoveredCode)
     }
 
     func testCollectsTheTypesAClauseDeclaresExtendsOrInheritsFrom() {
@@ -121,7 +148,7 @@ final class UncoveredConditionalNamesTest: FixtureSourceGraphTestCase {
 
     private func readIndexedFixture() throws -> UncoveredConditionalNames {
         analyze {}
-        return try UncoveredConditionalNames(graph: Self.graph)
+        return UncoveredConditionalNames(graph: Self.graph)
     }
 
     private func declaration(_ name: String) throws -> Declaration {
