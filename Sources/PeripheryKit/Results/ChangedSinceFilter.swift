@@ -116,7 +116,7 @@ public final class ChangedSinceFilter {
             var out: [(file: String, ranges: [Range<Int>])] = []
             var current: Int?
 
-            for line in patch.split(separator: "\n", omittingEmptySubsequences: false) {
+            for line in patch.split(omittingEmptySubsequences: false, whereSeparator: { $0 == "\n" || $0 == "\r\n" }) {
                 if line.hasPrefix("diff --git ") {
                     current = nil
                 } else if line.hasPrefix("+++ ") {

@@ -270,7 +270,7 @@ private final class ParsedSources {
         let file: ParsedSource?
         do {
             let source = try String(contentsOfFile: path.string, encoding: .utf8)
-            file = ParsedSource(lines: source.split(separator: "\n", omittingEmptySubsequences: false), declarations: SourceFileDeclarations(source: source))
+            file = ParsedSource(lines: source.split(omittingEmptySubsequences: false, whereSeparator: { $0 == "\n" || $0 == "\r\n" || $0 == "\r" }), declarations: SourceFileDeclarations(source: source))
         } catch {
             logger.warn("The agent report shows no code for \(path.string), which could not be read: \(error.localizedDescription)")
             file = nil

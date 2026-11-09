@@ -99,6 +99,19 @@ final class AgentFormatterTest: FixtureSourceGraphTestCase {
         """), output)
     }
 
+    func testCRLFFile_showsTheCodeOfTheReportedLineOnly() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("outskirts-agent-crlf-\(UUID().uuidString).swift")
+        try Data("import Foundation\r\n\r\nclass Gone {}\r\n".utf8).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let file = SourceFile(path: FilePath(url.path), modules: ["RetentionFixtures"])
+        let unusedFile = try format([ScanResult(declaration: Declaration(name: "Gone", kind: .class, usrs: ["s:Gone"], location: Location(file: file, line: 3, column: 7)), annotation: .unused)])
+        XCTAssertTrue(unusedFile.hasSuffix(".swift` (3 lines): class `Gone`"), unusedFile)
+
+        let unusedImport = try format([ScanResult(declaration: Declaration(name: "Foundation", kind: .module, usrs: ["s:Foundation"], location: Location(file: file, line: 1, column: 1)), annotation: .unused)])
+        XCTAssertTrue(unusedImport.hasSuffix("- L1 import `Foundation`: remove import · `import Foundation`"), unusedImport)
+    }
+
     func testCap_neverSplitsAnUnusedFile_andAlwaysShowsTheFirstEntry() throws {
         let output = try format(sampleResults(), maxResults: 2)
 

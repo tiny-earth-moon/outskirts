@@ -147,7 +147,7 @@ enum ConfigurationMigration {
             comments.leading[key, default: []] += lines
         }
 
-        for line in yaml.components(separatedBy: "\n") {
+        for line in yaml.split(omittingEmptySubsequences: false, whereSeparator: { $0 == "\n" || $0 == "\r\n" || $0 == "\r" }).map(String.init) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
             if trimmed.isEmpty || trimmed.hasPrefix("#") {
