@@ -78,7 +78,7 @@ struct AnalysisOptions: ParsableArguments {
     @Flag(inversion: .prefixedNo, help: "Disable retention of declarations that are unavailable on a platform, or referenced from platform conditional compilation blocks. Alias of '--platform-conditional-retention off', which it overrides")
     var disablePlatformConditionalRetention: Bool?
 
-    @Option(help: "Retention of declarations possibly used by a build missing from the index: 'all-clauses', 'auto' (narrowed by the builds of every '--index-store-path'), or 'off' (default: all-clauses)")
+    @Option(help: "Retention of declarations possibly used by a build missing from the index: 'all-clauses', 'auto' (narrowed by the builds of every '--index-store-path'), 'names' (also every declaration of a name written in a platform #if clause no build compiled), or 'off' (default: all-clauses)")
     var platformConditionalRetention: PlatformConditionalRetention?
 
     @Flag(inversion: .prefixedNo, help: "Disable identification of redundant public accessibility")

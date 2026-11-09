@@ -142,7 +142,7 @@ Index store paths, relative to the project root; implies skip_build.
 
 Key `index_store_path` · list of strings · default empty.
 
-See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Fixing results: Partial scans](fixing-results.md#partial-scans).
+See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Framework conventions and retention: Names written in platform #if clauses](framework-conventions.md#names-written-in-platform-if-clauses).
 
 ### `--quiet-index-store`
 
@@ -366,11 +366,11 @@ See [Framework conventions and retention: Platform conditionals](framework-conve
 
 Since 3.22.0.
 
-How declarations possibly used by a build missing from the index are retained: 'all-clauses' retains the names written in the platform #if clauses no indexed build compiled, and the declarations marked @available(X, unavailable); 'auto' also narrows #if blocks nested in another one, and stops retaining @available(X, unavailable) once builds for X and for a platform where the declaration is available are indexed, e.g. with '--index-store-path' repeated; 'off' retains neither.
+How declarations possibly used by a build missing from the index are retained: 'all-clauses' retains the declarations marked @available(X, unavailable), and what the platform #if clauses no indexed build compiles use precisely: members of the types their receivers are proven to be, initializers, subscripts and callAsFunction called without their name, operators of the types they name, conformance witnesses; 'auto' also narrows #if blocks nested in another one, and stops retaining @available(X, unavailable) once builds for X and for a platform where the declaration is available are indexed, e.g. with '--index-store-path' repeated; 'names' also retains every declaration of the names written bare or on a receiver of unknown type in these clauses, as outskirts 3.21 and Periphery did; 'off' retains none.
 
-Key `platform_conditional_retention` · one of `auto`, `all-clauses`, `off` · default `all-clauses`.
+Key `platform_conditional_retention` · one of `auto`, `all-clauses`, `names`, `off` · default `all-clauses`.
 
-See [Framework conventions and retention: Platform conditionals](framework-conventions.md#platform-conditionals), [Troubleshooting: Scanning several platforms or configurations](troubleshooting.md#scanning-several-platforms-or-configurations), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths), [Troubleshooting: Variants](troubleshooting.md#variants).
+See [Framework conventions and retention: Platform conditionals](framework-conventions.md#platform-conditionals), [Framework conventions and retention: Names written in platform #if clauses](framework-conventions.md#names-written-in-platform-if-clauses), [Troubleshooting: Scanning several platforms or configurations](troubleshooting.md#scanning-several-platforms-or-configurations), [Configuration: v1 keys and v2 paths](configuration.md#v1-keys-and-v2-paths).
 
 ### `--detect-unused-asset-catalog-colors`
 
@@ -658,7 +658,7 @@ Print only the results.
 
 Key `quiet` · flag, `--no-quiet` to switch off · default `false`.
 
-See [Getting started: Results and messages](getting-started.md#results-and-messages), [Output formats: Writing to a file](output-formats.md#writing-to-a-file), [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Continuous integration: Quiet reports](ci.md#quiet-reports).
+See [Getting started: Results and messages](getting-started.md#results-and-messages), [Framework conventions and retention: Names written in platform #if clauses](framework-conventions.md#names-written-in-platform-if-clauses), [Output formats: Writing to a file](output-formats.md#writing-to-a-file), [Continuous integration: Reusing the build](ci.md#reusing-the-build).
 
 ### `--verbose`
 

@@ -40,6 +40,19 @@ public struct PlatformConditionalNames: Equatable, Sendable {
     /// The names written in the clauses that call a value directly, `value()`: the `callAsFunction` of a type named
     /// there may be called.
     public var valueCalledNames: Set<String> = []
+    /// The names written as references in these clauses: the types of these names are retained.
+    public var uncompiledReferences: Set<String> = []
+    /// The members written in these clauses with a receiver, or bare inside the types declared or extended around
+    /// them: unless `platform_conditional_retention` is `names`, only those whose receiver's type is proven are
+    /// retained.
+    public var uncompiledMemberUses: Set<PlatformConditionalMemberUse> = []
+    /// For each operator applied in these clauses, the names written in the clauses that apply it.
+    public var uncompiledOperatorClauseNames: [String: Set<String>] = [:]
+
+    /// The names written as references in each clause whose names are collected, a clause nested in another one
+    /// counted with it: they tell how many clauses write names that only `platform_conditional_retention: names`
+    /// retains.
+    public var clauseNames: [Set<String>] = []
 
     public init() {}
 
@@ -48,7 +61,8 @@ public struct PlatformConditionalNames: Equatable, Sendable {
             && declaredTypeNames.isEmpty
             && operatorClauseNames.isEmpty && overriddenNames.isEmpty && inheritedNames.isEmpty
             && otherClauseNames.isEmpty && conformances.isEmpty && constructions.isEmpty && subscriptedNames.isEmpty
-            && valueCalledNames.isEmpty
+            && valueCalledNames.isEmpty && uncompiledReferences.isEmpty && uncompiledMemberUses.isEmpty && uncompiledOperatorClauseNames.isEmpty
+            && clauseNames.isEmpty
     }
 }
 

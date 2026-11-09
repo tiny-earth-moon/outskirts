@@ -21,6 +21,38 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         PlatformConditionalNameCollector.collectAll(from: Parser.parse(source: source), configurations: configurations)
     }
 
+    /// The uses retained by default only come from the clauses no build compiles with certainty: a custom condition
+    /// counts when it does not decide the clause, so `DEBUG && os(iOS)` is uncompiled on macOS, `DEBUG` alone and
+    /// `canImport(Testing)` may be compiled, and `self` or a bare name read the type around the clause.
+    func testUncompiledUses_onlyComeFromClausesNoBuildCompiles() {
+        let source = """
+        struct Player {
+            func play(_ engine: Engine) {
+                #if DEBUG && os(iOS)
+                self.vibrate()
+                stop()
+                engine.reset()
+                Haptics.shared.impact()
+                #endif
+                #if DEBUG
+                debugOnly()
+                #endif
+                #if canImport(Testing)
+                testOnly()
+                #endif
+            }
+        }
+        """
+
+        let collected = collectAll(source, [macOS])
+
+        XCTAssertEqual(Set(collected.uncompiledMemberUses.map(\.name)), ["vibrate", "stop", "reset", "shared", "impact", "Haptics"])
+        XCTAssertTrue(collected.uncompiledMemberUses.contains(PlatformConditionalMemberUse(name: "stop", receiver: .enclosingTypes(["Player"]), isBare: true, lexicalTypeNames: ["Player"])))
+        XCTAssertTrue(collected.uncompiledReferences.isSuperset(of: ["Haptics", "vibrate", "stop"]))
+        XCTAssertTrue(collected.uncompiledReferences.isDisjoint(with: ["debugOnly", "testOnly"]))
+        XCTAssertEqual(collected.clauseNames.count, 2)
+    }
+
     /// Monday's iOS unit of another target, left in a shared store, predates the call added on Tuesday under
     /// `#if os(iOS)`: only the macOS unit written by Tuesday's build narrows the clauses, so the call is collected.
     func testUnitOlderThanTheFile_doesNotNarrowItsClauses() {

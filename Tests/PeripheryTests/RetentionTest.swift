@@ -674,7 +674,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
 
     /// The clause the indexed build compiled is in the index store, so its names retain nothing more.
     func testReportsSameNamedMembersCalledOnlyInCompiledPlatformConditionalClause() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureCompiledClauseAlpha")) {
                 self.assertReferenced(.functionMethodInstance("compiledClauseDraw()"))
             }
@@ -724,7 +724,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     /// Custom flags, version checks and nested blocks keep the whole-block retention. A `canImport()` of a module the
     /// platform settles is evaluated: `#if canImport(Foundation)` is compiled on macOS and Linux, in the index store.
     func testRetainsWholeBlockWhenPlatformConditionalCannotBeEvaluated() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureUnevaluatedImportAlpha")) {
                 self.assertReferenced(.functionMethodInstance("unevaluatedImport()"))
             }
@@ -744,7 +744,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     /// With a single indexed build, `platform_conditional_retention: auto` keeps every retention of `all-clauses` for
-    /// the other platforms: declarations marked unavailable, and names written in clauses the build did not compile.
+    /// the other platforms: declarations marked unavailable, and what the clauses the build did not compile use.
     func testAutoRetentionWithASingleBuildKeepsTheRetentionsOfOtherPlatforms() {
         let fixtureTests = [
             "testRetainsDeclarationsUnavailableOnPlatform",
@@ -768,6 +768,14 @@ final class RetentionTest: FixtureSourceGraphTestCase {
                 self.assertReferenced(.functionMethodInstance("onlyOnTVOS()"))
                 self.assertReferenced(.functionMethodInstance("onlyInElse()"))
             }
+        }
+    }
+
+    /// With a single indexed build, `platform_conditional_retention: names` keeps the names of the blocks it cannot
+    /// evaluate, whole.
+    func testNamesRetentionWithASingleBuildKeepsTheNamesOfBlocksItCannotEvaluate() {
+        let fixtureTests = ["testRetainsWholeBlockWhenPlatformConditionalCannotBeEvaluated"]
+        analyze(retainPublic: true, platformConditionalRetention: .names, fixtureTests: fixtureTests) {
             for name in ["Flag", "Version", "Nested"] {
                 assertReferenced(.struct("FixtureUnevaluated\(name)Beta")) {
                     self.assertReferenced(.functionMethodInstance("unevaluated\(name)()"))
@@ -789,8 +797,25 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
-    func testRetainsSameNamedMembersCalledThroughUnknownReceiver() {
+    /// By default, a name written in a platform conditional clause retains nothing unless the clause proves the type
+    /// of its receiver: a C call, a member written on a value, the members of clauses a build may compile
+    /// (`canImport(Testing)`, `DEBUG`), and locals named like members.
+    func testReportsNamesWithoutProvenReceiverInPlatformConditionalBlocks() {
         analyze(retainPublic: true) {
+            assertNameOnlyMembers(referenced: false)
+        }
+    }
+
+    /// `platform_conditional_retention: names` retains every declaration of these names, as 3.21 did.
+    func testRetainsNamesWithoutProvenReceiverInPlatformConditionalBlocksWithNamesRetention() {
+        let fixtureTests = ["testReportsNamesWithoutProvenReceiverInPlatformConditionalBlocks"]
+        analyze(retainPublic: true, platformConditionalRetention: .names, fixtureTests: fixtureTests) {
+            assertNameOnlyMembers(referenced: true)
+        }
+    }
+
+    func testRetainsSameNamedMembersCalledThroughUnknownReceiver() {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureStruct234")) {
                 self.assertReferenced(.functionMethodInstance("method()"))
             }
@@ -835,7 +860,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     /// does not declare is a free function or a global, and retains every declaration of the name, as does a bare
     /// name in a type the clause declares.
     func testRetainsOnlyMembersOfTypeExtendedInPlatformConditionalBlockForBareCalls() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureBareCallA")) {
                 self.assertReferenced(.functionMethodInstance("reset()"))
                 self.assertReferenced(.functionMethodInstance("restart()"))
@@ -957,7 +982,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     /// Implicit members, unannotated values, type aliases, `self.`, bare calls and generic parameters do not name a
     /// receiver type, so every member sharing the name is retained.
     func testRetainsSameNamedMembersCalledWithoutReceiverTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             for structName in ["FixtureStruct250", "FixtureStruct251"] {
                 assertReferenced(.struct(structName)) {
                     self.assertReferenced(.functionMethodStatic("make()"))
@@ -978,7 +1003,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
 
     /// The branch that was not compiled may add a conformance to the receiver, so every same-named member stays retained.
     func testRetainsSameNamedMembersOfTypeExtendedInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.extensionProtocol("FixtureProtocol252")) {
                 self.assertReferenced(.functionMethodInstance("prepare()"))
             }
@@ -991,7 +1016,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     /// The members and conformances of an external superclass, retroactive ones included, are unknown, so every
     /// same-named member called through its subclass stays retained.
     func testRetainsSameNamedMembersCalledThroughSubclassOfExternalTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.extensionClass("NSObject")) {
                 self.assertReferenced(.functionMethodInstance("fixtureConfigure()"))
             }
@@ -1029,7 +1054,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughTypeShadowingExternalAssociatedTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureModulesRealItem")) {
                 self.assertReferenced(.functionMethodInstance("modulesItemRun()"))
             }
@@ -1037,7 +1062,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughTypeShadowingExternalGenericParameterInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureModulesRealSlot")) {
                 self.assertReferenced(.functionMethodInstance("modulesSlotRun()"))
             }
@@ -1045,7 +1070,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughTypeShadowingGenericParameterInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.protocol("FixtureModulesGPRunnable")) {
                 self.assertReferenced(.functionMethodInstance("modulesGPRun()"))
             }
@@ -1056,7 +1081,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughNestedTypealiasInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureModulesAliasTarget")) {
                 self.assertReferenced(.functionMethodInstance("modulesAliasRun()"))
                 self.assertReferenced(.functionMethodInstance("modulesAliasAnnotatedRun()"))
@@ -1065,7 +1090,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughTopLevelTypealiasInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureModulesTopAliasTarget")) {
                 self.assertReferenced(.functionMethodInstance("modulesTopAliasRun()"))
                 self.assertReferenced(.functionMethodInstance("modulesTopAliasAnnotatedRun()"))
@@ -1157,7 +1182,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughLocalVariableShadowingTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureSyntax01Other")) {
                 self.assertReferenced(.functionMethodInstance("run01()"))
             }
@@ -1165,7 +1190,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughLocalConstantNamedLikeTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureModulesLocalReal")) {
                 self.assertReferenced(.functionMethodInstance("modulesLocalRun()"))
             }
@@ -1173,7 +1198,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughParameterShadowingTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureSyntax02Other")) {
                 self.assertReferenced(.functionMethodInstance("run02()"))
             }
@@ -1181,7 +1206,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughLocalTypealiasShadowingTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureSyntax03Other")) {
                 self.assertReferenced(.functionMethodInstance("run03()"))
             }
@@ -1189,7 +1214,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsStaticMemberCalledThroughGenericParameterShadowingTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.extensionProtocol("FixtureSyntax04Proto")) {
                 self.assertReferenced(.functionMethodStatic("make04()"))
                 self.assertReferenced(.functionMethodStatic("make04b()"))
@@ -1198,7 +1223,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsStaticRequirementCalledThroughGenericParameterShadowingTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.protocol("FixtureTypesP10")) {
                 self.assertReferenced(.functionMethodStatic("typesGeneric()"))
             }
@@ -1206,7 +1231,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsStaticMemberCalledThroughGenericParameterOfExternalTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.extensionProtocol("FixtureSyntax05Proto")) {
                 self.assertReferenced(.functionMethodStatic("make05()"))
             }
@@ -1214,7 +1239,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMembersReferencedThroughMethodReferenceAndKeyPathInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.class("FixtureSyntax09Base")) {
                 self.assertReferenced(.functionMethodInstance("ref09()"))
                 self.assertReferenced(.varInstance("path09"))
@@ -1224,7 +1249,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMembersCalledOnChainedExpressionsInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureSyntax10Product")) {
                 self.assertReferenced(.functionMethodInstance("useA()"))
                 self.assertReferenced(.functionMethodInstance("useB()"))
@@ -1235,7 +1260,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMembersCalledThroughOptionalTryAndAwaitInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureSyntax11Target")) {
                 self.assertReferenced(.functionMethodInstance("optA()"))
                 self.assertReferenced(.functionMethodInstance("optB()"))
@@ -1246,7 +1271,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughAnnotatedValueInNestedPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.class("FixtureSyntax12Base")) {
                 self.assertReferenced(.functionMethodInstance("draw12()"))
             }
@@ -1257,7 +1282,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughStaticPropertySharingNameWithInstancePropertyInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.struct("FixtureSyntax13Other")) {
                 self.assertReferenced(.functionMethodInstance("fetch13()"))
             }
@@ -1265,7 +1290,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughPropertyShadowingGlobalInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.class("FixtureSyntax14Other")) {
                 self.assertReferenced(.functionMethodInstance("log14()"))
             }
@@ -1274,7 +1299,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
 
     #if os(macOS)
         func testRetainsViewExtensionMembersCalledInPostfixPlatformConditionalBlock() {
-            analyze(retainPublic: true) {
+            analyze(retainPublic: true, platformConditionalRetention: .names) {
                 assertReferenced(.extensionProtocol("View")) {
                     self.assertReferenced(.functionMethodInstance("fixtureSyntax15Style()"))
                     self.assertReferenced(.functionMethodInstance("fixtureSyntax15Other()"))
@@ -1296,7 +1321,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughPropertyInheritedByNestedClassInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.class("FixtureSyntax17Other")) {
                 self.assertReferenced(.functionMethodInstance("start17()"))
             }
@@ -1402,7 +1427,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsStaticMemberCalledThroughAssociatedTypeShadowingTypeInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.protocol("FixtureTypesNodeProtocol11")) {
                 self.assertReferenced(.functionMethodStatic("typesAssoc()"))
             }
@@ -1426,7 +1451,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     func testRetainsMemberCalledThroughNestedTypeInheritedFromSuperclassInPlatformConditionalBlock() {
-        analyze(retainPublic: true) {
+        analyze(retainPublic: true, platformConditionalRetention: .names) {
             assertReferenced(.class("FixtureTypesBase14")) {
                 self.assertReferenced(.struct("FixtureTypesItem14")) {
                     self.assertReferenced(.functionMethodInstance("typesInheritedNested()"))
@@ -3462,6 +3487,30 @@ final class RetentionTest: FixtureSourceGraphTestCase {
                 self.assertReferenced(.functionConstructor("init(param:)"))
             }
             assertReferenced(.class("FixtureClass221Child"))
+        }
+    }
+
+    private func assertNameOnlyMembers(referenced: Bool) {
+        let members: [(String, Declaration.Kind, String)] = [
+            ("FixtureNameOnlyChannel", .functionMethodInstance, "write(_:)"),
+            ("FixtureNameOnlyFile", .functionMethodInstance, "write(_:)"),
+            ("FixtureNameOnlyMaterial", .functionMethodInstance, "set(_:_:)"),
+            ("FixtureNameOnlyShader", .functionMethodInstance, "set(_:_:)"),
+            ("FixtureNameOnlyTestStore", .functionMethodInstance, "receive(_:)"),
+            ("FixtureNameOnlyTestStore", .functionMethodInstance, "scope()"),
+            ("FixtureNameOnlyStore", .varInstance, "state"),
+            ("FixtureNameOnlyStore", .functionMethodInstance, "send(_:)"),
+            ("FixtureNameOnlyController", .varInstance, "state"),
+        ]
+        for (type, kind, name) in members {
+            assertReferenced(.struct(type)) {
+                let description = DeclarationDescription(kind: kind, name: name, line: nil)
+                if referenced {
+                    self.assertReferenced(description)
+                } else {
+                    self.assertNotReferenced(description)
+                }
+            }
         }
     }
 }

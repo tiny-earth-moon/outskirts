@@ -4,14 +4,18 @@ import Shared
 
 /// The index store only describes the platform it was built for, so code that is only reachable on another
 /// platform appears unused. This retains:
-///  - declarations marked `@available(<platform>, unavailable)`, as they exist for other platforms, and
-///  - declarations whose name is written inside a platform conditional `#if` block, as the reference may live
-///    in a branch that was not compiled; an operator member of a type only when the block names the type too, and a
-///    member written on a receiver whose type the block proves only in the types the receiver may be,
-///  - the members a clause that no indexed build compiles uses without writing their name: the initializers it calls
-///    (`T(...)`, `.init(...)` typed `T`, `T.self`) whose labels match, exactly when one does, the subscripts of a type it names when it
+///  - declarations marked `@available(<platform>, unavailable)`, as they exist for other platforms,
+///  - the members written, in a platform conditional clause no indexed build compiles with certainty, on a receiver
+///    whose type the clause proves, in the types the receiver may be, and the operator members of a type such a clause
+///    names alongside the operator,
+///  - the members such a clause uses without writing their name: the initializers it calls (`T(...)`, `.init(...)`
+///    typed `T`, `T.self`) whose labels match, exactly when one does, the subscripts of a type it names when it
 ///    accesses a value with `[ ]`, the `callAsFunction` of a type it names when it calls a value, and the witnesses of
-///    a conformance one of its extensions declares.
+///    a conformance one of its extensions declares,
+///  - with `platform_conditional_retention: names` only, every declaration of a name written bare, or on a receiver
+///    whose type is unknown, inside a platform conditional `#if` block no indexed build compiled, as the reference may
+///    live in a branch that was not compiled: a local variable, a free function or a C call of the same name retain
+///    every same-named member of the project, which is why it is opt-in.
 ///
 /// With `platform_conditional_retention: auto`, a declaration marked unavailable is not retained when its file was
 /// indexed for one of these platforms and for a platform where it is available (see `IndexVariant.cover`), by units
@@ -26,6 +30,7 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
     ]
 
     private static let typeKinds: Set<Declaration.Kind> = [.class, .struct, .enum]
+    private static let namedTypeKinds: Set<Declaration.Kind> = typeKinds.union([.protocol, .typealias])
     private static let operatorKinds: Set<Declaration.Kind> = [
         .functionOperator, .functionOperatorInfix, .functionOperatorPrefix, .functionOperatorPostfix,
     ]
@@ -39,6 +44,7 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
 
     private let graph: SourceGraph
     private let configuration: Configuration
+    private lazy var resolver = PlatformConditionalReceiverResolver(graph: graph)
 
     required init(graph: SourceGraph, configuration: Configuration, swiftVersion _: SwiftVersion) {
         self.graph = graph
@@ -49,7 +55,7 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
         let retention = configuration.resolvedPlatformConditionalRetention
         guard retention != .off else { return }
 
-        let names = graph.platformConditionalUnscopedNames
+        let names = retention.retainsNames ? graph.platformConditionalUnscopedNames : []
 
         for decl in graph.allDeclarations {
             let unavailablePlatforms = Self.unavailablePlatforms(of: decl)
@@ -70,7 +76,14 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
             }
         }
 
-        retainScopedMembers(unscopedNames: names)
+        if retention.retainsNames {
+            retainScopedMembers(graph.platformConditionalMemberUses.filter { !names.contains($0.name) }, retainingUnresolved: true)
+        } else {
+            retainUncompiledOperatorMembers()
+            retainUncompiledTypes()
+            retainScopedMembers(graph.platformConditionalUncompiledMemberUses, retainingUnresolved: false)
+            recordNameOnlyDeclarations()
+        }
         retainUnnamedMembers()
         retainConformanceWitnesses()
     }
@@ -98,23 +111,16 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
     }
 
     /// The members written on a receiver, or bare in a type the clause declares: only the declarations of the types the
-    /// receiver may be, or every declaration of the name when its type is unknown (see
+    /// receiver may be, and, with `retainingUnresolved`, every declaration of the name when its type is unknown (see
     /// `PlatformConditionalReceiverResolver`).
-    private func retainScopedMembers(unscopedNames: Set<String>) {
-        let uses = graph.platformConditionalMemberUses.filter { !unscopedNames.contains($0.name) }
+    private func retainScopedMembers(
+        _ uses: Set<PlatformConditionalMemberUse>,
+        retainingUnresolved: Bool
+    ) {
         guard !uses.isEmpty else { return }
 
-        let resolver = PlatformConditionalReceiverResolver(graph: graph)
-        var retainedNames: Set<String> = []
-        var candidatesByName: [String: Set<Declaration>] = [:]
-
-        for use in uses where !retainedNames.contains(use.name) {
-            if let candidates = resolver.candidates(for: use) {
-                candidatesByName[use.name, default: []].formUnion(candidates)
-            } else {
-                retainedNames.insert(use.name)
-            }
-        }
+        let (unresolvedNames, candidatesByName) = resolve(uses, boundingOpenTypes: !retainingUnresolved)
+        let retainedNames = retainingUnresolved ? unresolvedNames : []
 
         if !retainedNames.isEmpty {
             for decl in graph.allDeclarations where !Self.nonReferenceableKinds.contains(decl.kind) {
@@ -129,6 +135,68 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
                 graph.markRetained(decl, reason: nameRetentionReason(name))
             }
         }
+    }
+
+    /// The names of the uses whose receiver's type is unknown, and the declarations each other name may be.
+    private func resolve(_ uses: Set<PlatformConditionalMemberUse>, boundingOpenTypes: Bool) -> (unresolvedNames: Set<String>, candidatesByName: [String: Set<Declaration>]) {
+        var unresolvedNames: Set<String> = []
+        var candidatesByName: [String: Set<Declaration>] = [:]
+
+        for use in uses where !unresolvedNames.contains(use.name) {
+            if let candidates = resolver.candidates(for: use, boundingOpenTypes: boundingOpenTypes) {
+                candidatesByName[use.name, default: []].formUnion(candidates)
+            } else {
+                unresolvedNames.insert(use.name)
+            }
+        }
+
+        return (unresolvedNames, candidatesByName)
+    }
+
+    /// The classes, structs, enums, protocols and type aliases named in a clause no indexed build compiles: a type
+    /// name, unlike a member name, does not depend on a receiver.
+    private func retainUncompiledTypes() {
+        let names = graph.platformConditionalUncompiledReferences
+        guard !names.isEmpty else { return }
+
+        for decl in graph.declarations(ofKinds: Self.namedTypeKinds) {
+            let name = Self.baseName(of: decl.name)
+            if names.contains(name) {
+                graph.markRetained(decl, reason: nameRetentionReason(name))
+            }
+        }
+    }
+
+    /// The operator members of a type named in a clause no indexed build compiles that applies the operator.
+    private func retainUncompiledOperatorMembers() {
+        let clauseNamesByOperator = graph.platformConditionalUncompiledOperatorClauseNames
+        guard !clauseNamesByOperator.isEmpty else { return }
+
+        for decl in graph.declarations(ofKinds: Self.operatorKinds) {
+            let name = Self.baseName(of: decl.name)
+            guard let typeName = operatorTypeName(of: decl),
+                  clauseNamesByOperator[name, default: []].contains(typeName)
+            else { continue }
+
+            graph.markRetained(decl, reason: RetentionReason(Self.self, "operator '\(name)' applied in a platform conditional clause that names '\(typeName)' and no indexed build compiles with certainty"))
+        }
+    }
+
+    /// The declarations `names` would retain by name that are not retained here: those of the names written bare or on
+    /// a receiver of unknown type, operators of a type left out as their retention does not depend on it.
+    private func recordNameOnlyDeclarations() {
+        let unscopedNames = graph.platformConditionalUnscopedNames
+        let uses = graph.platformConditionalMemberUses.filter { !unscopedNames.contains($0.name) }
+        let names = unscopedNames.union(resolve(uses, boundingOpenTypes: false).unresolvedNames)
+        guard !names.isEmpty else { return }
+
+        let declarations = graph.allDeclarations.filter { decl in
+            !Self.nonReferenceableKinds.contains(decl.kind)
+                && operatorTypeName(of: decl) == nil
+                && names.contains(Self.baseName(of: decl.name))
+                && !graph.isRetained(decl)
+        }
+        graph.setPlatformConditionalNameOnlyDeclarations(declarations)
     }
 
     /// The members that a clause no indexed build compiles calls without writing their name: the initializers of its

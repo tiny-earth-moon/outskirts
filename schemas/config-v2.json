@@ -315,6 +315,7 @@
           "enum": [
             "auto",
             "all-clauses",
+            "names",
             "off"
           ],
           "description": "How declarations possibly used by a build missing from the index are retained. v1: platform_conditional_retention, and disable_platform_conditional_retention for 'off'."

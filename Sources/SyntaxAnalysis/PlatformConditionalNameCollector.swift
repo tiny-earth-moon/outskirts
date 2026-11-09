@@ -27,8 +27,9 @@ import SwiftSyntax
 ///
 /// Besides the names written as references, operators included, `collected` tells what a clause uses without writing
 /// its name: the members it overrides and the types it inherits from. The uses that would retain members not named
-/// anywhere (initializers, subscripts, `callAsFunction`, conformance witnesses) are only collected from the clauses
-/// that no configuration compiles with certainty, whatever `narrowsNestedBlocks`: every enclosing block is evaluated,
+/// anywhere (initializers, subscripts, `callAsFunction`, conformance witnesses), and the member uses and operators
+/// that `platform_conditional_retention` retains unless it is `names`, are only collected from the clauses that no
+/// configuration compiles with certainty, whatever `narrowsNestedBlocks`: every enclosing block is evaluated,
 /// and `canImport()` is answered for the system modules the platform settles. A clause that may be compiled, such as
 /// the `#else` of an `#if os(Windows)` nested in another block, or a `canImport()` clause of an unknown module, is
 /// described by the index store.
@@ -64,6 +65,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     private var collectedBlock: SyntaxIdentifier?
     /// The clauses no configuration compiles whose unnamed uses were collected, nested blocks included.
     private var unnamedUseClauses: Set<SyntaxIdentifier> = []
+    /// The clauses whose names were collected, to count a clause nested in one of them with it.
+    private var collectedClauseIDs: Set<SyntaxIdentifier> = []
 
     /// - Parameter configurations: the configurations the file was compiled for. When empty, every clause of every
     ///   platform conditional block is collected.
@@ -146,8 +149,10 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
 
         clauses.append(clause)
         let receiverReader = PlatformConditionalReceiverReader(clause: clause)
+        var clauseNames: Set<String> = []
         for token in elements.tokens(viewMode: .sourceAccurate) {
             if let name = referencedName(token) {
+                clauseNames.insert(name)
                 collected.references.insert(name)
                 if let use = receiverReader.memberUse(of: token, named: name) {
                     collected.memberUses.insert(use)
@@ -160,6 +165,11 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
                 }
             }
         }
+
+        if !clauseNames.isEmpty, !enclosingClauses(of: clause).contains(where: { collectedClauseIDs.contains($0.clause.id) }) {
+            collected.clauseNames.append(clauseNames)
+        }
+        collectedClauseIDs.insert(clause.id)
 
         let declarationCollector = UnnamedUseCollector(viewMode: .sourceAccurate)
         declarationCollector.walk(elements)
@@ -196,6 +206,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
             }
             guard !isCompiled else { continue }
 
+            // `collectUnnamedUses` ran first: it tells the clauses no configuration compiles with certainty.
+            let isUncompiled = ([clause] + enclosingClauses.map(\.clause)).contains { unnamedUseClauses.contains($0.id) }
             var names: Set<String> = []
             var operators: Set<String> = []
             for token in elements.tokens(viewMode: .sourceAccurate) {
@@ -208,6 +220,9 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
             }
             for name in operators {
                 collected.operatorClauseNames[name, default: []].formUnion(names)
+                if isUncompiled {
+                    collected.uncompiledOperatorClauseNames[name, default: []].formUnion(names)
+                }
             }
         }
     }
@@ -252,12 +267,18 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     private func collectUnnamedUses(in elements: IfConfigClauseSyntax.Elements, of clause: IfConfigClauseSyntax) {
+        let receiverReader = PlatformConditionalReceiverReader(clause: clause, readsTypesAroundClause: true)
         var names: Set<String> = []
         for token in elements.tokens(viewMode: .sourceAccurate) {
             if let name = referencedName(token) {
                 names.insert(name)
+                if let use = receiverReader.memberUse(of: token, named: name) {
+                    collected.uncompiledMemberUses.insert(use)
+                }
             }
         }
+
+        collected.uncompiledReferences.formUnion(names)
 
         let useCollector = UnnamedUseCollector(viewMode: .sourceAccurate)
         useCollector.walk(elements)
@@ -277,10 +298,13 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     /// The identifier of the clause the configuration compiles, `.some(nil)` when it compiles none, or `nil` when it
-    /// cannot be known.
+    /// cannot be known. A custom condition (`DEBUG`, a flag), which the index store does not record, only leaves the
+    /// clause unknown when it decides it: `#if DEBUG && os(iOS)` is compiled by no macOS build.
     private func provenActiveClause(of node: IfConfigDeclSyntax, in configuration: PlatformBuildConfiguration) -> SyntaxIdentifier?? {
-        guard node.clauses.allSatisfy({ $0.condition.map { isEvaluable($0, allowingCanImport: true) } ?? true }),
-              let clause = activeClause(of: node, in: configuration)
+        guard node.clauses.allSatisfy({ $0.condition.map { isEvaluable($0, allowingCanImport: true, allowingCustomConditions: true) } ?? true }),
+              let clause = activeClause(of: node, in: configuration.assumingCustomConditions(set: true)),
+              let otherClause = activeClause(of: node, in: configuration.assumingCustomConditions(set: false)),
+              clause?.id == otherClause?.id
         else { return nil }
 
         return .some(clause?.id)
@@ -377,7 +401,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     /// The `#if` blocks the node is nested in, from the innermost, with the clause of each that contains it.
-    private func enclosingClauses(of node: IfConfigDeclSyntax) -> [(block: IfConfigDeclSyntax, clause: IfConfigClauseSyntax)] {
+    private func enclosingClauses(of node: some SyntaxProtocol) -> [(block: IfConfigDeclSyntax, clause: IfConfigClauseSyntax)] {
         var result: [(block: IfConfigDeclSyntax, clause: IfConfigClauseSyntax)] = []
         var parent = node.parent
 
@@ -392,24 +416,29 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     /// Returns `true` when the condition only combines `os()`, `arch()` and `targetEnvironment()` checks with `!`,
-    /// `&&`, `||` and parentheses, and `canImport()` checks of a single module with `allowingCanImport`.
-    private func isEvaluable(_ condition: ExprSyntax, allowingCanImport: Bool = false) -> Bool {
+    /// `&&`, `||` and parentheses, `canImport()` checks of a single module with `allowingCanImport`, and custom
+    /// conditions with `allowingCustomConditions`.
+    private func isEvaluable(_ condition: ExprSyntax, allowingCanImport: Bool = false, allowingCustomConditions: Bool = false) -> Bool {
+        if allowingCustomConditions, let reference = condition.as(DeclReferenceExprSyntax.self) {
+            return reference.argumentNames == nil && reference.baseName.tokenKind.isIdentifier
+        }
+
         if let tuple = condition.as(TupleExprSyntax.self) {
             guard tuple.elements.count == 1, let element = tuple.elements.first, element.label == nil else {
                 return false
             }
 
-            return isEvaluable(element.expression, allowingCanImport: allowingCanImport)
+            return isEvaluable(element.expression, allowingCanImport: allowingCanImport, allowingCustomConditions: allowingCustomConditions)
         }
 
         if let prefix = condition.as(PrefixOperatorExprSyntax.self) {
-            return prefix.operator.text == "!" && isEvaluable(prefix.expression, allowingCanImport: allowingCanImport)
+            return prefix.operator.text == "!" && isEvaluable(prefix.expression, allowingCanImport: allowingCanImport, allowingCustomConditions: allowingCustomConditions)
         }
 
         if let sequence = condition.as(SequenceExprSyntax.self) {
             return sequence.elements.enumerated().allSatisfy { index, element in
                 if index.isMultiple(of: 2) {
-                    return isEvaluable(element, allowingCanImport: allowingCanImport)
+                    return isEvaluable(element, allowingCanImport: allowingCanImport, allowingCustomConditions: allowingCustomConditions)
                 }
 
                 guard let binaryOperator = element.as(BinaryOperatorExprSyntax.self) else { return false }

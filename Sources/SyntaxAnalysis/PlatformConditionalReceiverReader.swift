@@ -46,12 +46,18 @@ final class PlatformConditionalReceiverReader {
         return names.union(finder.bindings.keys)
     }()
 
-    init(clause: IfConfigClauseSyntax) {
+    /// Whether `self`, `Self`, and a name written bare, outside the types the clause declares, refer to the types
+    /// declared or extended around the clause, unless the clause or the declaration that contains it binds the name.
+    private let readsTypesAroundClause: Bool
+
+    init(clause: IfConfigClauseSyntax, readsTypesAroundClause: Bool = false) {
         self.clause = clause
+        self.readsTypesAroundClause = readsTypesAroundClause
     }
 
     /// The use of the member the identifier names, or nil when no receiver scopes it: a type, an implicit member, or
-    /// a name written bare outside the types the clause declares.
+    /// a name written bare outside the types the clause declares (around the clause too with
+    /// `readsTypesAroundClause`).
     func memberUse(of token: TokenSyntax, named name: String) -> PlatformConditionalMemberUse? {
         guard case .identifier = token.tokenKind, let reference = token.parent?.as(DeclReferenceExprSyntax.self) else {
             return nil
@@ -69,7 +75,10 @@ final class PlatformConditionalReceiverReader {
 
         guard !(reference.parent?.is(KeyPathPropertyComponentSyntax.self) ?? false) else { return nil }
 
-        let types = enclosingTypeNames(of: Syntax(reference))
+        var types = enclosingTypeNames(of: Syntax(reference))
+        if types.isEmpty, readsTypesAroundClause, clauseBindings[name] == nil, !outsideBoundNames.contains(name) {
+            types = lexicalTypeNames(of: Syntax(reference))
+        }
         guard !types.isEmpty else { return nil }
 
         return PlatformConditionalMemberUse(
@@ -194,7 +203,10 @@ final class PlatformConditionalReceiverReader {
     }
 
     private func enclosingTypesReceiver(of node: Syntax) -> PlatformConditionalReceiver {
-        let types = enclosingTypeNames(of: node)
+        var types = enclosingTypeNames(of: node)
+        if types.isEmpty, readsTypesAroundClause {
+            types = lexicalTypeNames(of: node)
+        }
         return types.isEmpty ? .unknown : .enclosingTypes(types)
     }
 

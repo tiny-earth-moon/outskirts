@@ -75,7 +75,11 @@ final class PlatformConditionalReceiverResolver {
     }
 
     /// The declarations of the name the member use may be, or nil when it may be any.
-    func candidates(for use: PlatformConditionalMemberUse) -> Set<Declaration>? {
+    ///
+    /// - Parameter boundingOpenTypes: whether a receiver of a project type that inherits from an external class, or
+    ///   that a clause extends with a conformance, still narrows the use to the members of its types, of the
+    ///   extensions of external types and of the project's protocols, rather than to any declaration.
+    func candidates(for use: PlatformConditionalMemberUse, boundingOpenTypes: Bool = false) -> Set<Declaration>? {
         let result: Set<Declaration>
         lexicalTypeNames = use.lexicalTypeNames
         switch resolve(use.receiver, depth: 0) {
@@ -85,14 +89,14 @@ final class PlatformConditionalReceiverResolver {
             let closure = closure(of: types)
             // The members and conformances of an external superclass, retroactive ones included, are unknown, and so
             // are the conformances an uncompiled clause adds.
-            guard !closure.hasExternalSuperclass,
-                  !types.contains(where: { conformingExtendedNames.contains(Self.baseName(of: $0)) })
-            else { return nil }
+            let isOpen = closure.hasExternalSuperclass
+                || types.contains(where: { conformingExtendedNames.contains(Self.baseName(of: $0)) })
+            guard !isOpen || boundingOpenTypes else { return nil }
 
             // A type may conform implicitly to an external protocol (`Hashable`, `Sendable`, `Actor`...), whose
             // extensions the project may declare.
             result = closure.declarations.flatMapSet { members(of: $0, named: use.name) }
-                .union(externalTypeExtensionMembers[use.name, default: []])
+                .union(isOpen ? externalMembers(named: use.name) : externalTypeExtensionMembers[use.name, default: []])
         case .external:
             result = externalMembers(named: use.name)
         }

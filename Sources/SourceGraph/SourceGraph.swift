@@ -55,6 +55,18 @@ public final class SourceGraph {
     private(set) var platformConditionalSubscriptedNames: Set<String> = []
     /// The names written in the platform conditional clauses no indexed build compiles that call a value directly.
     private(set) var platformConditionalValueCalledNames: Set<String> = []
+    /// The names written as references in the platform conditional clauses no indexed build compiles.
+    private(set) var platformConditionalUncompiledReferences: Set<String> = []
+    /// The members written with a receiver in the platform conditional clauses no indexed build compiles.
+    private(set) var platformConditionalUncompiledMemberUses: Set<PlatformConditionalMemberUse> = []
+    /// For each operator applied in the platform conditional clauses no indexed build compiles, the names written in
+    /// the clauses that apply it.
+    private(set) var platformConditionalUncompiledOperatorClauseNames: [String: Set<String>] = [:]
+    /// The names written in each platform conditional clause whose names are collected.
+    private(set) var platformConditionalClauseNames: [Set<String>] = []
+    /// The declarations that `platform_conditional_retention: names` would retain by name and the retention in effect
+    /// does not, to tell, once the analysis is done, how many clauses write names of unused declarations.
+    private(set) var platformConditionalNameOnlyDeclarations: Set<Declaration> = []
     /// The names of the members declared `override` in platform conditional clauses, by file.
     private(set) var platformConditionalOverrideNamesByFile: [SourceFile: Set<String>] = [:]
     /// The names inherited by the classes and protocols declared in platform conditional clauses, by file.
@@ -519,6 +531,10 @@ public final class SourceGraph {
         platformConditionalConstructions.formUnion(names.constructions)
         platformConditionalSubscriptedNames.formUnion(names.subscriptedNames)
         platformConditionalValueCalledNames.formUnion(names.valueCalledNames)
+        platformConditionalUncompiledReferences.formUnion(names.uncompiledReferences)
+        platformConditionalUncompiledMemberUses.formUnion(names.uncompiledMemberUses)
+        platformConditionalUncompiledOperatorClauseNames.merge(names.uncompiledOperatorClauseNames) { $0.union($1) }
+        platformConditionalClauseNames.append(contentsOf: names.clauseNames)
 
         if !names.overriddenNames.isEmpty {
             platformConditionalOverrideNamesByFile[file, default: []].formUnion(names.overriddenNames)
@@ -529,6 +545,10 @@ public final class SourceGraph {
         if !names.otherClauseNames.isEmpty {
             otherConditionalNamesByFile[file, default: []].formUnion(names.otherClauseNames)
         }
+    }
+
+    func setPlatformConditionalNameOnlyDeclarations(_ declarations: Set<Declaration>) {
+        platformConditionalNameOnlyDeclarations = declarations
     }
 
     public func addParameterAttributeNames(_ names: Set<String>) {

@@ -141,6 +141,18 @@ final class ConfigurationV2Test: XCTestCase {
         XCTAssertEqual(v2.resolvedPlatformConditionalRetention, .off)
     }
 
+    /// `names` reads the same in both formats, and `config migrate` keeps it.
+    func testNamesPlatformConditionalRetentionReadsAndMigrates() throws {
+        let v1 = try loadV1("platform_conditional_retention: names\n")
+        let v2 = try loadV2("version: 2\nretain: {platform_conditional: names}\n")
+        XCTAssertEqual(v1.resolvedPlatformConditionalRetention, .names)
+        XCTAssertEqual(v2.resolvedPlatformConditionalRetention, .names)
+
+        let file = try write("platform_conditional_retention: names\n")
+        let migrated = try Configuration.migratedToV2(file: file)
+        XCTAssertTrue(migrated.contains("platform_conditional: names"), migrated)
+    }
+
     // MARK: - Version 2 files
 
     func testVersion2FileLoads() throws {

@@ -79,6 +79,9 @@ final class BuildVariantsConfigurationTest: XCTestCase {
         commandLine.variants = .auto
         commandLine.apply(\.$platformConditionalRetention, .allClauses)
         XCTAssertEqual(commandLine.resolvedPlatformConditionalRetention, .allClauses)
+
+        let names = try load("variants: auto\nplatform_conditional_retention: names\n").configuration
+        XCTAssertEqual(names.resolvedPlatformConditionalRetention, .names)
     }
 
     func testListIsWrittenBackAsYAML() throws {

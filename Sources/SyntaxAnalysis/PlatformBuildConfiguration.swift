@@ -31,6 +31,9 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
     private(set) var answersCanImport = false
     /// The answer of `canImport()` for a module whose presence is not known, which throws when nil.
     private(set) var unknownModulesAreImportable: Bool?
+    /// The answer for every custom condition (`DEBUG`, a flag), which throws when nil: the index store does not record
+    /// the conditions a unit was compiled with.
+    private(set) var customConditionsAreSet: Bool?
 
     /// The configuration, also answering `canImport()` for the system modules the platform settles and the project's
     /// modules the build compiled.
@@ -47,6 +50,14 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
     func assumingUnknownModules(importable: Bool) -> PlatformBuildConfiguration {
         var configuration = self
         configuration.unknownModulesAreImportable = importable
+        return configuration
+    }
+
+    /// The configuration answering every custom condition with `set`: a condition that evaluates the same with both
+    /// answers does not depend on them.
+    func assumingCustomConditions(set: Bool) -> PlatformBuildConfiguration {
+        var configuration = self
+        configuration.customConditionsAreSet = set
         return configuration
     }
 
@@ -103,7 +114,9 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
     }
 
     public func isCustomConditionSet(name _: String) throws -> Bool {
-        throw UnsupportedQuery()
+        guard let customConditionsAreSet else { throw UnsupportedQuery() }
+
+        return customConditionsAreSet
     }
 
     public func hasFeature(name _: String) throws -> Bool {
