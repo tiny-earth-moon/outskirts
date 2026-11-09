@@ -796,6 +796,66 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    /// A receiver whose type the clause writes (`T(...)`, `T.member`, an annotation) scopes the member to that type.
+    func testReportsSameNamedMembersOfOtherTypesCalledOnTypedReceiverInPlatformConditionalBlock() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureTypedReceiverA")) {
+                self.assertReferenced(.functionMethodInstance("contains(_:)"))
+                self.assertReferenced(.functionMethodStatic("make()"))
+                self.assertReferenced(.functionMethodInstance("annotatedUse()"))
+            }
+            assertReferenced(.struct("FixtureTypedReceiverB")) {
+                self.assertNotReferenced(.functionMethodInstance("contains(_:)"))
+                self.assertNotReferenced(.functionMethodStatic("make()"))
+                self.assertNotReferenced(.functionMethodInstance("annotatedUse()"))
+            }
+        }
+    }
+
+    /// A receiver of an external type only reaches the members of extensions of external types and of protocols.
+    func testReportsSameNamedMembersCalledOnExternalReceiverInPlatformConditionalBlock() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureExternalReceiverColors")) {
+                self.assertNotReferenced(.functionMethodInstance("contains(_:)"))
+            }
+            assertReferenced(.extensionStruct("Range")) {
+                self.assertReferenced(.functionMethodInstance("contains(fixtureValue:)"))
+            }
+        }
+    }
+
+    /// Inside a type the clause extends, `self.member` and a bare call reach that type's members; a bare name it
+    /// does not declare is a free function or a global, and retains every declaration of the name.
+    func testRetainsOnlyMembersOfTypeExtendedInPlatformConditionalBlockForBareCalls() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureBareCallA")) {
+                self.assertReferenced(.functionMethodInstance("reset()"))
+                self.assertReferenced(.functionMethodInstance("restart()"))
+            }
+            assertReferenced(.struct("FixtureBareCallB")) {
+                self.assertNotReferenced(.functionMethodInstance("reset()"))
+                self.assertNotReferenced(.functionMethodInstance("restart()"))
+                self.assertReferenced(.functionMethodInstance("unrelatedFree()"))
+            }
+            assertReferenced(.functionFree("unrelatedFree()"))
+        }
+    }
+
+    /// A receiver of a protocol type reaches the requirement and its witnesses.
+    func testRetainsRequirementAndWitnessesCalledOnProtocolReceiverInPlatformConditionalBlock() {
+        analyze(retainPublic: true) {
+            assertReferenced(.protocol("FixtureProtocolReceiver")) {
+                self.assertReferenced(.functionMethodInstance("contains(_:)"))
+            }
+            assertReferenced(.struct("FixtureProtocolReceiverWitness")) {
+                self.assertReferenced(.functionMethodInstance("contains(_:)"))
+            }
+            assertReferenced(.struct("FixtureProtocolReceiverUnrelated")) {
+                self.assertNotReferenced(.functionMethodInstance("contains(_:)"))
+            }
+        }
+    }
+
     func testRetainsInheritedMemberCalledThroughSubclassInPlatformConditionalBlock() {
         analyze(retainPublic: true) {
             assertReferenced(.class("FixtureClass236")) {

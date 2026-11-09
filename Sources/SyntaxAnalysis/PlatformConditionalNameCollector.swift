@@ -143,9 +143,15 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         guard let elements = clause.elements else { return }
 
         clauses.append(clause)
+        let receiverReader = PlatformConditionalReceiverReader(clause: clause)
         for token in elements.tokens(viewMode: .sourceAccurate) {
             if let name = referencedName(token) {
                 collected.references.insert(name)
+                if let use = receiverReader.memberUse(of: token, named: name) {
+                    collected.memberUses.insert(use)
+                } else {
+                    collected.unscopedReferences.insert(name)
+                }
 
                 if let locationConverter {
                     sites[name, default: []].append(site(of: token, in: clause, converter: locationConverter))
@@ -157,6 +163,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         declarationCollector.walk(elements)
         collected.overriddenNames.formUnion(declarationCollector.overriddenNames)
         collected.inheritedNames.formUnion(declarationCollector.inheritedNames)
+        collected.conformingExtendedNames.formUnion(declarationCollector.conformances.map(\.typeName))
     }
 
     private func site(of node: some SyntaxProtocol, in clause: IfConfigClauseSyntax, converter: SourceLocationConverter) -> Site {

@@ -238,6 +238,38 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         XCTAssertFalse(call.matchesExactly(initializerName: "init(value:_:scale:)"))
     }
 
+    /// A member written on a receiver records what the clause tells of its type; a type name, an implicit member and a
+    /// bare name outside a type the clause declares stay unscoped.
+    func testReadsTheReceiversOfMembers() {
+        let source = """
+        func entry() {
+            #if os(iOS)
+            let arguments = ProcessInfo.processInfo.arguments
+            _ = arguments.indices.contains(1)
+            let annotated: Model? = nil
+            annotated?.load()
+            Model.make().reset(.zero)
+            free()
+            #endif
+        }
+        #if os(iOS)
+        extension Model {
+            func run() { refresh() }
+        }
+        #endif
+        """
+        let collected = collectAll(source, [macOS])
+        let receivers = Dictionary(collected.memberUses.map { ($0.name, $0.receiver) }, uniquingKeysWith: { first, _ in first })
+
+        let processInfo = PlatformConditionalReceiver.member(.name("ProcessInfo"), "processInfo")
+        XCTAssertEqual(receivers["contains"], .member(.inferred(.member(processInfo, "arguments")), "indices"))
+        XCTAssertEqual(receivers["load"], .typeName("Model"))
+        XCTAssertEqual(receivers["reset"], .call(.member(.name("Model"), "make"), hasOnlyLiteralArguments: true))
+        XCTAssertEqual(receivers["refresh"], .enclosingTypes(["Model"]))
+        XCTAssertTrue(collected.unscopedReferences.isSuperset(of: ["ProcessInfo", "Model", "zero", "free", "arguments"]))
+        XCTAssertFalse(collected.unscopedReferences.contains("contains"))
+    }
+
     func testAnswersCanImportOnlyForSettledSystemModules() throws {
         let answering = macOS.answeringCanImport
         XCTAssertTrue(try answering.canImport(importPath: [(.identifier("Dispatch"), "Dispatch")], version: .unversioned))
