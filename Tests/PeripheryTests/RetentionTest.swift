@@ -832,7 +832,8 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     /// Inside a type the clause extends, `self.member` and a bare call reach that type's members; a bare name it
-    /// does not declare is a free function or a global, and retains every declaration of the name.
+    /// does not declare is a free function or a global, and retains every declaration of the name, as does a bare
+    /// name in a type the clause declares.
     func testRetainsOnlyMembersOfTypeExtendedInPlatformConditionalBlockForBareCalls() {
         analyze(retainPublic: true) {
             assertReferenced(.struct("FixtureBareCallA")) {
@@ -845,6 +846,13 @@ final class RetentionTest: FixtureSourceGraphTestCase {
                 self.assertReferenced(.functionMethodInstance("unrelatedFree()"))
             }
             assertReferenced(.functionFree("unrelatedFree()"))
+            // A class the clause declares is not in the index store: a bare name in it may be any member.
+            assertReferenced(.class("FixtureBareCallBase")) {
+                self.assertReferenced(.functionMethodInstance("inheritedReload()"))
+            }
+            assertReferenced(.struct("FixtureBareCallOther")) {
+                self.assertReferenced(.functionMethodInstance("inheritedReload()"))
+            }
         }
     }
 

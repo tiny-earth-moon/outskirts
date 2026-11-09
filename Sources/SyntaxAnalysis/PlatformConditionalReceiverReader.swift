@@ -199,8 +199,18 @@ final class PlatformConditionalReceiverReader {
     }
 
     /// The names of the types declared or extended in the clause that contain the node, innermost first.
+    /// None when one of them is a type the clause declares: the index store does not describe it, so its supertypes
+    /// are unknown.
     private func enclosingTypeNames(of node: Syntax) -> [String] {
-        typeNames(around: node, upTo: clause.id)
+        var parent = node.parent
+        while let current = parent, current.id != clause.id {
+            if Self.declaredTypeName(of: current) != nil, !current.is(ExtensionDeclSyntax.self) {
+                return []
+            }
+            parent = current.parent
+        }
+
+        return typeNames(around: node, upTo: clause.id)
     }
 
     /// The names of the types declared or extended around the node, in the clause or not, innermost first.

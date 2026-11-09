@@ -21,6 +21,7 @@ final class PlatformConditionalReceiverResolver {
 
     private let graph: SourceGraph
     private let conformingExtendedNames: Set<String>
+    private let clauseDeclaredTypeNames: Set<String>
     private let declarationsByName: [String: [Declaration]]
     /// The extensions of the project's protocols, which are not folded into them.
     private let protocolExtensions: [Declaration: [Declaration]]
@@ -43,6 +44,7 @@ final class PlatformConditionalReceiverResolver {
     init(graph: SourceGraph) {
         self.graph = graph
         conformingExtendedNames = graph.platformConditionalConformingExtendedNames
+        clauseDeclaredTypeNames = graph.platformConditionalDeclaredTypeNames
         declarationsByName = Dictionary(grouping: graph.allDeclarations.filter { !Self.unreachableKinds.contains($0.kind) }) {
             PlatformConditionalRetainer.baseName(of: $0.name)
         }
@@ -145,8 +147,10 @@ final class PlatformConditionalReceiverResolver {
     }
 
     /// The project types of these names, or an external type when the project only extends them or does not declare
-    /// them.
+    /// them. A type a platform conditional clause declares may be another one, with other supertypes.
     private func resolveType(named names: [String], isRoot: Bool) -> ReceiverType {
+        guard names.allSatisfy({ !clauseDeclaredTypeNames.contains($0) }) else { return .unknown }
+
         let types = Set(names.flatMap { declarationsByName[$0, default: []] }.filter { Self.typeKinds.contains($0.kind) })
         return types.isEmpty ? .external(isRoot: isRoot) : .project(types)
     }
@@ -157,8 +161,10 @@ final class PlatformConditionalReceiverResolver {
             let nestedTypes = closure(of: types).declarations
                 .flatMapSet { members(of: $0, named: name) }
                 .filter { Self.typeKinds.contains($0.kind) }
-            return nestedTypes.isEmpty ? .unknown : .project(nestedTypes)
+            return nestedTypes.isEmpty || clauseDeclaredTypeNames.contains(name) ? .unknown : .project(nestedTypes)
         case let .external(isRoot):
+            guard !clauseDeclaredTypeNames.contains(name) else { return .unknown }
+
             let declarations = declarationsByName[name, default: []]
             if isRoot {
                 // `Module.T`.

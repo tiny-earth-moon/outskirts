@@ -22,3 +22,20 @@ extension FixtureBareCallA {
     }
 }
 #endif
+
+public class FixtureBareCallBase {
+    func inheritedReload() {}
+}
+
+public struct FixtureBareCallOther {
+    func inheritedReload() {}
+}
+
+// The index store does not describe a class the clause declares: its superclass is unknown.
+#if os(iOS)
+class FixtureBareCallSub: FixtureBareCallBase {
+    func entryOnIOS() {
+        inheritedReload()
+    }
+}
+#endif

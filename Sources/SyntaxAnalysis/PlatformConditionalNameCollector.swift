@@ -166,6 +166,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         collected.overriddenNames.formUnion(declarationCollector.overriddenNames)
         collected.inheritedNames.formUnion(declarationCollector.inheritedNames)
         collected.conformingExtendedNames.formUnion(declarationCollector.conformances.map(\.typeName))
+        collected.declaredTypeNames.formUnion(declarationCollector.declaredTypeNames)
     }
 
     private func site(of node: some SyntaxProtocol, in clause: IfConfigClauseSyntax, converter: SourceLocationConverter) -> Site {
@@ -356,7 +357,6 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     /// unknown when it decides it: `canImport(App_iOS) || canImport(App_macOS)` is compiled by the build of `App_macOS`.
     private func activeClause(of node: IfConfigDeclSyntax, in configuration: PlatformBuildConfiguration) -> IfConfigClauseSyntax?? {
         guard configuration.answersCanImport else { return evaluatedClause(of: node, in: configuration) }
-
         guard let clause = evaluatedClause(of: node, in: configuration.assumingUnknownModules(importable: true)),
               let otherClause = evaluatedClause(of: node, in: configuration.assumingUnknownModules(importable: false)),
               clause?.id == otherClause?.id
@@ -477,6 +477,8 @@ private final class UnnamedUseCollector: SyntaxVisitor {
     private(set) var conformances: Set<PlatformConditionalConformance> = []
     private(set) var overriddenNames: Set<String> = []
     private(set) var inheritedNames: Set<String> = []
+    /// The names of the types and type aliases the clause declares.
+    private(set) var declaredTypeNames: Set<String> = []
     private(set) var accessesSubscript = false
     /// The initializer calls, with the first expression that makes each.
     private var typedConstructions: [PlatformConditionalConstruction: Syntax] = [:]
@@ -607,12 +609,38 @@ private final class UnnamedUseCollector: SyntaxVisitor {
 
     override func visit(_ node: ClassDeclSyntax) -> SyntaxVisitorContinueKind {
         insertInheritedNames(of: node.inheritanceClause)
+        insertDeclaredTypeName(node.name)
         return .visitChildren
     }
 
     override func visit(_ node: ProtocolDeclSyntax) -> SyntaxVisitorContinueKind {
         insertInheritedNames(of: node.inheritanceClause)
+        insertDeclaredTypeName(node.name)
         return .visitChildren
+    }
+
+    override func visit(_ node: StructDeclSyntax) -> SyntaxVisitorContinueKind {
+        insertDeclaredTypeName(node.name)
+        return .visitChildren
+    }
+
+    override func visit(_ node: EnumDeclSyntax) -> SyntaxVisitorContinueKind {
+        insertDeclaredTypeName(node.name)
+        return .visitChildren
+    }
+
+    override func visit(_ node: ActorDeclSyntax) -> SyntaxVisitorContinueKind {
+        insertDeclaredTypeName(node.name)
+        return .visitChildren
+    }
+
+    override func visit(_ node: TypeAliasDeclSyntax) -> SyntaxVisitorContinueKind {
+        insertDeclaredTypeName(node.name)
+        return .visitChildren
+    }
+
+    private func insertDeclaredTypeName(_ name: TokenSyntax) {
+        declaredTypeNames.insert(name.identifier?.name ?? name.text)
     }
 
     override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {

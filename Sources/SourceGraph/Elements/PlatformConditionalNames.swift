@@ -11,6 +11,8 @@ public struct PlatformConditionalNames: Equatable, Sendable {
     public var memberUses: Set<PlatformConditionalMemberUse> = []
     /// The types extended with a conformance in these clauses: the protocols they add, and their members, are unknown.
     public var conformingExtendedNames: Set<String> = []
+    /// The types and type aliases declared in these clauses: the index store does not describe them.
+    public var declaredTypeNames: Set<String> = []
     /// For each operator applied in a platform conditional clause that no indexed build compiles with certainty, the
     /// names written in the clauses that apply it: an operator member of a type is only retained when the type is named
     /// alongside it.
@@ -43,6 +45,7 @@ public struct PlatformConditionalNames: Equatable, Sendable {
 
     public var isEmpty: Bool {
         references.isEmpty && unscopedReferences.isEmpty && memberUses.isEmpty && conformingExtendedNames.isEmpty
+            && declaredTypeNames.isEmpty
             && operatorClauseNames.isEmpty && overriddenNames.isEmpty && inheritedNames.isEmpty
             && otherClauseNames.isEmpty && conformances.isEmpty && constructions.isEmpty && subscriptedNames.isEmpty
             && valueCalledNames.isEmpty
