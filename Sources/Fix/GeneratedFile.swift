@@ -32,7 +32,7 @@ enum GeneratedFile {
         let lineEnd = prefix.count < contents.count ? prefix.lastIndex(of: UInt8(ascii: "\n")) ?? 0 : prefix.count
         guard let header = String(bytes: prefix.prefix(lineEnd), encoding: .utf8) else { return false }
 
-        let commentLines = header.split(separator: "\n", omittingEmptySubsequences: false)
+        let commentLines = header.split(omittingEmptySubsequences: false, whereSeparator: { $0 == "\n" || $0 == "\r\n" || $0 == "\r" })
             .prefix(30)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .prefix { $0.isEmpty || $0.hasPrefix("//") || $0.hasPrefix("/*") || $0.hasPrefix("*") }
