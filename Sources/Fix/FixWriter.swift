@@ -7,6 +7,10 @@ public enum FixWriter {
     /// Writes every change or none: each file is checked before the first write, and when a write fails, the files
     /// already written get their original buffer back.
     public static func apply(_ plan: FixPlan) throws {
+        try apply(plan, setPermissions: setPermissions)
+    }
+
+    static func apply(_ plan: FixPlan, setPermissions: PermissionSetter) throws {
         for change in plan.changes where try !holds(change.original, change) {
             throw PeripheryError.underlyingError(FixWriterError.fileChanged(change.path.string))
         }
@@ -14,7 +18,7 @@ public enum FixWriter {
         var written: [FixPlan.Change] = []
         do {
             for change in plan.changes {
-                guard try write(change.fixed, to: change, ifHolding: change.original) else {
+                guard try write(change.fixed, to: change, ifHolding: change.original, setPermissions: setPermissions) else {
                     throw PeripheryError.underlyingError(FixWriterError.fileChanged(change.path.string))
                 }
 
@@ -23,7 +27,7 @@ public enum FixWriter {
         } catch {
             let notRestored = written.filter { change in
                 do {
-                    return try !write(change.original, to: change, ifHolding: change.fixed)
+                    return try !write(change.original, to: change, ifHolding: change.fixed, setPermissions: setPermissions)
                 } catch {
                     return true
                 }
@@ -41,7 +45,7 @@ public enum FixWriter {
         var restoration = FixRestoration()
         for change in plan.changes {
             do {
-                if try write(change.original, to: change, ifHolding: change.fixed) {
+                if try write(change.original, to: change, ifHolding: change.fixed, setPermissions: setPermissions) {
                     restoration.restored.append(change.path)
                 } else {
                     restoration.notRestored.append(change.path)
@@ -71,17 +75,47 @@ public enum FixWriter {
         return try [UInt8](Data(contentsOf: url)) == expected
     }
 
-    private static func write(_ bytes: [UInt8], to change: FixPlan.Change, ifHolding expected: [UInt8]) throws -> Bool {
+    /// Gives the temporary file the permissions of the file it replaces; tests inject a failure there.
+    typealias PermissionSetter = (_ permissions: Any, _ path: String) throws -> Void
+
+    private static func setPermissions(_ permissions: Any, of path: String) throws {
+        try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: path)
+    }
+
+    /// Writes the bytes to a temporary file next to the file, gives it the permissions of the file, then renames it
+    /// over the file: the file holds its previous bytes or the new ones, never a mix, and no step that can fail follows
+    /// the rename, so a file whose bytes were replaced is always known to the caller.
+    private static func write(_ bytes: [UInt8], to change: FixPlan.Change, ifHolding expected: [UInt8], setPermissions: PermissionSetter) throws -> Bool {
         let path = try realPath(of: change)
-        let url = URL(fileURLWithPath: path)
         guard try holds(expected, change) else { return false }
 
         let permissions = try FileManager.default.attributesOfItem(atPath: path)[.posixPermissions]
-        try Data(bytes).write(to: url, options: .atomic)
-        if let permissions {
-            try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: path)
+        let url = URL(fileURLWithPath: path)
+        let temporary = url.deletingLastPathComponent().appendingPathComponent(".\(url.lastPathComponent).outskirts-\(UUID().uuidString)")
+        do {
+            try Data(bytes).write(to: temporary, options: .withoutOverwriting)
+            if let permissions {
+                try setPermissions(permissions, temporary.path)
+            }
+            if rename(temporary.path, path) != 0 {
+                let code = errno
+                throw NSError(domain: NSPOSIXErrorDomain, code: Int(code), userInfo: [NSFilePathErrorKey: path])
+            }
+        } catch {
+            try removeTemporaryFile(temporary, after: error)
+            throw error
         }
         return true
+    }
+
+    private static func removeTemporaryFile(_ temporary: URL, after error: Error) throws {
+        guard FileManager.default.fileExists(atPath: temporary.path) else { return }
+
+        do {
+            try FileManager.default.removeItem(at: temporary)
+        } catch let removal {
+            throw PeripheryError.underlyingError(FixWriterError.temporaryFileLeft(temporary.path, error, removal))
+        }
     }
 }
 
@@ -105,6 +139,7 @@ enum FixWriterError: Error, CustomStringConvertible {
     case fileChanged(String)
     case partiallyWritten(Error, [String])
     case pathChanged(String)
+    case temporaryFileLeft(String, Error, Error)
 
     var description: String {
         switch self {
@@ -114,6 +149,8 @@ enum FixWriterError: Error, CustomStringConvertible {
             "Writing the fixes failed (\(error)), and these files keep their fixes because they changed since: \(paths.joined(separator: ", "))."
         case let .pathChanged(path):
             "\(path) now leads to another file through a symbolic link, no file was written."
+        case let .temporaryFileLeft(path, error, removal):
+            "Writing the fixes failed (\(error)), and the temporary file \(path) could not be removed (\(removal))."
         }
     }
 }
