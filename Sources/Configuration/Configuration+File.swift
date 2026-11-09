@@ -14,9 +14,15 @@ public extension Configuration {
         return try Yams.dump(object: config)
     }
 
-    func save(to path: FilePath = defaultConfigurationFile) throws {
-        let data = try (Self.schemaComment + "\n" + asYaml()).data(using: .utf8)
-        FileManager.default.createFile(atPath: path.string, contents: data)
+    /// Writes the configuration file atomically. With a `root`, the file is written at its real path, which must stay
+    /// inside `root`; without one, never over a symbolic link (see `OutputFile`).
+    func save(to path: FilePath = defaultConfigurationFile, within root: FilePath? = nil) throws {
+        let data = try Data((Self.schemaComment + "\n" + asYaml()).utf8)
+        if let root {
+            try OutputFile.writeConfined(data, to: path, within: root)
+        } else {
+            try OutputFile.write(data, to: path)
+        }
     }
 
     /// Loads the configuration file. A file with `version: 2` loads through `ConfigurationV2`, where any problem is an

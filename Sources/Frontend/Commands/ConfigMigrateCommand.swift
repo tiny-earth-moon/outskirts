@@ -2,6 +2,7 @@ import ArgumentParser
 import Configuration
 import Foundation
 import Shared
+import SystemPackage
 
 struct ConfigMigrateCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -26,10 +27,29 @@ struct ConfigMigrateCommand: ParsableCommand {
         let migrated = try Configuration.migratedToV2(file: path)
 
         if apply {
-            try migrated.write(to: path.url, atomically: true, encoding: .utf8)
-            FileHandle.standardError.write(Data("\(path.string): migrated to version 2\n".utf8))
+            let written = try write(migrated, to: path, projectRoot: projectRoot)
+            let through = written == path ? "" : " (through the symbolic link, to \(written.string))"
+            FileHandle.standardError.write(Data("\(path.string): migrated to version 2\(through)\n".utf8))
         } else {
             print(migrated, terminator: "")
+        }
+    }
+
+    /// A file named with `--config` is written where it is, never over a symbolic link. The file found in the project
+    /// root is written at its real path, which must stay inside the project root.
+    private func write(_ migrated: String, to path: FilePath, projectRoot: FilePath) throws -> FilePath {
+        let data = Data(migrated.utf8)
+        guard locationOptions.config == nil else {
+            try OutputFile.write(data, to: path)
+            return path
+        }
+
+        let isLink = OutputFile.isSymbolicLink(path.string)
+        do {
+            let written = try OutputFile.writeConfined(data, to: path, within: projectRoot)
+            return isLink ? written : path
+        } catch let PeripheryError.usageError(message) {
+            throw PeripheryError.usageError("\(message) Pass the file it leads to with '--config' to migrate it there.")
         }
     }
 }
