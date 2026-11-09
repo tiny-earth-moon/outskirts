@@ -71,6 +71,7 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         XCTAssertEqual(collected.inheritedNames, ["FixtureBase"])
         XCTAssertEqual(collected.overriddenNames, ["update", "size", "subscript"])
         XCTAssertEqual(collected.otherClauseNames, [])
+        XCTAssertEqual(collected.operatorClauseNames, ["<~>": collected.references, "-": collected.references])
     }
 
     /// The names of the other `#if` blocks only account for imports: they are collected apart, both clauses whole.

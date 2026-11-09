@@ -140,9 +140,15 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         guard let elements = clause.elements else { return }
 
         clauses.append(clause)
+        var clauseNames: Set<String> = []
+        var operators: Set<String> = []
         for token in elements.tokens(viewMode: .sourceAccurate) {
             if let name = referencedName(token) {
                 collected.references.insert(name)
+                clauseNames.insert(name)
+                if !token.tokenKind.isIdentifier {
+                    operators.insert(name)
+                }
 
                 if let locationConverter {
                     let condition = clause.condition.map { "\(clause.poundKeyword.text) \($0.trimmedDescription)" } ?? clause.poundKeyword.text
@@ -150,6 +156,10 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
                     sites[name, default: []].append(Site(line: line, condition: condition))
                 }
             }
+        }
+
+        for name in operators {
+            collected.operatorClauseNames[name, default: []].formUnion(clauseNames)
         }
 
         let declarationCollector = UnnamedUseCollector(viewMode: .sourceAccurate)

@@ -37,6 +37,8 @@ public final class SourceGraph {
     private(set) var platformConditionalNames: Set<String> = []
     private(set) var parameterAttributeNames: Set<String> = []
     private(set) var platformConditionalNamesByFile: [SourceFile: Set<String>] = [:]
+    /// For each operator applied in platform conditional clauses, the names written in the clauses that apply it.
+    private(set) var platformConditionalOperatorClauseNames: [String: Set<String>] = [:]
     /// The conformances declared by extensions written in platform conditional clauses no indexed build compiles.
     private(set) var platformConditionalConformances: Set<PlatformConditionalConformance> = []
     /// The initializer calls that write no initializer name in platform conditional clauses no indexed build compiles.
@@ -492,6 +494,7 @@ public final class SourceGraph {
     public func addPlatformConditionalNames(_ names: PlatformConditionalNames, in file: SourceFile) {
         platformConditionalNames.formUnion(names.references)
         platformConditionalNamesByFile[file, default: []].formUnion(names.references)
+        platformConditionalOperatorClauseNames.merge(names.operatorClauseNames) { $0.union($1) }
         platformConditionalConformances.formUnion(names.conformances)
         platformConditionalConstructions.formUnion(names.constructions)
         platformConditionalSubscriptedNames.formUnion(names.subscriptedNames)

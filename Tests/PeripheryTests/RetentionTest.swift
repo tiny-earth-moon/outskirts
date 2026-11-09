@@ -629,6 +629,19 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    /// `*` written alone in a platform conditional block does not use the `*` of every type, only of a type named
+    /// alongside it.
+    func testReportsOperatorsOfTypesNotNamedWithTheOperatorInPlatformConditionalBlocks() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureScaledAmount")) {
+                self.assertNotReferenced(.functionOperatorInfix("*(_:_:)"))
+            }
+            assertReferenced(.struct("FixtureScaledLength")) {
+                self.assertReferenced(.functionOperatorInfix("*(_:_:)"))
+            }
+        }
+    }
+
     func testDoesNotRetainDeclarationsOnlyNamedInPlatformConditionalBlocks() {
         analyze(retainPublic: true) {
             // A conformance extension, a declared function, protocol and typealias only write their own name.

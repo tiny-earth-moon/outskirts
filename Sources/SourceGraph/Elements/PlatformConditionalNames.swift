@@ -3,6 +3,9 @@ public struct PlatformConditionalNames: Equatable, Sendable {
     /// The names written as references, operators included, in the platform conditional clauses no indexed build
     /// compiled.
     public var references: Set<String> = []
+    /// For each operator applied in these clauses, the names written in the clauses that apply it: an operator member
+    /// of a type is only retained when the type is named alongside it.
+    public var operatorClauseNames: [String: Set<String>] = [:]
     /// The names of the members declared `override` in these clauses.
     public var overriddenNames: Set<String> = []
     /// The names written in the inheritance clause of the classes and protocols declared in these clauses.
@@ -30,7 +33,7 @@ public struct PlatformConditionalNames: Equatable, Sendable {
     public init() {}
 
     public var isEmpty: Bool {
-        references.isEmpty && overriddenNames.isEmpty && inheritedNames.isEmpty
+        references.isEmpty && operatorClauseNames.isEmpty && overriddenNames.isEmpty && inheritedNames.isEmpty
             && otherClauseNames.isEmpty && conformances.isEmpty && constructions.isEmpty && subscriptedNames.isEmpty
             && valueCalledNames.isEmpty
     }

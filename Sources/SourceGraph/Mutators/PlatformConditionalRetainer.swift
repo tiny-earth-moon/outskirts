@@ -6,7 +6,7 @@ import Shared
 /// platform appears unused. This retains:
 ///  - declarations marked `@available(<platform>, unavailable)`, as they exist for other platforms, and
 ///  - declarations whose name is written inside a platform conditional `#if` block, as the reference may live
-///    in a branch that was not compiled,
+///    in a branch that was not compiled; an operator member of a type only when the block names the type too,
 ///  - the members a clause that no indexed build compiles uses without writing their name: the initializers it calls
 ///    (`T(...)`, `.init(...)` typed `T`, `T.self`) whose labels match, the subscripts of a type it names when it
 ///    accesses a value with `[ ]`, the `callAsFunction` of a type it names when it calls a value, and the witnesses of
@@ -25,6 +25,13 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
     ]
 
     private static let typeKinds: Set<Declaration.Kind> = [.class, .struct, .enum]
+    private static let operatorKinds: Set<Declaration.Kind> = [
+        .functionOperator, .functionOperatorInfix, .functionOperatorPrefix, .functionOperatorPostfix,
+    ]
+    /// The declarations whose operator members are retained when named alongside them.
+    private static let operatorDeclaringKinds: Set<Declaration.Kind> = typeKinds.union([
+        .protocol, .extensionClass, .extensionEnum, .extensionProtocol, .extensionStruct,
+    ])
 
     /// An initializer can implement an `init` requirement.
     private static let nonWitnessKinds = nonReferenceableKinds.subtracting([.functionConstructor])
@@ -53,7 +60,8 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
                 graph.markRetained(decl.descendentDeclarations, reason: RetentionReason(Self.self, "inside \(decl.name), declared unavailable on a platform with @available"))
             } else if !names.isEmpty,
                       !Self.nonReferenceableKinds.contains(decl.kind),
-                      names.contains(Self.baseName(of: decl.name))
+                      names.contains(Self.baseName(of: decl.name)),
+                      isOperatorNamedWithItsType(decl)
             {
                 graph.markRetained(decl, reason: nameRetentionReason(Self.baseName(of: decl.name)))
             }
@@ -64,6 +72,18 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
     }
 
     // MARK: - Private
+
+    /// Whether the declaration is not an operator member, or its type is named in a clause that applies it: `*` written
+    /// alone does not use the `*` of every type.
+    private func isOperatorNamedWithItsType(_ decl: Declaration) -> Bool {
+        guard Self.operatorKinds.contains(decl.kind),
+              let parent = decl.parent,
+              Self.operatorDeclaringKinds.contains(parent.kind)
+        else { return true }
+
+        let clauseNames = graph.platformConditionalOperatorClauseNames[Self.baseName(of: decl.name), default: []]
+        return clauseNames.contains(Self.baseName(of: parent.name))
+    }
 
     /// The members that a clause no indexed build compiles calls without writing their name: the initializers of its
     /// `T(...)`, `.init(...)` typed `T` and `T.self`, and the subscripts and `callAsFunction` of a type it names when it
