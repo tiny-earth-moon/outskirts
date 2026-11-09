@@ -49,6 +49,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
 
     /// The sites of each name, only collected when a location converter is given (for `--explain`).
     public private(set) var sites: [String: [Site]] = [:]
+    /// The sites of each initializer call that writes no initializer name, likewise.
+    public private(set) var constructionSites: [PlatformConditionalConstruction: [Site]] = [:]
     /// The clauses whose names were collected.
     private(set) var clauses: [IfConfigClauseSyntax] = []
 
@@ -235,11 +237,11 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
             guard isUncompiled, let elements = clause.elements else { continue }
 
             unnamedUseClauses.insert(clause.id)
-            collectUnnamedUses(in: elements)
+            collectUnnamedUses(in: elements, of: clause)
         }
     }
 
-    private func collectUnnamedUses(in elements: IfConfigClauseSyntax.Elements) {
+    private func collectUnnamedUses(in elements: IfConfigClauseSyntax.Elements, of clause: IfConfigClauseSyntax) {
         var names: Set<String> = []
         for token in elements.tokens(viewMode: .sourceAccurate) {
             if let name = referencedName(token) {
@@ -250,7 +252,12 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         let useCollector = UnnamedUseCollector(viewMode: .sourceAccurate)
         useCollector.walk(elements)
         collected.conformances.formUnion(useCollector.conformances)
-        collected.constructions.formUnion(useCollector.constructions(namedIn: names))
+        for (construction, node) in useCollector.constructions(namedIn: names) {
+            collected.constructions.insert(construction)
+            if let locationConverter {
+                constructionSites[construction, default: []].append(site(of: node, in: clause, converter: locationConverter))
+            }
+        }
         if useCollector.accessesSubscript {
             collected.subscriptedNames.formUnion(names)
         }
@@ -447,9 +454,10 @@ private final class UnnamedUseCollector: SyntaxVisitor {
     private(set) var overriddenNames: Set<String> = []
     private(set) var inheritedNames: Set<String> = []
     private(set) var accessesSubscript = false
-    private var typedConstructions: Set<PlatformConditionalConstruction> = []
-    /// The labels of the `.init(...)` calls whose type the syntax does not tell.
-    private var untypedConstructionLabels: Set<[String]> = []
+    /// The initializer calls, with the first expression that makes each.
+    private var typedConstructions: [PlatformConditionalConstruction: Syntax] = [:]
+    /// The labels of the `.init(...)` calls whose type the syntax does not tell, with the first call of each.
+    private var untypedConstructionLabels: [[String]: Syntax] = [:]
     /// The names called directly, `name()`, which call a value when the clause binds them.
     private var calledNames: Set<String> = []
     private var boundNames: Set<String> = []
@@ -461,15 +469,26 @@ private final class UnnamedUseCollector: SyntaxVisitor {
         callsComplexValue || !calledNames.isDisjoint(with: boundNames)
     }
 
-    /// The initializer calls, those of untyped `.init(...)` ascribed to every name written in the clause.
-    func constructions(namedIn names: Set<String>) -> Set<PlatformConditionalConstruction> {
+    /// The initializer calls, those of untyped `.init(...)` ascribed to every name written in the clause, with the
+    /// expression that makes each.
+    func constructions(namedIn names: Set<String>) -> [PlatformConditionalConstruction: Syntax] {
         var result = typedConstructions
-        for labels in untypedConstructionLabels {
+        for (labels, node) in untypedConstructionLabels {
             for name in names {
-                result.insert(PlatformConditionalConstruction(typeName: name, labels: labels))
+                let construction = PlatformConditionalConstruction(typeName: name, labels: labels)
+                if result[construction] == nil {
+                    result[construction] = node
+                }
             }
         }
         return result
+    }
+
+    private func insert(_ typeName: String, labels: [String]?, at node: some SyntaxProtocol) {
+        let construction = PlatformConditionalConstruction(typeName: typeName, labels: labels)
+        if typedConstructions[construction] == nil {
+            typedConstructions[construction] = Syntax(node)
+        }
     }
 
     override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
@@ -479,18 +498,20 @@ private final class UnnamedUseCollector: SyntaxVisitor {
         if let member = callee.as(MemberAccessExprSyntax.self), Self.isInit(member.declName) {
             if let base = member.base {
                 if let typeName = Self.typeName(of: base) {
-                    typedConstructions.insert(PlatformConditionalConstruction(typeName: typeName, labels: labels))
+                    insert(typeName, labels: labels, at: node)
                 }
             } else if let contextTypeNames = Self.contextTypeNames(of: node) {
                 for typeName in contextTypeNames {
-                    typedConstructions.insert(PlatformConditionalConstruction(typeName: typeName, labels: labels))
+                    insert(typeName, labels: labels, at: node)
                 }
             } else {
-                untypedConstructionLabels.insert(labels)
+                if untypedConstructionLabels[labels] == nil {
+                    untypedConstructionLabels[labels] = Syntax(node)
+                }
             }
         } else if let typeName = Self.typeName(of: callee) {
             // A function or method call is recorded too: it only matches a type of the same name.
-            typedConstructions.insert(PlatformConditionalConstruction(typeName: typeName, labels: labels))
+            insert(typeName, labels: labels, at: node)
         }
 
         if let reference = callee.as(DeclReferenceExprSyntax.self) {
@@ -514,12 +535,12 @@ private final class UnnamedUseCollector: SyntaxVisitor {
         guard let base = node.base, let typeName = Self.typeName(of: base) else { return .visitChildren }
 
         if node.declName.baseName.tokenKind == .keyword(.self) {
-            typedConstructions.insert(PlatformConditionalConstruction(typeName: typeName, labels: nil))
+            insert(typeName, labels: nil, at: node)
         } else if Self.isInit(node.declName),
                   node.parent?.as(FunctionCallExprSyntax.self)?.calledExpression.id != node.id
         {
             let labels = node.declName.argumentNames.map { $0.arguments.map(\.name.text) }
-            typedConstructions.insert(PlatformConditionalConstruction(typeName: typeName, labels: labels))
+            insert(typeName, labels: labels, at: node)
         }
         return .visitChildren
     }

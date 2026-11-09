@@ -92,6 +92,8 @@ public final class SourceGraph {
     public private(set) var discardedReferencesByUsr: [String: [DiscardedReference]] = [:]
     public private(set) var usePredecessors: [Declaration: UsePredecessor] = [:]
     private(set) var platformConditionalNameSites: [String: [PlatformConditionalNameSite]] = [:]
+    /// The sites of the initializer calls that write no initializer name, recorded only for `--explain`.
+    private(set) var platformConditionalConstructionSites: [PlatformConditionalConstruction: [PlatformConditionalNameSite]] = [:]
     /// Source files without index data, by module (target), recorded only for `--explain`.
     public private(set) var unindexedSourceFilesByModule: [String: [FilePath]] = [:]
 
@@ -461,6 +463,12 @@ public final class SourceGraph {
         guard recordsExplanations else { return }
 
         platformConditionalNameSites.merge(sites) { $0 + $1 }
+    }
+
+    public func addPlatformConditionalConstructionSites(_ sites: [PlatformConditionalConstruction: [PlatformConditionalNameSite]]) {
+        guard recordsExplanations else { return }
+
+        platformConditionalConstructionSites.merge(sites) { $0 + $1 }
     }
 
     public func addIndexExcludedSourceFiles(_ files: Set<FilePath>) {

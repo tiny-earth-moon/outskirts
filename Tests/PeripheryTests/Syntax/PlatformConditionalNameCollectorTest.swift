@@ -189,6 +189,26 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         XCTAssertTrue(collected.valueCalledNames.contains("Callable"))
     }
 
+    /// `--explain` cites the line of the call, not the first line that names the type.
+    func testCollectsConstructionSitesForExplanations() {
+        let source = """
+        #if os(iOS)
+        func render(context: Context) {}
+        let renderer = Renderer(context: Context(device: device))
+        #endif
+        """
+        let syntax = Parser.parse(source: source)
+        let collector = PlatformConditionalNameCollector(
+            configurations: [macOS],
+            locationConverter: SourceLocationConverter(fileName: "Render.swift", tree: syntax)
+        )
+        collector.walk(syntax)
+
+        let construction = PlatformConditionalConstruction(typeName: "Context", labels: ["device"])
+        XCTAssertEqual(collector.constructionSites[construction]?.map(\.line), [3])
+        XCTAssertEqual(collector.sites["Context"]?.map(\.line), [2, 3])
+    }
+
     /// An operator applied in a clause a configuration compiles is resolved by the index store.
     func testCollectsOperatorClauseNamesOnlyFromClausesNotCertainlyCompiled() {
         let source = """

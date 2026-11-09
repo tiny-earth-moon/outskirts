@@ -117,7 +117,7 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
             for member in typeMembers {
                 let reason: String? = switch member.kind {
                 case .functionConstructor where calls[member] != nil:
-                    "initializer of '\(typeName)', called without its name in a platform conditional clause no indexed build compiles"
+                    calls[member].map { constructionRetentionReason($0, typeName: typeName) }
                 case .functionSubscript where isSubscripted:
                     "subscript of '\(typeName)', named in a platform conditional clause no indexed build compiles that accesses a value with [ ]"
                 case _ where isValueCalled && Self.baseName(of: member.name) == "callAsFunction":
@@ -152,6 +152,18 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
         }
 
         return result
+    }
+
+    /// The first place, in file and line order, where the clause calls the initializer.
+    private func constructionRetentionReason(_ construction: PlatformConditionalConstruction, typeName: String) -> String {
+        let site = graph.platformConditionalConstructionSites[construction, default: []].min {
+            ($0.file.path.string, $0.line) < ($1.file.path.string, $1.line)
+        }
+        guard let site else {
+            return "initializer of '\(typeName)', called without its name in a platform conditional clause no indexed build compiles"
+        }
+
+        return "initializer of '\(typeName)', called without its name in \(site.condition) at \(site.file.path.string):\(site.line), a clause no indexed build compiles"
     }
 
     /// The members of a type that bear the name of a requirement of a protocol it conforms to in an extension written
