@@ -12,8 +12,10 @@ import SwiftSyntax
 ///
 /// When the build configurations of the indexed units are known, the clauses that one of them compiled are skipped:
 /// their references are already in the index store. A block is only narrowed this way when every condition is made
-/// of `os()`, `arch()` and `targetEnvironment()` checks joined by `!`, `&&` and `||`, when it is not nested in another
-/// `#if` block, and when every configuration evaluates it without a diagnostic. Otherwise the whole block is collected.
+/// of `os()`, `arch()`, `targetEnvironment()` and `canImport()` checks joined by `!`, `&&` and `||`, when it is not
+/// nested in another `#if` block, and when every configuration evaluates it with certainty: `canImport()` is answered
+/// for the system modules the platform settles and the project's modules the build compiled, and another module only
+/// when it does not decide the clause. Otherwise the whole block is collected.
 ///
 /// With `narrowsNestedBlocks`, a block nested in other `#if` blocks is narrowed too, when every enclosing block can be
 /// narrowed: a configuration compiles one of its clauses when it also compiles every enclosing clause. The clauses no
@@ -143,9 +145,15 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         guard let elements = clause.elements else { return }
 
         clauses.append(clause)
+        let receiverReader = PlatformConditionalReceiverReader(clause: clause)
         for token in elements.tokens(viewMode: .sourceAccurate) {
             if let name = referencedName(token) {
                 collected.references.insert(name)
+                if let use = receiverReader.memberUse(of: token, named: name) {
+                    collected.memberUses.insert(use)
+                } else {
+                    collected.unscopedReferences.insert(name)
+                }
 
                 if let locationConverter {
                     sites[name, default: []].append(site(of: token, in: clause, converter: locationConverter))
@@ -157,6 +165,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         declarationCollector.walk(elements)
         collected.overriddenNames.formUnion(declarationCollector.overriddenNames)
         collected.inheritedNames.formUnion(declarationCollector.inheritedNames)
+        collected.conformingExtendedNames.formUnion(declarationCollector.conformances.map(\.typeName))
+        collected.declaredTypeNames.formUnion(declarationCollector.declaredTypeNames)
     }
 
     private func site(of node: some SyntaxProtocol, in clause: IfConfigClauseSyntax, converter: SourceLocationConverter) -> Site {
@@ -314,13 +324,15 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
 
         guard !configurations.isEmpty,
               enclosingClauses.isEmpty || narrowsNestedBlocks,
-              isEvaluable(node),
-              enclosingClauses.allSatisfy({ isEvaluable($0.block) })
+              isEvaluable(node, allowingCanImport: true),
+              enclosingClauses.allSatisfy({ isEvaluable($0.block, allowingCanImport: true) })
         else { return nil }
 
         var compiledClauses: Set<SyntaxIdentifier> = []
 
-        for configuration in configurations {
+        // `canImport()` is answered for the system modules the platform settles and the project's modules the build
+        // compiled; any other module leaves the block whole.
+        for configuration in configurations.map(\.answeringCanImport) {
             guard let clause = activeClause(of: node, in: configuration) else { return nil }
 
             var compilesEnclosingClauses = true
@@ -341,15 +353,27 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     /// The clause the configuration compiles, `.some(nil)` when it compiles none, or `nil` when it cannot be known.
+    /// When the configuration answers `canImport()`, a module whose presence is not known only leaves the clause
+    /// unknown when it decides it: `canImport(App_iOS) || canImport(App_macOS)` is compiled by the build of `App_macOS`.
     private func activeClause(of node: IfConfigDeclSyntax, in configuration: PlatformBuildConfiguration) -> IfConfigClauseSyntax?? {
+        guard configuration.answersCanImport else { return evaluatedClause(of: node, in: configuration) }
+        guard let clause = evaluatedClause(of: node, in: configuration.assumingUnknownModules(importable: true)),
+              let otherClause = evaluatedClause(of: node, in: configuration.assumingUnknownModules(importable: false)),
+              clause?.id == otherClause?.id
+        else { return nil }
+
+        return clause
+    }
+
+    private func evaluatedClause(of node: IfConfigDeclSyntax, in configuration: PlatformBuildConfiguration) -> IfConfigClauseSyntax?? {
         let (clause, diagnostics) = node.activeClause(in: configuration)
         guard diagnostics.isEmpty else { return nil }
 
         return .some(clause)
     }
 
-    private func isEvaluable(_ node: IfConfigDeclSyntax) -> Bool {
-        node.clauses.allSatisfy { $0.condition.map { isEvaluable($0) } ?? true }
+    private func isEvaluable(_ node: IfConfigDeclSyntax, allowingCanImport: Bool = false) -> Bool {
+        node.clauses.allSatisfy { $0.condition.map { isEvaluable($0, allowingCanImport: allowingCanImport) } ?? true }
     }
 
     /// The `#if` blocks the node is nested in, from the innermost, with the clause of each that contains it.
@@ -453,6 +477,8 @@ private final class UnnamedUseCollector: SyntaxVisitor {
     private(set) var conformances: Set<PlatformConditionalConformance> = []
     private(set) var overriddenNames: Set<String> = []
     private(set) var inheritedNames: Set<String> = []
+    /// The names of the types and type aliases the clause declares.
+    private(set) var declaredTypeNames: Set<String> = []
     private(set) var accessesSubscript = false
     /// The initializer calls, with the first expression that makes each.
     private var typedConstructions: [PlatformConditionalConstruction: Syntax] = [:]
@@ -583,12 +609,38 @@ private final class UnnamedUseCollector: SyntaxVisitor {
 
     override func visit(_ node: ClassDeclSyntax) -> SyntaxVisitorContinueKind {
         insertInheritedNames(of: node.inheritanceClause)
+        insertDeclaredTypeName(node.name)
         return .visitChildren
     }
 
     override func visit(_ node: ProtocolDeclSyntax) -> SyntaxVisitorContinueKind {
         insertInheritedNames(of: node.inheritanceClause)
+        insertDeclaredTypeName(node.name)
         return .visitChildren
+    }
+
+    override func visit(_ node: StructDeclSyntax) -> SyntaxVisitorContinueKind {
+        insertDeclaredTypeName(node.name)
+        return .visitChildren
+    }
+
+    override func visit(_ node: EnumDeclSyntax) -> SyntaxVisitorContinueKind {
+        insertDeclaredTypeName(node.name)
+        return .visitChildren
+    }
+
+    override func visit(_ node: ActorDeclSyntax) -> SyntaxVisitorContinueKind {
+        insertDeclaredTypeName(node.name)
+        return .visitChildren
+    }
+
+    override func visit(_ node: TypeAliasDeclSyntax) -> SyntaxVisitorContinueKind {
+        insertDeclaredTypeName(node.name)
+        return .visitChildren
+    }
+
+    private func insertDeclaredTypeName(_ name: TokenSyntax) {
+        declaredTypeNames.insert(name.identifier?.name ?? name.text)
     }
 
     override func visit(_ node: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {

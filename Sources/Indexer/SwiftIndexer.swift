@@ -42,10 +42,19 @@ final class SwiftIndexer: Indexer {
     }
 
     func perform() throws {
+        // The project's modules each build compiled, which `canImport()` finds.
+        var modulesByVariant: [IndexVariant: Set<String>] = [:]
+        for file in sourceFiles.keys {
+            for variant in file.currentVariants {
+                modulesByVariant[variant, default: []].formUnion(file.modules)
+            }
+        }
+
         let jobs = sourceFiles.map { file, units -> Job in
             Job(
                 sourceFile: file,
                 units: units,
+                modulesByVariant: modulesByVariant,
                 retainAllDeclarations: isRetained(file),
                 graph: graph,
                 logger: logger,
@@ -95,14 +104,18 @@ final class SwiftIndexer: Indexer {
     /// The configurations the file's up-to-date units were compiled for, or none when one of their triples is not
     /// understood, in which case every clause of the file's platform conditionals is collected. A unit older than the
     /// file is left out: the clauses its build compiled may hold code added since, which its index data misses.
-    static func platformBuildConfigurations(of sourceFile: SourceFile) -> [PlatformBuildConfiguration] {
-        PlatformBuildConfiguration.configurations(of: sourceFile.currentVariants)
+    static func platformBuildConfigurations(
+        of sourceFile: SourceFile,
+        modulesByVariant: [IndexVariant: Set<String>] = [:]
+    ) -> [PlatformBuildConfiguration] {
+        PlatformBuildConfiguration.configurations(of: sourceFile.currentVariants, modulesByVariant: modulesByVariant)
     }
 
     private final class Job {
         let sourceFile: SourceFile
 
         private let units: [IndexUnit]
+        private let modulesByVariant: [IndexVariant: Set<String>]
         private let graph: SourceGraphMutex
         private let logger: ContextualLogger
         private let configuration: Configuration
@@ -112,6 +125,7 @@ final class SwiftIndexer: Indexer {
         required init(
             sourceFile: SourceFile,
             units: [IndexUnit],
+            modulesByVariant: [IndexVariant: Set<String>],
             retainAllDeclarations: Bool,
             graph: SourceGraphMutex,
             logger: ContextualLogger,
@@ -120,6 +134,7 @@ final class SwiftIndexer: Indexer {
         ) {
             self.sourceFile = sourceFile
             self.units = units
+            self.modulesByVariant = modulesByVariant
             self.retainAllDeclarations = retainAllDeclarations
             self.graph = graph
             self.logger = logger
@@ -322,7 +337,7 @@ final class SwiftIndexer: Indexer {
             let platformConditionalNameCollector: PlatformConditionalNameCollector? =
                 configuration.resolvedPlatformConditionalRetention != .off && !isGeneratedAssetSymbolsFile
                     ? multiplexingSyntaxVisitor.add(PlatformConditionalNameCollector(
-                        configurations: SwiftIndexer.platformBuildConfigurations(of: sourceFile),
+                        configurations: SwiftIndexer.platformBuildConfigurations(of: sourceFile, modulesByVariant: modulesByVariant),
                         narrowsNestedBlocks: configuration.resolvedPlatformConditionalRetention == .auto,
                         locationConverter: configuration.explain.isEmpty ? nil : multiplexingSyntaxVisitor.locationConverter
                     ))

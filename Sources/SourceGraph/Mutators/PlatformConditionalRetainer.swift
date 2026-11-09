@@ -6,7 +6,8 @@ import Shared
 /// platform appears unused. This retains:
 ///  - declarations marked `@available(<platform>, unavailable)`, as they exist for other platforms, and
 ///  - declarations whose name is written inside a platform conditional `#if` block, as the reference may live
-///    in a branch that was not compiled; an operator member of a type only when the block names the type too,
+///    in a branch that was not compiled; an operator member of a type only when the block names the type too, and a
+///    member written on a receiver whose type the block proves only in the types the receiver may be,
 ///  - the members a clause that no indexed build compiles uses without writing their name: the initializers it calls
 ///    (`T(...)`, `.init(...)` typed `T`, `T.self`) whose labels match, exactly when one does, the subscripts of a type it names when it
 ///    accesses a value with `[ ]`, the `callAsFunction` of a type it names when it calls a value, and the witnesses of
@@ -48,7 +49,7 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
         let retention = configuration.resolvedPlatformConditionalRetention
         guard retention != .off else { return }
 
-        let names = graph.platformConditionalNames
+        let names = graph.platformConditionalUnscopedNames
 
         for decl in graph.allDeclarations {
             let unavailablePlatforms = Self.unavailablePlatforms(of: decl)
@@ -69,6 +70,7 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
             }
         }
 
+        retainScopedMembers(unscopedNames: names)
         retainUnnamedMembers()
         retainConformanceWitnesses()
     }
@@ -93,6 +95,40 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
         else { return nil }
 
         return Self.baseName(of: parent.name)
+    }
+
+    /// The members written on a receiver, or bare in a type the clause declares: only the declarations of the types the
+    /// receiver may be, or every declaration of the name when its type is unknown (see
+    /// `PlatformConditionalReceiverResolver`).
+    private func retainScopedMembers(unscopedNames: Set<String>) {
+        let uses = graph.platformConditionalMemberUses.filter { !unscopedNames.contains($0.name) }
+        guard !uses.isEmpty else { return }
+
+        let resolver = PlatformConditionalReceiverResolver(graph: graph)
+        var retainedNames: Set<String> = []
+        var candidatesByName: [String: Set<Declaration>] = [:]
+
+        for use in uses where !retainedNames.contains(use.name) {
+            if let candidates = resolver.candidates(for: use) {
+                candidatesByName[use.name, default: []].formUnion(candidates)
+            } else {
+                retainedNames.insert(use.name)
+            }
+        }
+
+        if !retainedNames.isEmpty {
+            for decl in graph.allDeclarations where !Self.nonReferenceableKinds.contains(decl.kind) {
+                let name = Self.baseName(of: decl.name)
+                if retainedNames.contains(name) {
+                    graph.markRetained(decl, reason: nameRetentionReason(name))
+                }
+            }
+        }
+        for (name, candidates) in candidatesByName where !retainedNames.contains(name) {
+            for decl in candidates {
+                graph.markRetained(decl, reason: nameRetentionReason(name))
+            }
+        }
     }
 
     /// The members that a clause no indexed build compiles calls without writing their name: the initializers of its

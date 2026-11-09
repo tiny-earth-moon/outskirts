@@ -721,10 +721,17 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
-    /// Custom flags, `canImport()`, version checks and nested blocks keep the whole-block retention.
+    /// Custom flags, version checks and nested blocks keep the whole-block retention. A `canImport()` of a module the
+    /// platform settles is evaluated: `#if canImport(Foundation)` is compiled on macOS and Linux, in the index store.
     func testRetainsWholeBlockWhenPlatformConditionalCannotBeEvaluated() {
         analyze(retainPublic: true) {
-            for name in ["Flag", "Import", "Version", "Nested", "Inner"] {
+            assertReferenced(.struct("FixtureUnevaluatedImportAlpha")) {
+                self.assertReferenced(.functionMethodInstance("unevaluatedImport()"))
+            }
+            assertReferenced(.struct("FixtureUnevaluatedImportBeta")) {
+                self.assertNotReferenced(.functionMethodInstance("unevaluatedImport()"))
+            }
+            for name in ["Flag", "Version", "Nested", "Inner"] {
                 let member = "unevaluated\(name)()"
                 assertReferenced(.struct("FixtureUnevaluated\(name)Alpha")) {
                     self.assertReferenced(.functionMethodInstance(member))
@@ -761,7 +768,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
                 self.assertReferenced(.functionMethodInstance("onlyOnTVOS()"))
                 self.assertReferenced(.functionMethodInstance("onlyInElse()"))
             }
-            for name in ["Flag", "Import", "Version", "Nested"] {
+            for name in ["Flag", "Version", "Nested"] {
                 assertReferenced(.struct("FixtureUnevaluated\(name)Beta")) {
                     self.assertReferenced(.functionMethodInstance("unevaluated\(name)()"))
                 }
@@ -792,6 +799,102 @@ final class RetentionTest: FixtureSourceGraphTestCase {
             }
             assertReferenced(.class("FixtureClass234")) {
                 self.assertNotReferenced(.functionMethodInstance("uniqueUnusedFunction()"))
+            }
+        }
+    }
+
+    /// A receiver whose type the clause writes (`T(...)`, `T.member`, an annotation) scopes the member to that type.
+    func testReportsSameNamedMembersOfOtherTypesCalledOnTypedReceiverInPlatformConditionalBlock() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureTypedReceiverA")) {
+                self.assertReferenced(.functionMethodInstance("contains(_:)"))
+                self.assertReferenced(.functionMethodStatic("make()"))
+                self.assertReferenced(.functionMethodInstance("annotatedUse()"))
+            }
+            assertReferenced(.struct("FixtureTypedReceiverB")) {
+                self.assertNotReferenced(.functionMethodInstance("contains(_:)"))
+                self.assertNotReferenced(.functionMethodStatic("make()"))
+                self.assertNotReferenced(.functionMethodInstance("annotatedUse()"))
+            }
+        }
+    }
+
+    /// A receiver of an external type only reaches the members of extensions of external types and of protocols.
+    func testReportsSameNamedMembersCalledOnExternalReceiverInPlatformConditionalBlock() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureExternalReceiverColors")) {
+                self.assertNotReferenced(.functionMethodInstance("contains(_:)"))
+            }
+            assertReferenced(.extensionStruct("Range")) {
+                self.assertReferenced(.functionMethodInstance("contains(fixtureValue:)"))
+            }
+        }
+    }
+
+    /// Inside a type the clause extends, `self.member` and a bare call reach that type's members; a bare name it
+    /// does not declare is a free function or a global, and retains every declaration of the name, as does a bare
+    /// name in a type the clause declares.
+    func testRetainsOnlyMembersOfTypeExtendedInPlatformConditionalBlockForBareCalls() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureBareCallA")) {
+                self.assertReferenced(.functionMethodInstance("reset()"))
+                self.assertReferenced(.functionMethodInstance("restart()"))
+            }
+            assertReferenced(.struct("FixtureBareCallB")) {
+                self.assertNotReferenced(.functionMethodInstance("reset()"))
+                self.assertNotReferenced(.functionMethodInstance("restart()"))
+                self.assertReferenced(.functionMethodInstance("unrelatedFree()"))
+            }
+            assertReferenced(.functionFree("unrelatedFree()"))
+            // A class the clause declares is not in the index store: a bare name in it may be any member.
+            assertReferenced(.class("FixtureBareCallBase")) {
+                self.assertReferenced(.functionMethodInstance("inheritedReload()"))
+            }
+            assertReferenced(.struct("FixtureBareCallOther")) {
+                self.assertReferenced(.functionMethodInstance("inheritedReload()"))
+            }
+        }
+    }
+
+    /// A receiver of a protocol type reaches the requirement and its witnesses.
+    func testRetainsRequirementAndWitnessesCalledOnProtocolReceiverInPlatformConditionalBlock() {
+        analyze(retainPublic: true) {
+            assertReferenced(.protocol("FixtureProtocolReceiver")) {
+                self.assertReferenced(.functionMethodInstance("contains(_:)"))
+            }
+            assertReferenced(.struct("FixtureProtocolReceiverWitness")) {
+                self.assertReferenced(.functionMethodInstance("contains(_:)"))
+            }
+            assertReferenced(.struct("FixtureProtocolReceiverUnrelated")) {
+                self.assertNotReferenced(.functionMethodInstance("contains(_:)"))
+            }
+        }
+    }
+
+    /// A `canImport()` of a system module the platform settles, or of a module of the project the build compiled, is
+    /// in the index store: the names it writes retain no same-named member.
+    func testReportsSameNamedMembersNamedOnlyInCompiledCanImportClauses() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureCanImportTarget")) {
+                self.assertReferenced(.functionMethodInstance("canImportFoundationRun()"))
+                self.assertReferenced(.functionMethodInstance("canImportProjectRun()"))
+            }
+            assertReferenced(.struct("FixtureCanImportOther")) {
+                self.assertNotReferenced(.functionMethodInstance("canImportFoundationRun()"))
+                self.assertNotReferenced(.functionMethodInstance("canImportProjectRun()"))
+            }
+        }
+    }
+
+    /// An extension of a nested type written qualified, `extension Outer.Inner: P`, makes its members witnesses.
+    func testRetainsWitnessesOfQualifiedNestedTypeConformingInPlatformConditionalBlock() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureQualifiedOuter")) {
+                self.assertReferenced(.struct("Inner")) {
+                    self.assertReferenced(.functionMethodInstance("qualifiedDescribe()"))
+                    self.assertReferenced(.functionMethodInstance("qualifiedRender()"))
+                    self.assertNotReferenced(.functionMethodInstance("qualifiedUnused()"))
+                }
             }
         }
     }

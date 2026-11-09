@@ -35,6 +35,14 @@ public final class SourceGraph {
     public private(set) var commandIgnoredDeclarations: [Declaration: CommandIgnoreKind] = [:]
     public private(set) var functionsWithIgnoredParameters: Set<Declaration> = []
     private(set) var platformConditionalNames: Set<String> = []
+    /// The names written in platform conditional clauses at least once where no receiver scopes them.
+    private(set) var platformConditionalUnscopedNames: Set<String> = []
+    /// The members written in platform conditional clauses with a receiver, or bare inside a type the clause declares.
+    private(set) var platformConditionalMemberUses: Set<PlatformConditionalMemberUse> = []
+    /// The types extended with a conformance in platform conditional clauses.
+    private(set) var platformConditionalConformingExtendedNames: Set<String> = []
+    /// The types and type aliases declared in platform conditional clauses.
+    private(set) var platformConditionalDeclaredTypeNames: Set<String> = []
     private(set) var parameterAttributeNames: Set<String> = []
     private(set) var platformConditionalNamesByFile: [SourceFile: Set<String>] = [:]
     /// For each operator applied in platform conditional clauses, the names written in the clauses that apply it.
@@ -501,6 +509,10 @@ public final class SourceGraph {
 
     public func addPlatformConditionalNames(_ names: PlatformConditionalNames, in file: SourceFile) {
         platformConditionalNames.formUnion(names.references)
+        platformConditionalUnscopedNames.formUnion(names.unscopedReferences)
+        platformConditionalMemberUses.formUnion(names.memberUses)
+        platformConditionalConformingExtendedNames.formUnion(names.conformingExtendedNames)
+        platformConditionalDeclaredTypeNames.formUnion(names.declaredTypeNames)
         platformConditionalNamesByFile[file, default: []].formUnion(names.references)
         platformConditionalOperatorClauseNames.merge(names.operatorClauseNames) { $0.union($1) }
         platformConditionalConformances.formUnion(names.conformances)
