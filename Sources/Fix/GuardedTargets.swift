@@ -25,6 +25,17 @@ public struct GuardedTargets {
         }
     }
 
+    /// Keeps the missing `final` of a class with an `open` member, declared in its body or in an extension of any file:
+    /// a final class cannot have one, and the edit only sees the extensions of the class's own file.
+    public mutating func keepClassesWithOpenMembers(in graph: SourceGraph) {
+        keep { target, declaration in
+            guard target.rule == .missingFinal, declaration.kind == .class else { return nil }
+
+            let members = graph.extensions[declaration, default: []].reduce(into: declaration.declarations) { $0.formUnion($1.declarations) }
+            return members.contains { $0.accessibility.value == .open } ? .openMember : nil
+        }
+    }
+
     /// Keeps the targets of the rules that need a scan of all the code, after a scan that left some out.
     public mutating func keepRulesRequiringACompleteScan(because reason: String) {
         keep { target, _ in

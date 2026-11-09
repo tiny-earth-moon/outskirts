@@ -1,6 +1,8 @@
+import Configuration
 @testable import Fix
 import Foundation
-import SourceGraph
+import Logger
+@testable import SourceGraph
 import SystemPackage
 import XCTest
 
@@ -453,6 +455,39 @@ final class FixCommandTest: XCTestCase {
 
         XCTAssertEqual(plan.skipped.map { "\($0.target.name): \($0.reason)" }, ["Lone: open member", "Extended: open member"])
         XCTAssertEqual(try apply(plan), source.replacingOccurrences(of: "public class Plain", with: "public final class Plain"))
+    }
+
+    func testMissingFinalSkipsAClassWithAnOpenMemberInAnExtensionInAnotherFile() throws {
+        let graph = SourceGraph(configuration: Configuration(), logger: Logger(quiet: true, verbose: false, colorMode: .never))
+        let classFile = SourceFile(path: file, modules: ["App"])
+        let otherFile = SourceFile(path: directory.appending("Other.swift"), modules: ["App"])
+        func declaration(_ name: String, _ kind: Declaration.Kind, in sourceFile: SourceFile, open: Bool = false) -> Declaration {
+            let decl = Declaration(name: name, kind: kind, usrs: ["s:\(name)"], location: Location(file: sourceFile, line: 1, column: 1))
+            decl.accessibility = .init(value: open ? .open : .public, isExplicit: true)
+            return decl
+        }
+
+        var candidates: [(target: FixTarget, declaration: Declaration)] = []
+        for (index, member) in [("f()", Declaration.Kind.functionMethodInstance), ("v", .varClass), ("subscript(_:)", .functionSubscript)].enumerated() {
+            let classDecl = declaration("C\(index)", .class, in: classFile)
+            let extensionDecl = declaration("C\(index)", .extensionClass, in: otherFile)
+            extensionDecl.declarations = [declaration(member.0, member.1, in: otherFile, open: true)]
+            graph.markExtension(extensionDecl, extending: classDecl)
+            candidates.append((FixTarget(rule: .missingFinal, name: classDecl.name, kind: .class, file: file, line: 1, column: 1), classDecl))
+        }
+        let plain = declaration("Plain", .class, in: classFile)
+        let plainExtension = declaration("Plain", .extensionClass, in: otherFile)
+        plainExtension.declarations = [declaration("g()", .functionMethodInstance, in: otherFile)]
+        graph.markExtension(plainExtension, extending: plain)
+        candidates.append((FixTarget(rule: .missingFinal, name: "Plain", kind: .class, file: file, line: 1, column: 1), plain))
+
+        var guarded = GuardedTargets(candidates)
+        guarded.keepClassesWithOpenMembers(in: graph)
+        var plan = FixPlan()
+        plan.addSkipped(guarded)
+
+        XCTAssertEqual(plan.skipped.map { "\($0.target.name): \($0.reason)" }, ["C0: open member", "C1: open member", "C2: open member"])
+        XCTAssertEqual(guarded.targets.map(\.name), ["Plain"])
     }
 
     func testMissingFinalSecondRunProducesNoChange() throws {
