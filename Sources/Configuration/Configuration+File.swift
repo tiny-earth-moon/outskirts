@@ -15,7 +15,7 @@ public extension Configuration {
     }
 
     /// Writes the configuration file atomically. With a `root`, the file is written at its real path, which must stay
-    /// inside `root`; without one, never over a symbolic link (see `OutputFile`).
+    /// inside `root`; without one, through a symbolic link to the file it leads to (see `OutputFile`).
     func save(to path: FilePath = defaultConfigurationFile, within root: FilePath? = nil) throws {
         let data = try Data((Self.schemaComment + "\n" + asYaml()).utf8)
         if let root {

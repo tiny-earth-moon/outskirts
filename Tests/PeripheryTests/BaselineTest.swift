@@ -447,20 +447,19 @@ final class BaselineTest: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.string), ["baseline.json"])
     }
 
-    func testWrittenFile_refusesASymbolicLinkAndLeavesItsTargetAlone() throws {
+    func testWrittenFile_writesTheTargetOfASymbolicLinkAndKeepsTheLink() throws {
         let directory = try makeCheckoutDirectory("out")
         try FileManager.default.createDirectory(atPath: directory.string, withIntermediateDirectories: true)
         let target = directory.appending("shared.json")
         let link = directory.appending("baseline.json")
         try Data("shared".utf8).write(to: target.url)
-        try FileManager.default.createSymbolicLink(atPath: link.string, withDestinationPath: target.string)
+        try FileManager.default.createSymbolicLink(atPath: link.string, withDestinationPath: "shared.json")
 
-        XCTAssertThrowsError(try Baseline.v1(usrs: ["s:3Lib1aV"]).write(to: link)) { error in
-            XCTAssertTrue("\(error)".contains("is a symbolic link"), "\(error)")
-        }
+        try Baseline.v1(usrs: ["s:3Lib1aV"]).write(to: link)
 
-        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: link.string), target.string)
-        XCTAssertEqual(try String(contentsOf: target.url, encoding: .utf8), "shared")
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: link.string), "shared.json")
+        XCTAssertEqual(try Baseline.load(from: target).usrs, ["s:3Lib1aV"])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.string).sorted(), ["baseline.json", "shared.json"])
     }
 
     // MARK: - Version 2

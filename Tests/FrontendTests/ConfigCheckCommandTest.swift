@@ -190,15 +190,16 @@ final class ConfigCheckCommandTest: XCTestCase {
         XCTAssertTrue(try String(contentsOf: directory.appendingPathComponent("config/outskirts.yml"), encoding: .utf8).contains("version: 2"))
     }
 
-    func testMigrateApply_refusesAFileNamedWithConfigThatIsASymbolicLink() throws {
+    func testMigrateApply_writesThroughAFileNamedWithConfigThatIsASymbolicLink() throws {
         try write("real.yml", "strict: true\n")
         try FileManager.default.createSymbolicLink(atPath: directory.appendingPathComponent("link.yml").path, withDestinationPath: "real.yml")
 
         let applied = try run(["config", "migrate"], ["--config", "link.yml", "--apply"])
 
-        XCTAssertNotEqual(applied.status, 0)
-        XCTAssertTrue(applied.stderr.contains("is a symbolic link"), applied.stderr)
-        XCTAssertEqual(try String(contentsOf: directory.appendingPathComponent("real.yml"), encoding: .utf8), "strict: true\n")
+        XCTAssertEqual(applied.status, 0, applied.stderr)
+        XCTAssertTrue(applied.stderr.contains("through the symbolic link"), applied.stderr)
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: directory.appendingPathComponent("link.yml").path), "real.yml")
+        XCTAssertTrue(try String(contentsOf: directory.appendingPathComponent("real.yml"), encoding: .utf8).contains("version: 2"))
     }
 
     func testPrintShowsTheEffectiveConfiguration() throws {

@@ -4,14 +4,14 @@ import SystemPackage
 /// Writes the files outskirts produces besides the fixes. Each file is written atomically: the contents go to a
 /// temporary file that replaces the destination, so that an interrupted run never leaves a truncated file.
 public enum OutputFile {
-    /// Writes a file the user named (`--write-baseline`, `--write-results`…). A symbolic link at the destination is
-    /// refused: replacing it would silently cut the link, writing through it would silently write elsewhere.
-    public static func write(_ data: Data, to path: FilePath) throws {
-        if isSymbolicLink(path.string) {
-            throw PeripheryError.usageError("\(path.string) is a symbolic link, outskirts does not write through it: pass the path of the file it leads to.")
-        }
-
-        try data.write(to: URL(fileURLWithPath: path.string), options: .atomic)
+    /// Writes a file the user named (`--write-baseline`, `--write-results`, `--config`…). A symbolic link at the
+    /// destination is kept and the file it leads to is written, atomically next to it: the user chose the path, link
+    /// included. Returns the path written.
+    @discardableResult
+    public static func write(_ data: Data, to path: FilePath) throws -> FilePath {
+        let destination = try isSymbolicLink(path.string) ? linkTarget(of: path) : path
+        try data.write(to: URL(fileURLWithPath: destination.string), options: .atomic)
+        return destination
     }
 
     /// Writes a file outskirts chose itself, at the real path of `path`, which must be inside `root`, so that a
@@ -45,6 +45,21 @@ public enum OutputFile {
     }
 
     // MARK: - Private
+
+    /// The file a link leads to, every link resolved; a dangling link leads to the file its last link names, which
+    /// the write then creates.
+    private static func linkTarget(of path: FilePath) throws -> FilePath {
+        if let resolved = resolve(path) {
+            return FilePath(resolved)
+        }
+
+        var current = path
+        for _ in 0 ..< 32 where isSymbolicLink(current.string) {
+            let destination = try FilePath(FileManager.default.destinationOfSymbolicLink(atPath: current.string))
+            current = destination.isAbsolute ? destination : current.removingLastComponent().pushing(destination)
+        }
+        return current.lexicallyNormalized()
+    }
 
     private static func realPath(_ path: FilePath) throws -> String {
         guard let resolved = resolve(path) else {

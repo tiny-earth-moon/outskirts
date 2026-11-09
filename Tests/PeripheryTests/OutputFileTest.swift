@@ -31,14 +31,25 @@ final class OutputFileTest: XCTestCase {
         XCTAssertEqual(try fm.contentsOfDirectory(atPath: path("project").string), ["results.txt"])
     }
 
-    func testNamedOutput_refusesASymbolicLink() throws {
-        try Data("kept".utf8).write(to: root.appendingPathComponent("outside/results.txt"))
+    func testNamedOutput_writesTheTargetOfASymbolicLinkAndKeepsTheLink() throws {
+        try Data("old".utf8).write(to: root.appendingPathComponent("outside/results.txt"))
         try fm.createSymbolicLink(atPath: path("project/results.txt").string, withDestinationPath: path("outside/results.txt").string)
 
-        XCTAssertThrowsError(try OutputFile.write(Data("new".utf8), to: path("project/results.txt")))
+        let written = try OutputFile.write(Data("new".utf8), to: path("project/results.txt"))
 
-        XCTAssertEqual(try String(contentsOfFile: path("outside/results.txt").string, encoding: .utf8), "kept")
+        XCTAssertEqual(try String(contentsOfFile: path("outside/results.txt").string, encoding: .utf8), "new")
         XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: path("project/results.txt").string), path("outside/results.txt").string)
+        XCTAssertEqual(written.lastComponent?.string, "results.txt")
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: path("outside").string), ["results.txt"])
+    }
+
+    func testNamedOutput_createsTheMissingTargetOfADanglingLink() throws {
+        try fm.createSymbolicLink(atPath: path("project/results.txt").string, withDestinationPath: "../outside/new.txt")
+
+        try OutputFile.write(Data("new".utf8), to: path("project/results.txt"))
+
+        XCTAssertEqual(try String(contentsOfFile: path("outside/new.txt").string, encoding: .utf8), "new")
+        XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: path("project/results.txt").string), "../outside/new.txt")
     }
 
     func testConfinedWrite_refusesALinkLeadingOutsideTheRoot() throws {

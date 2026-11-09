@@ -35,13 +35,12 @@ struct ConfigMigrateCommand: ParsableCommand {
         }
     }
 
-    /// A file named with `--config` is written where it is, never over a symbolic link. The file found in the project
-    /// root is written at its real path, which must stay inside the project root.
+    /// A file named with `--config` is written where it leads, through a symbolic link too. The file found in the
+    /// project root is written at its real path, which must stay inside the project root.
     private func write(_ migrated: String, to path: FilePath, projectRoot: FilePath) throws -> FilePath {
         let data = Data(migrated.utf8)
         guard locationOptions.config == nil else {
-            try OutputFile.write(data, to: path)
-            return path
+            return try OutputFile.write(data, to: path)
         }
 
         let isLink = OutputFile.isSymbolicLink(path.string)
