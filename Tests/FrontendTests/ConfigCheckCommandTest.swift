@@ -162,6 +162,46 @@ final class ConfigCheckCommandTest: XCTestCase {
         XCTAssertNotEqual(try run(["config", "migrate"], []).status, 0, "a v2 file is not migrated again")
     }
 
+    func testMigrateApply_refusesTheFoundFileWhenALinkLeadsOutsideTheProject() throws {
+        let outside = FileManager.default.temporaryDirectory.appendingPathComponent("outskirts-config-outside-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: outside) }
+        let shared = outside.appendingPathComponent("shared.yml")
+        try "strict: true\n".write(to: shared, atomically: true, encoding: .utf8)
+        try FileManager.default.createSymbolicLink(at: directory.appendingPathComponent(".outskirts.yml"), withDestinationURL: shared)
+
+        let applied = try run(["config", "migrate"], ["--apply"])
+
+        XCTAssertNotEqual(applied.status, 0)
+        XCTAssertTrue(applied.stderr.contains("outskirts does not write there"), applied.stderr)
+        XCTAssertTrue(applied.stderr.contains("'--config'"), applied.stderr)
+        XCTAssertEqual(try String(contentsOf: shared, encoding: .utf8), "strict: true\n")
+    }
+
+    func testMigrateApply_writesThroughALinkInsideTheProjectAndKeepsTheLink() throws {
+        try FileManager.default.createDirectory(at: directory.appendingPathComponent("config"), withIntermediateDirectories: true)
+        try write("config/outskirts.yml", "strict: true\n")
+        try FileManager.default.createSymbolicLink(atPath: directory.appendingPathComponent(".outskirts.yml").path, withDestinationPath: "config/outskirts.yml")
+
+        let applied = try run(["config", "migrate"], ["--apply"])
+
+        XCTAssertEqual(applied.status, 0, applied.stderr)
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: directory.appendingPathComponent(".outskirts.yml").path), "config/outskirts.yml")
+        XCTAssertTrue(try String(contentsOf: directory.appendingPathComponent("config/outskirts.yml"), encoding: .utf8).contains("version: 2"))
+    }
+
+    func testMigrateApply_writesThroughAFileNamedWithConfigThatIsASymbolicLink() throws {
+        try write("real.yml", "strict: true\n")
+        try FileManager.default.createSymbolicLink(atPath: directory.appendingPathComponent("link.yml").path, withDestinationPath: "real.yml")
+
+        let applied = try run(["config", "migrate"], ["--config", "link.yml", "--apply"])
+
+        XCTAssertEqual(applied.status, 0, applied.stderr)
+        XCTAssertTrue(applied.stderr.contains("through the symbolic link"), applied.stderr)
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: directory.appendingPathComponent("link.yml").path), "real.yml")
+        XCTAssertTrue(try String(contentsOf: directory.appendingPathComponent("real.yml"), encoding: .utf8).contains("version: 2"))
+    }
+
     func testPrintShowsTheEffectiveConfiguration() throws {
         try write(".outskirts.yml", "version: 2\nreport: {strict: true}\noverrides:\n  - modules: [Kit]\n    retain: {public: true}\n")
 
