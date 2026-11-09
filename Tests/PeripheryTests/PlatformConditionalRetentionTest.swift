@@ -139,7 +139,7 @@ final class PlatformConditionalRetentionTest: XCTestCase {
         graph.add(type)
         graph.add(method)
         var names = PlatformConditionalNames()
-        names.references = clauses.reduce([], { $0.union($1) })
+        names.references = clauses.reduce([]) { $0.union($1) }
         names.unscopedReferences = names.references
         names.clauseNames = clauses
         graph.addPlatformConditionalNames(names, in: file)

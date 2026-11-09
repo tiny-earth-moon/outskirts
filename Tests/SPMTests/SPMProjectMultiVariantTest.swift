@@ -57,7 +57,7 @@
 
         func testSingleStoreRetainsWhatOtherPlatformsMayUse() {
             Self.plan = Self.macOSPlan
-            index(configuration: configuration(.auto))
+            index(configuration: configuration(.names))
 
             // `draw` is written in the iOS clause, which the macOS build did not compile.
             assertReferenced(.struct("Beta")) {
@@ -97,7 +97,7 @@
             }
         }
 
-        func testUnionWithAllClausesKeepsUnavailableAndNestedRetention() throws {
+        func testUnionWithAllClausesKeepsUnavailableRetention() throws {
             Self.plan = try unionPlan()
             index(configuration: configuration(.allClauses))
 
@@ -108,18 +108,32 @@
             assertReferenced(.struct("Gamma")) {
                 self.assertReferenced(.functionMethodInstance("macOnlyNeverCalled()"))
             }
+        }
+
+        /// The receiver of `paint()` is bound outside the clauses: only `names` retains it, and does not narrow the
+        /// nested block.
+        func testUnionWithNamesKeepsNestedRetention() throws {
+            Self.plan = try unionPlan()
+            index(configuration: configuration(.names))
+
             assertReferenced(.struct("Epsilon")) {
                 self.assertReferenced(.functionMethodInstance("paint()"))
             }
         }
 
-        func testSingleStoreAutoKeepsUnavailableAndNestedRetention() {
+        func testSingleStoreAutoKeepsUnavailableRetention() {
             Self.plan = Self.macOSPlan
             index(configuration: configuration(.auto))
 
             assertReferenced(.struct("Gamma")) {
                 self.assertReferenced(.functionMethodInstance("macOnlyNeverCalled()"))
             }
+        }
+
+        func testSingleStoreNamesKeepsNestedRetention() {
+            Self.plan = Self.macOSPlan
+            index(configuration: configuration(.names))
+
             assertReferenced(.struct("Epsilon")) {
                 self.assertReferenced(.functionMethodInstance("paint()"))
             }

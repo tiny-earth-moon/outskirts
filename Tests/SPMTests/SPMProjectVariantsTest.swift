@@ -53,7 +53,8 @@
 
             XCTAssertEqual(scan.builtVariants, [Self.macOSTriple])
             XCTAssertEqual(scan.plan.indexStorePaths.count, 1)
-            // Only the macOS build is indexed, so the name written in the iOS clause stays retained.
+            // Only the macOS build is indexed, so with `names` the name written in the iOS clause stays retained.
+            reindex(scan, retention: .names)
             assertReferenced(.struct("Beta")) {
                 self.assertReferenced(.functionMethodInstance("draw()"))
             }
@@ -66,6 +67,7 @@
             XCTAssertEqual(scan.plan.indexStorePaths.count, 1)
             XCTAssertTrue(scan.plan.indexStorePaths.allSatisfy { $0.string.contains("/.build/") }, "\(scan.plan.indexStorePaths)")
             XCTAssertEqual(scan.configuration.resolvedPlatformConditionalRetention, .allClauses)
+            reindex(scan, retention: .names)
             assertReferenced(.struct("Beta")) {
                 self.assertReferenced(.functionMethodInstance("draw()"))
             }
@@ -90,6 +92,13 @@
         }
 
         // MARK: - Private
+
+        /// Indexes the scan again with another retention. The scan is cached by its variants, which only this test
+        /// uses.
+        private func reindex(_ scan: Scan, retention: PlatformConditionalRetention) {
+            scan.configuration.platformConditionalRetention = retention
+            index(configuration: scan.configuration)
+        }
 
         private func assertReportsWhatNoBuildUses() {
             assertReferenced(.struct("Beta")) {
