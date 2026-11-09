@@ -99,9 +99,37 @@ public final class SourceGraphMutatorRunner {
             }
             logger.debug("\(mutator) (\(elapsed)s)")
         }
+
+        hintAboutPlatformConditionalNames()
     }
 
     // MARK: - Private
+
+    /// With a single indexed build, the platform `#if` clauses it did not compile may write the names of declarations
+    /// that only `platform_conditional_retention: names` retains: one warning tells how many clauses, and how to cover
+    /// them.
+    private func hintAboutPlatformConditionalNames() {
+        let retention = configuration.resolvedPlatformConditionalRetention
+        guard retention != .off, !retention.retainsNames else { return }
+
+        let unusedNames = graph.platformConditionalNameOnlyDeclarations
+            .filter { !graph.isUsed($0) }
+            .mapSet { PlatformConditionalRetainer.baseName(of: $0.name) }
+        guard !unusedNames.isEmpty else { return }
+
+        let files = graph.allDeclarations.mapSet(\.location.file)
+        guard files.flatMapSet({ $0.currentVariants.mapSet(\.triple) }).count <= 1 else { return }
+
+        let count = graph.platformConditionalClauseNames.count { !$0.isDisjoint(with: unusedNames) }
+        guard count > 0 else { return }
+
+        logger.warn(Self.platformConditionalNamesHint(clauseCount: count))
+    }
+
+    static func platformConditionalNamesHint(clauseCount: Int) -> String {
+        let clauses = clauseCount == 1 ? "1 platform #if clause" : "\(clauseCount) platform #if clauses"
+        return "\(clauses) that the indexed build did not compile name unused declarations, no longer retained by name since 3.22.0: set 'variants: auto' to index every platform (exact), or 'platform_conditional_retention: names' to retain every declaration of these names as before."
+    }
 
     /// A module of `retain_public_modules` that is not scanned, misspelt or excluded, retains nothing.
     private func warnAboutUnscannedRetainedPublicModules() {
