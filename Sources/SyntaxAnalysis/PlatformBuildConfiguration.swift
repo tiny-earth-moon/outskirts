@@ -39,7 +39,7 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
     }
 
     /// Returns `nil` when the triple describes a platform whose conditions are not known with certainty.
-    public init?(triple: String) {
+    init?(triple: String) {
         let components = triple.split(separator: "-", omittingEmptySubsequences: false).map(String.init)
         guard components.count == 3 || components.count == 4 else { return nil }
 
