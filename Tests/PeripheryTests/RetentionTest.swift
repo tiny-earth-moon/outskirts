@@ -630,7 +630,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
     }
 
     /// `*` written alone in a platform conditional block does not use the `*` of every type, only of a type named
-    /// alongside it.
+    /// alongside it, in a clause no build compiles with certainty: `#if canImport(Dispatch)` is compiled on macOS.
     func testReportsOperatorsOfTypesNotNamedWithTheOperatorInPlatformConditionalBlocks() {
         analyze(retainPublic: true) {
             assertReferenced(.struct("FixtureScaledAmount")) {

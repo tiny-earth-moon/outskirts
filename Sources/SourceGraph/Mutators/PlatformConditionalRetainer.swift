@@ -63,7 +63,9 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
                       names.contains(Self.baseName(of: decl.name)),
                       isOperatorNamedWithItsType(decl)
             {
-                graph.markRetained(decl, reason: nameRetentionReason(Self.baseName(of: decl.name)))
+                graph.markRetained(decl, reason: operatorTypeName(of: decl).map { typeName in
+                    RetentionReason(Self.self, "operator '\(Self.baseName(of: decl.name))' applied in a platform conditional clause that names '\(typeName)' and no indexed build compiles with certainty")
+                } ?? nameRetentionReason(Self.baseName(of: decl.name)))
             }
         }
 
@@ -76,13 +78,21 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
     /// Whether the declaration is not an operator member, or its type is named in a clause that applies it: `*` written
     /// alone does not use the `*` of every type.
     private func isOperatorNamedWithItsType(_ decl: Declaration) -> Bool {
+        guard let typeName = operatorTypeName(of: decl) else { return true }
+
+        let clauseNames = graph.platformConditionalOperatorClauseNames[Self.baseName(of: decl.name), default: []]
+        return clauseNames.contains(typeName)
+    }
+
+    /// The name of the type, extension or protocol that declares the operator, or nil for a free operator or another
+    /// declaration.
+    private func operatorTypeName(of decl: Declaration) -> String? {
         guard Self.operatorKinds.contains(decl.kind),
               let parent = decl.parent,
               Self.operatorDeclaringKinds.contains(parent.kind)
-        else { return true }
+        else { return nil }
 
-        let clauseNames = graph.platformConditionalOperatorClauseNames[Self.baseName(of: decl.name), default: []]
-        return clauseNames.contains(Self.baseName(of: parent.name))
+        return Self.baseName(of: parent.name)
     }
 
     /// The members that a clause no indexed build compiles calls without writing their name: the initializers of its

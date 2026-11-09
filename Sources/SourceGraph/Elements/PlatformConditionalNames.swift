@@ -3,8 +3,9 @@ public struct PlatformConditionalNames: Equatable, Sendable {
     /// The names written as references, operators included, in the platform conditional clauses no indexed build
     /// compiled.
     public var references: Set<String> = []
-    /// For each operator applied in these clauses, the names written in the clauses that apply it: an operator member
-    /// of a type is only retained when the type is named alongside it.
+    /// For each operator applied in a platform conditional clause that no indexed build compiles with certainty, the
+    /// names written in the clauses that apply it: an operator member of a type is only retained when the type is named
+    /// alongside it.
     public var operatorClauseNames: [String: Set<String>] = [:]
     /// The names of the members declared `override` in these clauses.
     public var overriddenNames: Set<String> = []

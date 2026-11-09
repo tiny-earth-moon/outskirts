@@ -15,4 +15,9 @@ public func fixtureScaledEntry() {
     _ = 2 * 3
     _ = FixtureScaledLength() * 2
     #endif
+    #if canImport(Dispatch)
+    let amount = FixtureScaledAmount()
+    _ = amount
+    _ = 2 * 3
+    #endif
 }

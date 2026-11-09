@@ -189,6 +189,23 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         XCTAssertTrue(collected.valueCalledNames.contains("Callable"))
     }
 
+    /// An operator applied in a clause a configuration compiles is resolved by the index store.
+    func testCollectsOperatorClauseNamesOnlyFromClausesNotCertainlyCompiled() {
+        let source = """
+        #if canImport(Dispatch)
+        let amount = Amount() * 2
+        #if os(Windows)
+        let length = Length() * 2
+        #endif
+        #endif
+        """
+
+        let collected = collectAll(source, [macOS])
+
+        XCTAssertEqual(collected.operatorClauseNames["*"], ["Length", "*"])
+        XCTAssertTrue(collected.references.isSuperset(of: ["Amount", "*", "Length"]))
+    }
+
     func testConstructionMatchesInitializersByLabels() {
         let call = PlatformConditionalConstruction(typeName: "T", labels: ["value", "_"])
         XCTAssertTrue(call.matches(initializerName: "init(value:_:)"))

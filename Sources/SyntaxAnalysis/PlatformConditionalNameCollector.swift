@@ -108,6 +108,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
 
     public func visit(_ node: IfConfigDeclSyntax) {
         collectUnnamedUses(in: node)
+        collectOperatorUses(in: node)
 
         guard collectedBlock == nil else { return }
         guard collectsEveryBlock || node.clauses.contains(where: { isPlatformCondition($0.condition) }) else {
@@ -140,32 +141,70 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         guard let elements = clause.elements else { return }
 
         clauses.append(clause)
-        var clauseNames: Set<String> = []
-        var operators: Set<String> = []
         for token in elements.tokens(viewMode: .sourceAccurate) {
             if let name = referencedName(token) {
                 collected.references.insert(name)
-                clauseNames.insert(name)
-                if !token.tokenKind.isIdentifier {
-                    operators.insert(name)
-                }
 
                 if let locationConverter {
-                    let condition = clause.condition.map { "\(clause.poundKeyword.text) \($0.trimmedDescription)" } ?? clause.poundKeyword.text
-                    let line = token.startLocation(converter: locationConverter).line
-                    sites[name, default: []].append(Site(line: line, condition: condition))
+                    sites[name, default: []].append(site(of: token, in: clause, converter: locationConverter))
                 }
             }
-        }
-
-        for name in operators {
-            collected.operatorClauseNames[name, default: []].formUnion(clauseNames)
         }
 
         let declarationCollector = UnnamedUseCollector(viewMode: .sourceAccurate)
         declarationCollector.walk(elements)
         collected.overriddenNames.formUnion(declarationCollector.overriddenNames)
         collected.inheritedNames.formUnion(declarationCollector.inheritedNames)
+    }
+
+    private func site(of node: some SyntaxProtocol, in clause: IfConfigClauseSyntax, converter: SourceLocationConverter) -> Site {
+        let condition = clause.condition.map { "\(clause.poundKeyword.text) \($0.trimmedDescription)" } ?? clause.poundKeyword.text
+        return Site(line: node.startLocation(converter: converter).line, condition: condition)
+    }
+
+    /// For each operator applied in a clause of a platform conditional block that no configuration compiles with
+    /// certainty, the names written in that clause. A clause a configuration compiles, such as `#if canImport(Dispatch)`
+    /// on Apple platforms, is in the index store, which resolves its operators. The blocks it contains are visited on
+    /// their own.
+    private func collectOperatorUses(in node: IfConfigDeclSyntax) {
+        guard collectsEveryBlock || node.clauses.contains(where: { isPlatformCondition($0.condition) }) else { return }
+
+        let enclosingClauses = enclosingClauses(of: node)
+        let activeClausesByConfiguration = activeClausesByConfiguration(of: [node] + enclosingClauses.map(\.block))
+
+        for clause in node.clauses {
+            guard let elements = clause.elements else { continue }
+
+            let isCompiled = activeClausesByConfiguration.contains { activeClauses in
+                zip(activeClauses, [clause] + enclosingClauses.map(\.clause)).allSatisfy { activeClause, clause in
+                    guard case let .some(activeID) = activeClause else { return false }
+
+                    return activeID == clause.id
+                }
+            }
+            guard !isCompiled else { continue }
+
+            var names: Set<String> = []
+            var operators: Set<String> = []
+            for token in elements.tokens(viewMode: .sourceAccurate) {
+                guard let name = referencedName(token) else { continue }
+
+                names.insert(name)
+                if !token.tokenKind.isIdentifier {
+                    operators.insert(name)
+                }
+            }
+            for name in operators {
+                collected.operatorClauseNames[name, default: []].formUnion(names)
+            }
+        }
+    }
+
+    /// For each configuration, the clause it compiles of each block, as `provenActiveClause` tells.
+    private func activeClausesByConfiguration(of blocks: [IfConfigDeclSyntax]) -> [[SyntaxIdentifier??]] {
+        configurations.map { configuration in
+            blocks.map { provenActiveClause(of: $0, in: configuration.answeringCanImport) }
+        }
     }
 
     /// Collects the unnamed uses of the clauses of the block that no configuration compiles, unless an enclosing
@@ -176,10 +215,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         let enclosingClauses = enclosingClauses(of: node)
         guard !enclosingClauses.contains(where: { unnamedUseClauses.contains($0.clause.id) }) else { return }
 
-        let blocks = [node] + enclosingClauses.map(\.block)
-        let activeClausesByConfiguration = configurations.map { configuration in
-            blocks.map { provenActiveClause(of: $0, in: configuration.answeringCanImport) }
-        }
+        let activeClausesByConfiguration = activeClausesByConfiguration(of: [node] + enclosingClauses.map(\.block))
         // A configuration that compiles another clause of an enclosing block compiles none of this block.
         let excludesBlock = activeClausesByConfiguration.map { activeClauses in
             zip(activeClauses.dropFirst(), enclosingClauses).contains { activeClause, enclosing in
