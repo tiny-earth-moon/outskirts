@@ -12,8 +12,10 @@ import SwiftSyntax
 ///
 /// When the build configurations of the indexed units are known, the clauses that one of them compiled are skipped:
 /// their references are already in the index store. A block is only narrowed this way when every condition is made
-/// of `os()`, `arch()` and `targetEnvironment()` checks joined by `!`, `&&` and `||`, when it is not nested in another
-/// `#if` block, and when every configuration evaluates it without a diagnostic. Otherwise the whole block is collected.
+/// of `os()`, `arch()`, `targetEnvironment()` and `canImport()` checks joined by `!`, `&&` and `||`, when it is not
+/// nested in another `#if` block, and when every configuration evaluates it with certainty: `canImport()` is answered
+/// for the system modules the platform settles and the project's modules the build compiled, and another module only
+/// when it does not decide the clause. Otherwise the whole block is collected.
 ///
 /// With `narrowsNestedBlocks`, a block nested in other `#if` blocks is narrowed too, when every enclosing block can be
 /// narrowed: a configuration compiles one of its clauses when it also compiles every enclosing clause. The clauses no
@@ -321,13 +323,15 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
 
         guard !configurations.isEmpty,
               enclosingClauses.isEmpty || narrowsNestedBlocks,
-              isEvaluable(node),
-              enclosingClauses.allSatisfy({ isEvaluable($0.block) })
+              isEvaluable(node, allowingCanImport: true),
+              enclosingClauses.allSatisfy({ isEvaluable($0.block, allowingCanImport: true) })
         else { return nil }
 
         var compiledClauses: Set<SyntaxIdentifier> = []
 
-        for configuration in configurations {
+        // `canImport()` is answered for the system modules the platform settles and the project's modules the build
+        // compiled; any other module leaves the block whole.
+        for configuration in configurations.map(\.answeringCanImport) {
             guard let clause = activeClause(of: node, in: configuration) else { return nil }
 
             var compilesEnclosingClauses = true
@@ -348,15 +352,28 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     /// The clause the configuration compiles, `.some(nil)` when it compiles none, or `nil` when it cannot be known.
+    /// When the configuration answers `canImport()`, a module whose presence is not known only leaves the clause
+    /// unknown when it decides it: `canImport(App_iOS) || canImport(App_macOS)` is compiled by the build of `App_macOS`.
     private func activeClause(of node: IfConfigDeclSyntax, in configuration: PlatformBuildConfiguration) -> IfConfigClauseSyntax?? {
+        guard configuration.answersCanImport else { return evaluatedClause(of: node, in: configuration) }
+
+        guard let clause = evaluatedClause(of: node, in: configuration.assumingUnknownModules(importable: true)),
+              let otherClause = evaluatedClause(of: node, in: configuration.assumingUnknownModules(importable: false)),
+              clause?.id == otherClause?.id
+        else { return nil }
+
+        return clause
+    }
+
+    private func evaluatedClause(of node: IfConfigDeclSyntax, in configuration: PlatformBuildConfiguration) -> IfConfigClauseSyntax?? {
         let (clause, diagnostics) = node.activeClause(in: configuration)
         guard diagnostics.isEmpty else { return nil }
 
         return .some(clause)
     }
 
-    private func isEvaluable(_ node: IfConfigDeclSyntax) -> Bool {
-        node.clauses.allSatisfy { $0.condition.map { isEvaluable($0) } ?? true }
+    private func isEvaluable(_ node: IfConfigDeclSyntax, allowingCanImport: Bool = false) -> Bool {
+        node.clauses.allSatisfy { $0.condition.map { isEvaluable($0, allowingCanImport: allowingCanImport) } ?? true }
     }
 
     /// The `#if` blocks the node is nested in, from the innermost, with the clause of each that contains it.

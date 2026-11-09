@@ -159,7 +159,9 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
             PlatformConditionalConstruction(typeName: "UIKitView", labels: ["frame"]),
         ])
         XCTAssertEqual(collected.subscriptedNames, [])
-        XCTAssertTrue(collected.references.isSuperset(of: ["PosixHandle", "DispatchBuffer", "LibraryValue"]))
+        XCTAssertTrue(collected.references.isSuperset(of: ["PosixHandle", "LibraryValue"]))
+        // `canImport(Dispatch)` is compiled on macOS: the index store holds its references.
+        XCTAssertFalse(collected.references.contains("DispatchBuffer"))
         XCTAssertEqual(collectAll(source, []).constructions, [])
     }
 
@@ -223,7 +225,9 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         let collected = collectAll(source, [macOS])
 
         XCTAssertEqual(collected.operatorClauseNames["*"], ["Length", "*"])
-        XCTAssertTrue(collected.references.isSuperset(of: ["Amount", "*", "Length"]))
+        // The names of the clause macOS compiles are not collected either, those of the nested block are.
+        XCTAssertTrue(collected.references.isSuperset(of: ["*", "Length"]))
+        XCTAssertFalse(collected.references.contains("Amount"))
     }
 
     func testConstructionMatchesInitializersByLabels() {
@@ -236,6 +240,31 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         XCTAssertTrue(PlatformConditionalConstruction(typeName: "T", labels: nil).matches(initializerName: "init(a:)"))
         XCTAssertTrue(PlatformConditionalConstruction(typeName: "T", labels: []).matchesExactly(initializerName: "init()"))
         XCTAssertFalse(call.matchesExactly(initializerName: "init(value:_:scale:)"))
+    }
+
+    /// A `canImport()` of a system module the platform settles, or of a module of the project the build compiled, is
+    /// evaluated: the clause the build compiled is in the index store, and its names are not collected.
+    func testNamesOfCompiledCanImportClausesAreNotCollected() {
+        let macOSVariant = IndexVariant(triple: "arm64-apple-macosx14.0", isOptimized: false)
+        let file = SourceFile(path: "/App/Shared.swift", modules: ["App_macOS"], variants: [macOSVariant], currentVariants: [macOSVariant])
+        let configurations = SwiftIndexer.platformBuildConfigurations(of: file, modulesByVariant: [macOSVariant: ["App_macOS"]])
+        let source = """
+        #if canImport(Foundation)
+            withFoundation()
+        #endif
+        #if canImport(App_iOS) || canImport(App_macOS)
+            inApp()
+        #endif
+        #if canImport(UIKit)
+            withUIKit()
+        #endif
+        #if canImport(SomeLibrary)
+            withLibrary()
+        #endif
+        """
+
+        XCTAssertEqual(collect(source, configurations), ["withUIKit", "withLibrary"])
+        XCTAssertEqual(collect(source, []), ["withFoundation", "inApp", "withUIKit", "withLibrary"])
     }
 
     /// A member written on a receiver records what the clause tells of its type; a type name, an implicit member and a
@@ -312,7 +341,7 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         for condition in [
             "FOO || os(macOS)",
             "os(macOS) || FOO",
-            "canImport(AppKit)",
+            "canImport(SomeLibrary)",
             "os(macOS) && swift(>=5.9)",
             "os(macOS) || compiler(>=6.0)",
             "os(macOS) || hasFeature(Embedded)",
@@ -440,7 +469,7 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
 
     func testCollectsNestedBlocksWholeWhenAnEnclosingBlockCannotBeEvaluated() {
         let source = """
-        #if canImport(UIKit)
+        #if canImport(SomeLibrary)
         #if os(iOS)
         iOSOnly()
         #else

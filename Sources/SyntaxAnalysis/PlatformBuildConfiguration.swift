@@ -9,7 +9,7 @@ import SwiftSyntax
 /// triple and throws, which makes the evaluation of the enclosing `#if` fail.
 ///
 /// `answeringCanImport` also answers `canImport()` for the system modules whose presence the platform settles, such
-/// as `Dispatch` on Apple platforms or `UIKit` on macOS. It only serves to prove that no build compiled a clause.
+/// as `Dispatch` on Apple platforms or `UIKit` on macOS, and for the project's modules the build compiled.
 public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
     struct UnsupportedQuery: Error {}
 
@@ -26,9 +26,14 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
     let operatingSystems: Set<String>
     let architecture: String
     let environment: String?
+    /// The project's modules the build compiled, which it can import.
+    private(set) var projectModules: Set<String> = []
     private(set) var answersCanImport = false
+    /// The answer of `canImport()` for a module whose presence is not known, which throws when nil.
+    private(set) var unknownModulesAreImportable: Bool?
 
-    /// The configuration, also answering `canImport()` for the system modules the platform settles.
+    /// The configuration, also answering `canImport()` for the system modules the platform settles and the project's
+    /// modules the build compiled.
     var answeringCanImport: PlatformBuildConfiguration {
         var configuration = self
         configuration.answersCanImport = true
@@ -37,12 +42,25 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
 
     /// The configurations of the builds, or none when one of their triples is not understood, in which case every
     /// clause of a platform conditional is to be collected.
-    public static func configurations(of variants: Set<IndexVariant>) -> [PlatformBuildConfiguration] {
+    /// The configuration answering `canImport()` with `importable` for the modules whose presence is not known: a
+    /// condition that evaluates the same with both answers does not depend on them.
+    func assumingUnknownModules(importable: Bool) -> PlatformBuildConfiguration {
+        var configuration = self
+        configuration.unknownModulesAreImportable = importable
+        return configuration
+    }
+
+    /// - Parameter modulesByVariant: the project's modules each build compiled, which `answeringCanImport` answers.
+    public static func configurations(
+        of variants: Set<IndexVariant>,
+        modulesByVariant: [IndexVariant: Set<String>] = [:]
+    ) -> [PlatformBuildConfiguration] {
         var configurations: Set<PlatformBuildConfiguration> = []
 
         for variant in variants {
-            guard let configuration = PlatformBuildConfiguration(triple: variant.triple) else { return [] }
+            guard var configuration = PlatformBuildConfiguration(triple: variant.triple) else { return [] }
 
+            configuration.projectModules = modulesByVariant[variant, default: []]
             configurations.insert(configuration)
         }
 
@@ -101,7 +119,7 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
               importPath.count == 1,
               let module = importPath.first?.1,
               case .unversioned = version,
-              let canImport = canImport(module: module)
+              let canImport = canImport(module: module) ?? unknownModulesAreImportable
         else { throw UnsupportedQuery() }
 
         return canImport
@@ -162,6 +180,9 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
 
     private static let appleModules: Set<String> = [
         "Darwin", "Dispatch", "Foundation", "ObjectiveC", "CoreFoundation", "Combine", "Security", "os",
+        // The frameworks of every Apple SDK.
+        "SwiftUI", "CoreData", "CoreGraphics", "CoreLocation", "AVFoundation", "CryptoKit", "Network", "OSLog",
+        "StoreKit", "CloudKit", "GameKit", "UserNotifications",
     ]
     private static let linuxModules: Set<String> = ["Dispatch", "Foundation"]
     /// The modules of other platforms, absent from every platform of a known triple.
@@ -169,6 +190,9 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
 
     /// Whether the platform has the module, or nil when it is not known with certainty.
     private func canImport(module: String) -> Bool? {
+        if projectModules.contains(module) {
+            return true
+        }
         if Self.foreignModules.contains(module) {
             return false
         }
@@ -193,6 +217,9 @@ public struct PlatformBuildConfiguration: BuildConfiguration, Hashable {
         case "AppKit":
             // Mac Catalyst can import AppKit.
             return environment == "macCatalyst" ? nil : operatingSystems.contains("macOS")
+        case "MetricKit":
+            // The tvOS and watchOS SDKs do not have it.
+            return operatingSystems.isDisjoint(with: ["tvOS", "watchOS"]) ? true : nil
         default:
             return nil
         }

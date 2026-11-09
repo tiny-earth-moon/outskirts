@@ -721,10 +721,17 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
-    /// Custom flags, `canImport()`, version checks and nested blocks keep the whole-block retention.
+    /// Custom flags, version checks and nested blocks keep the whole-block retention. A `canImport()` of a module the
+    /// platform settles is evaluated: `#if canImport(Foundation)` is compiled on macOS and Linux, in the index store.
     func testRetainsWholeBlockWhenPlatformConditionalCannotBeEvaluated() {
         analyze(retainPublic: true) {
-            for name in ["Flag", "Import", "Version", "Nested", "Inner"] {
+            assertReferenced(.struct("FixtureUnevaluatedImportAlpha")) {
+                self.assertReferenced(.functionMethodInstance("unevaluatedImport()"))
+            }
+            assertReferenced(.struct("FixtureUnevaluatedImportBeta")) {
+                self.assertNotReferenced(.functionMethodInstance("unevaluatedImport()"))
+            }
+            for name in ["Flag", "Version", "Nested", "Inner"] {
                 let member = "unevaluated\(name)()"
                 assertReferenced(.struct("FixtureUnevaluated\(name)Alpha")) {
                     self.assertReferenced(.functionMethodInstance(member))
@@ -761,7 +768,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
                 self.assertReferenced(.functionMethodInstance("onlyOnTVOS()"))
                 self.assertReferenced(.functionMethodInstance("onlyInElse()"))
             }
-            for name in ["Flag", "Import", "Version", "Nested"] {
+            for name in ["Flag", "Version", "Nested"] {
                 assertReferenced(.struct("FixtureUnevaluated\(name)Beta")) {
                     self.assertReferenced(.functionMethodInstance("unevaluated\(name)()"))
                 }
@@ -852,6 +859,21 @@ final class RetentionTest: FixtureSourceGraphTestCase {
             }
             assertReferenced(.struct("FixtureProtocolReceiverUnrelated")) {
                 self.assertNotReferenced(.functionMethodInstance("contains(_:)"))
+            }
+        }
+    }
+
+    /// A `canImport()` of a system module the platform settles, or of a module of the project the build compiled, is
+    /// in the index store: the names it writes retain no same-named member.
+    func testReportsSameNamedMembersNamedOnlyInCompiledCanImportClauses() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureCanImportTarget")) {
+                self.assertReferenced(.functionMethodInstance("canImportFoundationRun()"))
+                self.assertReferenced(.functionMethodInstance("canImportProjectRun()"))
+            }
+            assertReferenced(.struct("FixtureCanImportOther")) {
+                self.assertNotReferenced(.functionMethodInstance("canImportFoundationRun()"))
+                self.assertNotReferenced(.functionMethodInstance("canImportProjectRun()"))
             }
         }
     }
