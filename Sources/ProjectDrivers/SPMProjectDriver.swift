@@ -148,15 +148,7 @@ extension SPMProjectDriver: ProjectDriver {
     }
 
     public func plan(logger: ContextualLogger) throws -> IndexPlan {
-        let indexStorePaths: Set<FilePath> = if !configuration.indexStorePath.isEmpty {
-            Set(configuration.indexStorePath)
-        } else if configuration.variants == .default {
-            try [pkg.indexStorePath(additionalArguments: configuration.buildArguments)]
-        } else {
-            try variantIndexStorePaths()
-        }
-
-        let description = try description()
+        let (indexStorePaths, description) = try indexStorePathsAndDescription()
 
         let excludedTestTargets = configuration.excludeTests ? testTargetNames(from: description) : []
         let collector = SourceFileCollector(
@@ -185,12 +177,35 @@ extension SPMProjectDriver: ProjectDriver {
 
     // MARK: - Private
 
-    private func variantIndexStorePaths() throws -> Set<FilePath> {
-        let variants = try variants()
+    /// `swift build --show-bin-path` and `swift package describe` each load the manifest: they run at the same time.
+    private func indexStorePathsAndDescription() throws -> (Set<FilePath>, PackageDescription) {
+        if !configuration.indexStorePath.isEmpty {
+            return try (Set(configuration.indexStorePath), description())
+        }
+
+        // `variants: auto` reads the platforms of the description, so the variants are resolved first.
+        let variants = configuration.variants == .default ? nil : try variants()
+        let loadedDescription = packageDescription
+        let (indexStorePaths, description) = try Concurrently.run(
+            { () throws -> Set<FilePath> in
+                if let variants {
+                    return try self.variantIndexStorePaths(variants)
+                }
+                return try [self.pkg.indexStorePath(additionalArguments: self.configuration.buildArguments)]
+            },
+            { [pkg] in try loadedDescription ?? pkg.load() }
+        )
+        packageDescription = description
+        return (indexStorePaths, description)
+    }
+
+    private func variantIndexStorePaths(_ variants: [SPMBuildVariant]) throws -> Set<FilePath> {
         for scratchPath in variants.compactMap(\.scratchPath) {
             holdCache(scratchPath, creating: false)
         }
-        let stores = try variants.mapSet { try pkg.indexStorePath(additionalArguments: configuration.buildArguments + $0.arguments) }
+        let stores = try Set(Concurrently.map(variants) { [pkg, configuration] in
+            try pkg.indexStorePath(additionalArguments: configuration.buildArguments + $0.arguments)
+        })
         let scratchPaths = variants.compactMap(\.scratchPath)
 
         if !scratchPaths.isEmpty {

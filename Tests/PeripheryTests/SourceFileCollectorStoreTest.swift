@@ -1,6 +1,7 @@
 import Configuration
 import Foundation
 @testable import Indexer
+import IndexStore
 import Shared
 import SourceGraph
 import SystemPackage
@@ -37,6 +38,34 @@ final class SourceFileCollectorStoreTest: FixtureSourceGraphTestCase {
         XCTAssertFalse(files(ofModule: "UnusedImportFixtureB", in: collected.sourceFiles).isEmpty)
         XCTAssertEqual(collected.indexExcludedFiles, [])
         XCTAssertEqual(collected.unreadableUnits, [])
+    }
+
+    func testCollection_isDeterministic_withTheUnitsOfEachFileInStoreOrder() throws {
+        XCTAssertEqual(Self.plan.indexStorePaths.count, 1)
+        let store = try XCTUnwrap(Self.plan.indexStorePaths.first)
+        let unitNames = try IndexStore(path: store.string).readUnits().units.map(\.name)
+        let unitOrder = Dictionary(uniqueKeysWithValues: unitNames.enumerated().map { ($1, $0) })
+        let first = try collect().sourceFiles
+        XCTAssertFalse(first.isEmpty)
+
+        for _ in 0 ..< 5 {
+            let again = try collect().sourceFiles
+            XCTAssertEqual(Set(again.keys), Set(first.keys))
+            for (file, units) in first {
+                let otherFile = try XCTUnwrap(again.keys.first { $0 == file })
+                XCTAssertEqual(otherFile.modules, file.modules)
+                XCTAssertEqual(otherFile.variants, file.variants)
+                XCTAssertEqual(otherFile.currentVariants, file.currentVariants)
+                let other = try XCTUnwrap(again[file])
+                XCTAssertEqual(other.map(\.unit.name), units.map(\.unit.name), file.path.string)
+                XCTAssertEqual(other.map(\.modificationDate), units.map(\.modificationDate), file.path.string)
+            }
+        }
+
+        for (file, units) in first {
+            let order = units.map { unitOrder[$0.unit.name] ?? -1 }
+            XCTAssertEqual(order, order.sorted(), "units of \(file.path) are not in store order")
+        }
     }
 
     func testExcludedTargetsAndExcludedTestTargetsAreDropped() throws {
