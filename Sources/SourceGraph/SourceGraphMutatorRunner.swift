@@ -118,12 +118,23 @@ public final class SourceGraphMutatorRunner {
         guard !unusedNames.isEmpty else { return }
 
         let files = graph.allDeclarations.mapSet(\.location.file)
-        guard files.flatMapSet({ $0.currentVariants.mapSet(\.triple) }).count <= 1 else { return }
+        guard files.flatMapSet({ $0.currentVariants.mapSet { Self.platform(ofTriple: $0.triple) } }).count <= 1 else { return }
 
         let count = graph.platformConditionalClauseNames.count { !$0.isDisjoint(with: unusedNames) }
         guard count > 0 else { return }
 
         logger.warn(Self.platformConditionalNamesHint(clauseCount: count))
+    }
+
+    /// The platform of a target triple, without its architecture nor its deployment version: the targets of one build
+    /// may have different deployment versions.
+    static func platform(ofTriple triple: String) -> String {
+        var components = triple.split(separator: "-", omittingEmptySubsequences: false).map(String.init).dropFirst()
+        if let os = components.dropFirst().first {
+            let name = String(os.prefix { $0.isLetter })
+            components[components.startIndex + 1] = name == "macosx" ? "macos" : name
+        }
+        return components.joined(separator: "-")
     }
 
     static func platformConditionalNamesHint(clauseCount: Int) -> String {

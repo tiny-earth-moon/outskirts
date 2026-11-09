@@ -97,6 +97,15 @@ final class PlatformConditionalRetentionTest: XCTestCase {
         XCTAssertTrue(output.contains("platform_conditional_retention: names"), output)
     }
 
+    /// The targets of one build may have different deployment versions and architectures.
+    func testNamesHint_countsTheBuildsOfOnePlatformOnce() throws {
+        let macOS12 = IndexVariant(triple: "x86_64-apple-macos12.0", isOptimized: false)
+        let output = try runnerStandardError(variants: [macOS, macOS12], clauses: [["write"]])
+
+        XCTAssertEqual(output, "warning: " + SourceGraphMutatorRunner.platformConditionalNamesHint(clauseCount: 1) + "\n")
+        XCTAssertEqual(SourceGraphMutatorRunner.platform(ofTriple: "arm64-apple-ios18.0-simulator"), "apple-ios-simulator")
+    }
+
     func testNamesHint_isSilencedByQuiet() throws {
         XCTAssertEqual(try runnerStandardError(variants: [macOS], clauses: [["write"]], quiet: true), "")
     }
