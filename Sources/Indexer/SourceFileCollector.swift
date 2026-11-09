@@ -65,7 +65,7 @@ public struct SourceFileCollector {
                 let unitsDirectory = indexStorePath.appending("v5/units")
 
                 // Each unit costs a few file system calls: the units of a store are classified concurrently.
-                let outcomes = Self.concurrentMap(units.filter { !$0.isSystem }) { unit -> UnitOutcome in
+                let outcomes = Concurrently.map(units.filter { !$0.isSystem }) { unit -> UnitOutcome in
                     let filePath = unit.mainFile
 
                     guard !filePath.isEmpty else {
@@ -121,7 +121,7 @@ public struct SourceFileCollector {
         var sourceFiles: [SourceFile: [IndexUnit]] = [:]
         var outdatedFiles: [FilePath: Set<FilePath>] = [:]
         let collectedFiles = Array(collected)
-        let sourceModificationDates = Self.concurrentMap(collectedFiles) { Self.modificationDate(of: $0.key) }
+        let sourceModificationDates = Concurrently.map(collectedFiles) { Self.modificationDate(of: $0.key) }
 
         for ((file, allTuples), sourceModificationDate) in zip(collectedFiles, sourceModificationDates) {
             let tuples = Self.currentUnits(
@@ -295,25 +295,6 @@ public struct SourceFileCollector {
         let shown = names.prefix(examples).joined(separator: ", ")
 
         return names.count > examples ? "\(shown) and \(names.count - examples) more" : shown
-    }
-
-    /// `elements.map(transform)`, with the transforms run concurrently.
-    private static func concurrentMap<Element, Value>(_ elements: [Element], _ transform: (Element) -> Value) -> [Value] {
-        var results = [Value?](repeating: nil, count: elements.count)
-
-        results.withUnsafeMutableBufferPointer { buffer in
-            DispatchQueue.concurrentPerform(iterations: elements.count) { index in
-                buffer[index] = transform(elements[index])
-            }
-        }
-
-        return results.map { value in
-            guard let value else {
-                preconditionFailure("concurrentPerform returned before running every iteration")
-            }
-
-            return value
-        }
     }
 
     private static func modificationDate(of path: FilePath) -> Date? {

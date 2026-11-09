@@ -5,8 +5,8 @@ import Foundation
 ///
 /// The work may capture non-`Sendable` state: every block has finished when the call returns, and the blocks given to
 /// one call never touch the same mutable state.
-enum Concurrently {
-    static func run<First, Second>(_ first: @escaping () throws -> First, _ second: @escaping () throws -> Second) throws -> (First, Second) {
+public enum Concurrently {
+    public static func run<First, Second>(_ first: @escaping () throws -> First, _ second: @escaping () throws -> Second) throws -> (First, Second) {
         nonisolated(unsafe) let first = first
         nonisolated(unsafe) let second = second
         nonisolated(unsafe) var firstResult: Result<First, Error>?
@@ -27,24 +27,31 @@ enum Concurrently {
         return try (firstResult.get(), secondResult.get())
     }
 
-    static func map<Element, Value>(_ elements: [Element], _ transform: @escaping (Element) throws -> Value) throws -> [Value] {
+    /// `elements.map(transform)`, with the transforms run concurrently; it throws only when `transform` does.
+    public static func map<Element, Value, Failure: Error>(
+        _ elements: [Element],
+        _ transform: @escaping (Element) throws(Failure) -> Value
+    ) throws(Failure) -> [Value] {
         nonisolated(unsafe) let elements = elements
         nonisolated(unsafe) let transform = transform
-        var results = [Result<Value, Error>?](repeating: nil, count: elements.count)
+        var results = [Result<Value, Failure>?](repeating: nil, count: elements.count)
 
         results.withUnsafeMutableBufferPointer { buffer in
             nonisolated(unsafe) let buffer = buffer
             DispatchQueue.concurrentPerform(iterations: elements.count) { index in
-                buffer[index] = Result { try transform(elements[index]) }
+                buffer[index] = Result { () throws(Failure) -> Value in try transform(elements[index]) }
             }
         }
 
-        return try results.map { result in
+        var values: [Value] = []
+        values.reserveCapacity(results.count)
+        for result in results {
             guard let result else {
                 preconditionFailure("concurrentPerform returned before running every iteration")
             }
 
-            return try result.get()
+            try values.append(result.get())
         }
+        return values
     }
 }

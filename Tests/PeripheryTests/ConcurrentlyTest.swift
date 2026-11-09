@@ -1,5 +1,5 @@
 import Foundation
-@testable import ProjectDrivers
+import Shared
 import XCTest
 
 final class ConcurrentlyTest: XCTestCase {
@@ -37,7 +37,7 @@ final class ConcurrentlyTest: XCTestCase {
     func testMap_keepsTheOrderOfTheElements() throws {
         let elements = Array(0 ..< 200)
 
-        XCTAssertEqual(try Concurrently.map(elements) { $0 * 2 }, elements.map { $0 * 2 })
+        XCTAssertEqual(Concurrently.map(elements) { $0 * 2 }, elements.map { $0 * 2 })
     }
 
     func testMap_throwsTheErrorOfTheFirstFailingElement() {
