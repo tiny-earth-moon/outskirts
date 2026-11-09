@@ -886,6 +886,19 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    /// An extension of a nested type written qualified, `extension Outer.Inner: P`, makes its members witnesses.
+    func testRetainsWitnessesOfQualifiedNestedTypeConformingInPlatformConditionalBlock() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureQualifiedOuter")) {
+                self.assertReferenced(.struct("Inner")) {
+                    self.assertReferenced(.functionMethodInstance("qualifiedDescribe()"))
+                    self.assertReferenced(.functionMethodInstance("qualifiedRender()"))
+                    self.assertNotReferenced(.functionMethodInstance("qualifiedUnused()"))
+                }
+            }
+        }
+    }
+
     func testRetainsInheritedMemberCalledThroughSubclassInPlatformConditionalBlock() {
         analyze(retainPublic: true) {
             assertReferenced(.class("FixtureClass236")) {
