@@ -227,4 +227,11 @@ final class ChangedSinceFilterTest: XCTestCase {
         XCTAssertEqual(parsed.first?.file, "Sources/A.swift")
         XCTAssertEqual(parsed.first?.ranges, [2 ..< 3, 7 ..< 7, 10 ..< 13])
     }
+
+    func testParseHunks_ofAPatchWithCRLFLines_readsEveryHunk() {
+        let patch = "diff --git A.swift A.swift\n--- A.swift\n+++ A.swift\n@@ -1 +1 @@\n-a\r\n+b\r\n@@ -5,0 +6,2 @@\n+c\r\n+d\r\n"
+
+        let parsed = ChangedSinceFilter.parseHunksForTesting(patch)
+        XCTAssertEqual(parsed.first?.ranges, [1 ..< 2, 6 ..< 8])
+    }
 }
