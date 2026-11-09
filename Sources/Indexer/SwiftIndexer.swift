@@ -92,6 +92,13 @@ final class SwiftIndexer: Indexer {
         logger.debug("\(sourceFile.path.string) (\(modules)) (\(elapsed)s)")
     }
 
+    /// The configurations the file's up-to-date units were compiled for, or none when one of their triples is not
+    /// understood, in which case every clause of the file's platform conditionals is collected. A unit older than the
+    /// file is left out: the clauses its build compiled may hold code added since, which its index data misses.
+    static func platformBuildConfigurations(of sourceFile: SourceFile) -> [PlatformBuildConfiguration] {
+        PlatformBuildConfiguration.configurations(of: sourceFile.currentVariants)
+    }
+
     private final class Job {
         let sourceFile: SourceFile
 
@@ -315,7 +322,7 @@ final class SwiftIndexer: Indexer {
             let platformConditionalNameCollector: PlatformConditionalNameCollector? =
                 configuration.resolvedPlatformConditionalRetention != .off && !isGeneratedAssetSymbolsFile
                     ? multiplexingSyntaxVisitor.add(PlatformConditionalNameCollector(
-                        configurations: platformBuildConfigurations(),
+                        configurations: SwiftIndexer.platformBuildConfigurations(of: sourceFile),
                         narrowsNestedBlocks: configuration.resolvedPlatformConditionalRetention == .auto,
                         locationConverter: configuration.explain.isEmpty ? nil : multiplexingSyntaxVisitor.locationConverter
                     ))
@@ -444,20 +451,6 @@ final class SwiftIndexer: Indexer {
             "c:objc(cs)MTLFunctionDescriptor(py)name",
             "c:objc(cs)MTLFunctionDescriptor(im)setName:",
         ]
-
-        /// The configurations the file's units were compiled for, or none when one of their triples is not understood,
-        /// in which case every clause of the file's platform conditionals is collected.
-        private func platformBuildConfigurations() -> [PlatformBuildConfiguration] {
-            var configurations: Set<PlatformBuildConfiguration> = []
-
-            for indexUnit in units {
-                guard let configuration = PlatformBuildConfiguration(triple: indexUnit.unit.target) else { return [] }
-
-                configurations.insert(configuration)
-            }
-
-            return Array(configurations)
-        }
 
         /// Adds the values collected from the file's syntax to the graph, unless there are none.
         private func addToGraph<Values: Collection>(_ values: Values, _ add: (SourceGraph, Values) -> Void) {

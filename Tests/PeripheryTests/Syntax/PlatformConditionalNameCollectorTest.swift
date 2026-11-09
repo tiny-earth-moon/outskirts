@@ -1,3 +1,4 @@
+@testable import Indexer
 import SourceGraph
 import SwiftParser
 import SwiftSyntax
@@ -18,6 +19,27 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
 
     private func collectAll(_ source: String, _ configurations: [PlatformBuildConfiguration]) -> PlatformConditionalNames {
         PlatformConditionalNameCollector.collectAll(from: Parser.parse(source: source), configurations: configurations)
+    }
+
+    /// Monday's iOS unit of another target, left in a shared store, predates the call added on Tuesday under
+    /// `#if os(iOS)`: only the macOS unit written by Tuesday's build narrows the clauses, so the call is collected.
+    func testUnitOlderThanTheFile_doesNotNarrowItsClauses() {
+        let macOSVariant = IndexVariant(triple: "arm64-apple-macosx14.0", isOptimized: false)
+        let iOSVariant = IndexVariant(triple: "arm64-apple-ios18.0", isOptimized: false)
+        let file = SourceFile(path: "/App/Shared.swift", modules: ["App_iOS", "App_macOS"], variants: [macOSVariant, iOSVariant], currentVariants: [macOSVariant])
+        let source = """
+        #if os(iOS)
+            helper()
+        #else
+            onMac()
+        #endif
+        """
+
+        let configurations = SwiftIndexer.platformBuildConfigurations(of: file)
+
+        XCTAssertEqual(configurations, [macOS])
+        XCTAssertEqual(collect(source, configurations), ["helper"])
+        XCTAssertEqual(SwiftIndexer.platformBuildConfigurations(of: SourceFile(path: "/App/Shared.swift", modules: ["App"], variants: [iOSVariant], currentVariants: [])), [])
     }
 
     func testCollectsUsesThatWriteNoName() {
