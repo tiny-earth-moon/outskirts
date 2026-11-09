@@ -37,8 +37,10 @@ public final class SourceGraph {
     private(set) var platformConditionalNames: Set<String> = []
     private(set) var parameterAttributeNames: Set<String> = []
     private(set) var platformConditionalNamesByFile: [SourceFile: Set<String>] = [:]
-    /// The conformances declared by extensions written in platform conditional clauses.
+    /// The conformances declared by extensions written in platform conditional clauses no indexed build compiles.
     private(set) var platformConditionalConformances: Set<PlatformConditionalConformance> = []
+    /// The names written in platform conditional clauses no indexed build compiles.
+    private(set) var platformConditionalUnnamedUseNames: Set<String> = []
     /// The names of the members declared `override` in platform conditional clauses, by file.
     private(set) var platformConditionalOverrideNamesByFile: [SourceFile: Set<String>] = [:]
     /// The names inherited by the classes and protocols declared in platform conditional clauses, by file.
@@ -487,6 +489,7 @@ public final class SourceGraph {
         platformConditionalNames.formUnion(names.references)
         platformConditionalNamesByFile[file, default: []].formUnion(names.references)
         platformConditionalConformances.formUnion(names.conformances)
+        platformConditionalUnnamedUseNames.formUnion(names.unnamedUseNames)
 
         if !names.overriddenNames.isEmpty {
             platformConditionalOverrideNamesByFile[file, default: []].formUnion(names.overriddenNames)

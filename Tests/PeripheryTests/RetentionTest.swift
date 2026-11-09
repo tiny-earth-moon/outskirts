@@ -585,6 +585,25 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    /// A clause a build compiles is in the index store: the `#else` of an `#if os(Windows)` nested in another block,
+    /// and an `#if canImport(Dispatch)` on Apple platforms, retain no initializer or subscript of the types they name.
+    /// An `#if canImport(UIKit)` is not compiled on macOS.
+    func testRetainsNoUnnamedUseFromCompiledPlatformConditionalClauses() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureCompiledElseHandle")) {
+                self.assertNotReferenced(.functionConstructor("init(descriptor:)"))
+                self.assertNotReferenced(.functionSubscript("subscript(_:)"))
+            }
+            assertReferenced(.struct("FixtureCompiledImportBuffer")) {
+                self.assertNotReferenced(.functionConstructor("init(capacity:)"))
+                self.assertNotReferenced(.functionSubscript("subscript(_:)"))
+            }
+            assertReferenced(.struct("FixtureUncompiledImportView")) {
+                self.assertReferenced(.functionConstructor("init(frame:)"))
+            }
+        }
+    }
+
     func testDoesNotRetainDeclarationsOnlyNamedInPlatformConditionalBlocks() {
         analyze(retainPublic: true) {
             // A conformance extension, a declared function, protocol and typealias only write their own name.

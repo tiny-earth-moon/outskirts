@@ -128,6 +128,44 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         XCTAssertThrowsError(try macOS.isActiveTargetEnvironment(name: "macabi"))
     }
 
+    /// The unnamed uses of a clause are only collected when no configuration compiles it: not from the `#else` of a
+    /// nested `#if os(Windows)`, nor from `canImport(Dispatch)` on macOS, nor without a configuration.
+    func testCollectsUnnamedUsesOnlyFromClausesNoConfigurationCompiles() {
+        let source = """
+        #if !os(WASI)
+        #if os(Windows)
+        _ = WindowsHandle(descriptor: 0)
+        #else
+        _ = PosixHandle(descriptor: 0)
+        _ = values[0]
+        #endif
+        #endif
+        #if canImport(Dispatch)
+        _ = DispatchBuffer(capacity: 0)
+        #endif
+        #if canImport(UIKit)
+        _ = UIKitView(frame: 0)
+        #endif
+        #if canImport(SomeLibrary)
+        _ = LibraryValue()
+        #endif
+        """
+
+        let collected = collectAll(source, [macOS])
+
+        XCTAssertEqual(collected.unnamedUseNames, ["WindowsHandle", "UIKitView"])
+        XCTAssertTrue(collected.references.isSuperset(of: ["PosixHandle", "DispatchBuffer", "LibraryValue"]))
+        XCTAssertEqual(collectAll(source, []).unnamedUseNames, [])
+    }
+
+    func testAnswersCanImportOnlyForSettledSystemModules() throws {
+        let answering = macOS.answeringCanImport
+        XCTAssertTrue(try answering.canImport(importPath: [(.identifier("Dispatch"), "Dispatch")], version: .unversioned))
+        XCTAssertFalse(try answering.canImport(importPath: [(.identifier("UIKit"), "UIKit")], version: .unversioned))
+        XCTAssertThrowsError(try answering.canImport(importPath: [(.identifier("SomeLibrary"), "SomeLibrary")], version: .unversioned))
+        XCTAssertThrowsError(try macOS.canImport(importPath: [(.identifier("Dispatch"), "Dispatch")], version: .unversioned))
+    }
+
     func testCollectsOnlyClausesNoConfigurationCompiled() {
         let source = """
         #if os(iOS)

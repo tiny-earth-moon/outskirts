@@ -7,8 +7,9 @@ import Shared
 ///  - declarations marked `@available(<platform>, unavailable)`, as they exist for other platforms, and
 ///  - declarations whose name is written inside a platform conditional `#if` block, as the reference may live
 ///    in a branch that was not compiled,
-///  - the members such a block uses without writing their name: the initializers, subscripts and `callAsFunction` of
-///    a type it names, and the witnesses of a conformance one of its extensions declares.
+///  - the members a clause that no indexed build compiles uses without writing their name: the initializers,
+///    subscripts and `callAsFunction` of a type it names, and the witnesses of a conformance one of its extensions
+///    declares.
 ///
 /// With `platform_conditional_retention: auto`, a declaration marked unavailable is not retained when its file was
 /// indexed for one of these platforms and for a platform where it is available (see `IndexVariant.cover`), by units
@@ -59,15 +60,17 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
             }
         }
 
-        retainUnnamedMembers(ofTypesNamedIn: names)
+        retainUnnamedMembers()
         retainConformanceWitnesses()
     }
 
     // MARK: - Private
 
-    /// The initializers, subscripts and `callAsFunction` of the types named in a platform conditional block, which
-    /// calls them without writing their name: `T()`, `let value: T = .init()`, `value[0]`, `value()`.
-    private func retainUnnamedMembers(ofTypesNamedIn names: Set<String>) {
+    /// The initializers, subscripts and `callAsFunction` of the types named in a platform conditional clause no
+    /// indexed build compiles, which calls them without writing their name: `T()`, `let value: T = .init()`,
+    /// `value[0]`, `value()`.
+    private func retainUnnamedMembers() {
+        let names = graph.platformConditionalUnnamedUseNames
         guard !names.isEmpty else { return }
 
         for type in graph.declarations(ofKinds: Self.typeKinds) {
@@ -75,7 +78,7 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
             guard names.contains(typeName) else { continue }
 
             for member in members(of: type) where Self.unnamedMemberKinds.contains(member.kind) || Self.baseName(of: member.name) == "callAsFunction" {
-                graph.markRetained(member, reason: RetentionReason(Self.self, "member of '\(typeName)', named in a platform conditional block, used without writing its name"))
+                graph.markRetained(member, reason: RetentionReason(Self.self, "member of '\(typeName)', named in a platform conditional clause no indexed build compiles, used without writing its name"))
             }
         }
     }
@@ -99,7 +102,7 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
                 for member in members(of: type) where !Self.nonWitnessKinds.contains(member.kind)
                     && requirementNames.contains(Self.baseName(of: member.name))
                 {
-                    graph.markRetained(member, reason: RetentionReason(Self.self, "witness of the conformance of '\(conformance.typeName)' to '\(conformance.protocolName)' declared in a platform conditional block"))
+                    graph.markRetained(member, reason: RetentionReason(Self.self, "witness of the conformance of '\(conformance.typeName)' to '\(conformance.protocolName)' declared in a platform conditional clause no indexed build compiles"))
                 }
             }
         }

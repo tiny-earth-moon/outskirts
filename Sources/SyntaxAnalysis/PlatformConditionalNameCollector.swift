@@ -24,7 +24,13 @@ import SwiftSyntax
 /// apart, in `PlatformConditionalNames.otherClauseNames`, which only account for imports.
 ///
 /// Besides the names written as references, operators included, `collected` tells what a clause uses without writing
-/// its name: the conformances its extensions declare, the members it overrides and the types it inherits from.
+/// its name: the members it overrides and the types it inherits from. The uses that would retain members not named
+/// anywhere (the names of the types whose initializers, subscripts and `callAsFunction` it may call, conformance
+/// witnesses) are only collected from the clauses
+/// that no configuration compiles with certainty, whatever `narrowsNestedBlocks`: every enclosing block is evaluated,
+/// and `canImport()` is answered for the system modules the platform settles. A clause that may be compiled, such as
+/// the `#else` of an `#if os(Windows)` nested in another block, or a `canImport()` clause of an unknown module, is
+/// described by the index store.
 public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor {
     private static let platformConditions: Set<String> = ["os", "targetEnvironment", "arch", "canImport"]
 
@@ -53,6 +59,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     private let locationConverter: SourceLocationConverter?
     /// The block whose clauses were all collected: the blocks it contains are not visited.
     private var collectedBlock: SyntaxIdentifier?
+    /// The clauses no configuration compiles whose unnamed uses were collected, nested blocks included.
+    private var unnamedUseClauses: Set<SyntaxIdentifier> = []
 
     /// - Parameter configurations: the configurations the file was compiled for. When empty, every clause of every
     ///   platform conditional block is collected.
@@ -100,6 +108,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     public func visit(_ node: IfConfigDeclSyntax) {
+        collectUnnamedUses(in: node)
+
         guard collectedBlock == nil else { return }
         guard collectsEveryBlock || node.clauses.contains(where: { isPlatformCondition($0.condition) }) else {
             // The platform conditional blocks it contains are still visited.
@@ -145,9 +155,65 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
 
         let declarationCollector = UnnamedUseCollector(viewMode: .sourceAccurate)
         declarationCollector.walk(elements)
-        collected.conformances.formUnion(declarationCollector.conformances)
         collected.overriddenNames.formUnion(declarationCollector.overriddenNames)
         collected.inheritedNames.formUnion(declarationCollector.inheritedNames)
+    }
+
+    /// Collects the unnamed uses of the clauses of the block that no configuration compiles, unless an enclosing
+    /// clause already accounts for them.
+    private func collectUnnamedUses(in node: IfConfigDeclSyntax) {
+        guard !configurations.isEmpty else { return }
+
+        let enclosingClauses = enclosingClauses(of: node)
+        guard !enclosingClauses.contains(where: { unnamedUseClauses.contains($0.clause.id) }) else { return }
+
+        let blocks = [node] + enclosingClauses.map(\.block)
+        let activeClausesByConfiguration = configurations.map { configuration in
+            blocks.map { provenActiveClause(of: $0, in: configuration.answeringCanImport) }
+        }
+        // A configuration that compiles another clause of an enclosing block compiles none of this block.
+        let excludesBlock = activeClausesByConfiguration.map { activeClauses in
+            zip(activeClauses.dropFirst(), enclosingClauses).contains { activeClause, enclosing in
+                guard case let .some(activeID) = activeClause else { return false }
+
+                return activeID != enclosing.clause.id
+            }
+        }
+
+        for clause in node.clauses {
+            let isUncompiled = zip(activeClausesByConfiguration, excludesBlock).allSatisfy { activeClauses, excludesBlock in
+                guard !excludesBlock else { return true }
+                guard case let .some(activeID) = activeClauses[0] else { return false }
+
+                return activeID != clause.id
+            }
+            guard isUncompiled, let elements = clause.elements else { continue }
+
+            unnamedUseClauses.insert(clause.id)
+            collectUnnamedUses(in: elements)
+        }
+    }
+
+    private func collectUnnamedUses(in elements: IfConfigClauseSyntax.Elements) {
+        for token in elements.tokens(viewMode: .sourceAccurate) {
+            if let name = referencedName(token) {
+                collected.unnamedUseNames.insert(name)
+            }
+        }
+
+        let useCollector = UnnamedUseCollector(viewMode: .sourceAccurate)
+        useCollector.walk(elements)
+        collected.conformances.formUnion(useCollector.conformances)
+    }
+
+    /// The identifier of the clause the configuration compiles, `.some(nil)` when it compiles none, or `nil` when it
+    /// cannot be known.
+    private func provenActiveClause(of node: IfConfigDeclSyntax, in configuration: PlatformBuildConfiguration) -> SyntaxIdentifier?? {
+        guard node.clauses.allSatisfy({ $0.condition.map { isEvaluable($0, allowingCanImport: true) } ?? true }),
+              let clause = activeClause(of: node, in: configuration)
+        else { return nil }
+
+        return .some(clause?.id)
     }
 
     private func collectOtherClauseNames(in clause: IfConfigClauseSyntax) {
@@ -223,7 +289,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     private func isEvaluable(_ node: IfConfigDeclSyntax) -> Bool {
-        node.clauses.allSatisfy { $0.condition.map(isEvaluable) ?? true }
+        node.clauses.allSatisfy { $0.condition.map { isEvaluable($0) } ?? true }
     }
 
     /// The `#if` blocks the node is nested in, from the innermost, with the clause of each that contains it.
@@ -242,24 +308,24 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     /// Returns `true` when the condition only combines `os()`, `arch()` and `targetEnvironment()` checks with `!`,
-    /// `&&`, `||` and parentheses.
-    private func isEvaluable(_ condition: ExprSyntax) -> Bool {
+    /// `&&`, `||` and parentheses, and `canImport()` checks of a single module with `allowingCanImport`.
+    private func isEvaluable(_ condition: ExprSyntax, allowingCanImport: Bool = false) -> Bool {
         if let tuple = condition.as(TupleExprSyntax.self) {
             guard tuple.elements.count == 1, let element = tuple.elements.first, element.label == nil else {
                 return false
             }
 
-            return isEvaluable(element.expression)
+            return isEvaluable(element.expression, allowingCanImport: allowingCanImport)
         }
 
         if let prefix = condition.as(PrefixOperatorExprSyntax.self) {
-            return prefix.operator.text == "!" && isEvaluable(prefix.expression)
+            return prefix.operator.text == "!" && isEvaluable(prefix.expression, allowingCanImport: allowingCanImport)
         }
 
         if let sequence = condition.as(SequenceExprSyntax.self) {
             return sequence.elements.enumerated().allSatisfy { index, element in
                 if index.isMultiple(of: 2) {
-                    return isEvaluable(element)
+                    return isEvaluable(element, allowingCanImport: allowingCanImport)
                 }
 
                 guard let binaryOperator = element.as(BinaryOperatorExprSyntax.self) else { return false }
@@ -271,7 +337,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         if let call = condition.as(FunctionCallExprSyntax.self) {
             guard let callee = call.calledExpression.as(DeclReferenceExprSyntax.self),
                   callee.argumentNames == nil,
-                  Self.evaluableConditions.contains(callee.baseName.text),
+                  Self.evaluableConditions.contains(callee.baseName.text)
+                  || (allowingCanImport && callee.baseName.text == "canImport"),
                   call.trailingClosure == nil,
                   call.additionalTrailingClosures.isEmpty,
                   call.arguments.count == 1,
