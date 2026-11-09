@@ -33,15 +33,18 @@ public enum Baseline: Equatable {
             self.file = file
         }
 
+        /// The file is relative to the project root when it lies under it, compared component by component once both
+        /// paths are normalized, and absolute otherwise.
         init(id: String, result: ScanResult, projectRoot: FilePath) {
-            let path = result.declaration.location.file.path.string
-            let rootPrefix = projectRoot.string.hasSuffix("/") ? projectRoot.string : projectRoot.string + "/"
+            let path = result.declaration.location.file.path.lexicallyNormalized()
+            let root = projectRoot.lexicallyNormalized()
+            var relative = path
 
             self.init(
                 id: id,
                 kind: result.declaration.kind.rawValue,
                 name: result.declaration.name,
-                file: path.hasPrefix(rootPrefix) ? String(path.dropFirst(rootPrefix.count)) : path
+                file: root.isAbsolute && relative.removePrefix(root) && !relative.isEmpty ? relative.string : path.string
             )
         }
     }
@@ -135,10 +138,15 @@ public enum Baseline: Equatable {
         return try encoder.encode(self) + Data("\n".utf8)
     }
 
-    /// Writes the file atomically: the contents go to a temporary file that replaces the destination, so that an
-    /// interrupted run never leaves a truncated baseline.
-    public func write(to path: FilePath) throws {
-        try encoded().write(to: path.url, options: .atomic)
+    /// Writes the file atomically, so that an interrupted run never leaves a truncated baseline, through a symbolic
+    /// link to the file it leads to (see `OutputFile.write`). A path from the configuration file gives the project
+    /// root, which a link must not leave (see `OutputFile.writeConfigured`).
+    public func write(to path: FilePath, configuredIn projectRoot: FilePath? = nil) throws {
+        if let projectRoot {
+            try OutputFile.writeConfigured(encoded(), to: path, projectRoot: projectRoot)
+        } else {
+            try OutputFile.write(encoded(), to: path)
+        }
     }
 
     /// Reads a baseline file, reporting the key at fault when the file is not a baseline.

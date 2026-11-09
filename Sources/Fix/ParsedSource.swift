@@ -188,13 +188,21 @@ extension TriviaPiece {
     /// Whether the piece is an `outskirts:` or `periphery:` comment command that applies to the declaration below it,
     /// that is any command but `ignore:all`.
     var isDeclarationCommentCommand: Bool {
-        guard let (text, markerLength) = commentText else { return false }
+        guard let command = commentCommand else { return false }
+
+        return command != "ignore:all"
+    }
+
+    /// The command of an `outskirts:` or `periphery:` comment, without its prefix and its `- reason`, nil for any
+    /// other piece.
+    var commentCommand: String? {
+        guard let (text, markerLength) = commentText else { return nil }
 
         let body = text.dropFirst(markerLength).replacingOccurrences(of: "*/", with: "").trimmingCharacters(in: .whitespaces)
-        guard let prefix = ["outskirts:", "periphery:"].first(where: { body.hasPrefix($0) }) else { return false }
+        guard let prefix = ["outskirts:", "periphery:"].first(where: { body.hasPrefix($0) }) else { return nil }
 
         let command = body.dropFirst(prefix.count).split(separator: "-").first.map(String.init) ?? ""
-        return command.trimmingCharacters(in: .whitespaces) != "ignore:all"
+        return command.trimmingCharacters(in: .whitespaces)
     }
 
     /// The text of a comment, nil for any other piece.

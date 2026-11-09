@@ -34,7 +34,7 @@ No. Swift declarations used from Objective-C can be kept with `--retain-objc-acc
 
 ## Does it change my code?
 
-No. outskirts only reads your project and reports. It writes only its build cache and the files you ask for (`--write-results`, `--write-baseline`, `--prune-baseline`, and the configuration file of the guided setup).
+No. outskirts only reads your project and reports. It writes only its build cache and the files you ask for (`--write-results`, `--write-baseline`, `--prune-baseline`, and the configuration file of the guided setup). Each file is written atomically. A file you name on the command line that is a symbolic link is written where it leads, the link kept; a path from the configuration file, which comes with the project, must resolve inside the project root, links and `..` included, and a dangling link is refused (pass the path on the command line to write elsewhere); a file outskirts chooses itself (`config migrate --apply` without `--config`, the guided setup's `.outskirts.yml`, the files of its build cache) is never written outside the project root or the cache.
 
 ## Does it send data anywhere?
 
