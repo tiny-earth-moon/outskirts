@@ -43,7 +43,7 @@ public enum OutputFile {
     /// The real path of `path`, its symbolic links resolved, that of its last component too when it exists. Throws
     /// when it is outside the real path of `root`.
     @discardableResult
-    public static func confinedRealPath(of path: FilePath, within root: FilePath) throws -> FilePath {
+    static func confinedRealPath(of path: FilePath, within root: FilePath) throws -> FilePath {
         try confinedRealPath(of: path, within: root, from: nil, hint: "outskirts does not write there.")
     }
 
