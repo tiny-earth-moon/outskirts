@@ -60,7 +60,8 @@ base=https://github.com/tiny-earth-moon/outskirts/releases/download/$version
 curl -fLO "$base/outskirts-$version-macos-arm64.tar.gz"
 curl -fLO "$base/outskirts-$version-macos-arm64.tar.gz.sha256"
 shasum -a 256 -c "outskirts-$version-macos-arm64.tar.gz.sha256"
-gh attestation verify "outskirts-$version-macos-arm64.tar.gz" -R tiny-earth-moon/outskirts
+gh attestation verify "outskirts-$version-macos-arm64.tar.gz" \
+  -R tiny-earth-moon/outskirts
 tar xzf "outskirts-$version-macos-arm64.tar.gz"
 "./outskirts-$version-macos-arm64/outskirts" version
 ```
