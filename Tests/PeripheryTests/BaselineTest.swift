@@ -413,6 +413,30 @@ final class BaselineTest: XCTestCase {
         XCTAssertEqual(written.usrs, [importId, extensionId, "s:3Lib10unusedFuncyyF"])
     }
 
+    func testWriteBaseline_withADuplicateId_keepsTheLastEntryOnce() throws {
+        let previous = Baseline.v2(entries: [
+            .init(id: "s:3Lib1aV", name: "old"),
+            .init(id: "s:3Lib1aV", name: "new"),
+        ])
+        let written = Baseline.written(from: [], union: previous, projectRoot: FilePath(rootA))
+
+        XCTAssertEqual(written, .v2(entries: [.init(id: "s:3Lib1aV", name: "new")]))
+    }
+
+    func testWriteBaseline_withADuplicateUsr_holdsItOnce() throws {
+        let previous = Baseline.v1(usrs: ["s:3Lib1aV", "s:3Lib1aV"])
+        let written = Baseline.written(from: [], union: previous, projectRoot: FilePath(rootA))
+
+        XCTAssertEqual(written, .v2(entries: [.init(id: "s:3Lib1aV")]))
+    }
+
+    func testWriteBaseline_ofFormatV2WithADuplicateId_holdsItOnce() throws {
+        let previous = Baseline.outputV2(ids: ["p2_a", "p2_a"])
+        let written = Baseline.written(from: [], union: previous, format: .v2, projectRoot: FilePath(rootA))
+
+        XCTAssertEqual(written, .outputV2(ids: ["p2_a"]))
+    }
+
     func testWriteBaseline_withoutABaseline_holdsTheResults() throws {
         XCTAssertEqual(Baseline.written(from: scanLib(root: rootA), union: nil, projectRoot: FilePath(rootA)).usrs, [importId, extensionId])
     }
