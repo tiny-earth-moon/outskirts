@@ -266,13 +266,8 @@ enum IgnoreCommand: Equatable {
     case parameters([String])
 
     init?(comment: TriviaPiece) {
-        guard let (text, markerLength) = comment.commentText else { return nil }
+        guard let command = comment.commentCommand else { return nil }
 
-        let body = text.dropFirst(markerLength).replacingOccurrences(of: "*/", with: "")
-        let trimmed = body.trimmingCharacters(in: .whitespaces)
-        guard let prefix = ["outskirts:", "periphery:"].first(where: { trimmed.hasPrefix($0) }) else { return nil }
-
-        let command = String(trimmed.dropFirst(prefix.count).split(separator: "-").first ?? "").trimmingCharacters(in: .whitespaces)
         if command == "ignore" {
             self = .declaration
         } else if command.hasPrefix("ignore:parameters"),
