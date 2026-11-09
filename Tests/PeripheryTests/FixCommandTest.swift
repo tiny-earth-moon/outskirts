@@ -576,6 +576,44 @@ final class FixCommandTest: XCTestCase {
         XCTAssertEqual(try String(contentsOfFile: other.string, encoding: .utf8), "import C\nimport D\n")
     }
 
+    func testApplyRestoresEveryFileWhenSettingThePermissionsOfALaterFileFails() throws {
+        let source = "import A\nimport B\n"
+        try write(source)
+        let other = directory.appending("Other.swift")
+        try Data("import C\nimport D\n".utf8).write(to: URL(fileURLWithPath: other.string))
+        let plan = makePlanner().plan([
+            target(.unusedImport, "B", .module, at: "import B", in: source),
+            FixTarget(rule: .unusedImport, name: "D", kind: .module, file: other, line: 2, column: 1),
+        ])
+        XCTAssertEqual(plan.changes.map(\.path), [file, other])
+        var calls = 0
+
+        XCTAssertThrowsError(try FixWriter.apply(plan) { permissions, path in
+            calls += 1
+            guard calls != 2 else { throw CocoaError(.fileWriteNoPermission) }
+
+            try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: path)
+        })
+        XCTAssertEqual(try String(contentsOfFile: file.string, encoding: .utf8), source)
+        XCTAssertEqual(try String(contentsOfFile: other.string, encoding: .utf8), "import C\nimport D\n")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.string).sorted(), ["File.swift", "Other.swift"])
+    }
+
+    func testApplyAndRestoreKeepThePermissionsOfTheFile() throws {
+        let source = "import A\nimport B\n"
+        try write(source)
+        try FileManager.default.setAttributes([.posixPermissions: 0o750], ofItemAtPath: file.string)
+        let plan = makePlanner().plan([target(.unusedImport, "B", .module, at: "import B", in: source)])
+        XCTAssertEqual(plan.changes.count, 1)
+
+        try FixWriter.apply(plan)
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: file.string)[.posixPermissions] as? Int, 0o750)
+        XCTAssertEqual(FixWriter.restore(plan).restored, [file])
+
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: file.string)[.posixPermissions] as? Int, 0o750)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.string), ["File.swift"])
+    }
+
     // MARK: - Diff, idempotence and trivia
 
     func testDryRunPrintsAUnifiedDiffAndLeavesTheFileUntouched() throws {
