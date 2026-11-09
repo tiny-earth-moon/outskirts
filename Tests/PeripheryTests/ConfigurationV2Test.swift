@@ -22,6 +22,14 @@ final class ConfigurationV2Test: XCTestCase {
 
     // MARK: - Rules
 
+    func testCommentsOfACRLFConfiguration_keepNoCarriageReturn() {
+        let comments = ConfigurationMigration.comments(in: "# Header\r\n\r\n# Lead\r\nretain_public: true # note\r\n", emittedKeys: ["retain_public"])
+
+        XCTAssertEqual(comments.header, ["# Header"])
+        XCTAssertEqual(comments.leading["retain_public"], ["# Lead"])
+        XCTAssertFalse(comments.inline["retain_public", default: ""].contains("\r"))
+    }
+
     func testRuleIdentifiersAreTheOutputIds() {
         XCTAssertEqual(RuleIdentifier.allCases.map(\.rawValue), [
             "unused", "unused-import", "unused-parameter", "unused-localized-string", "unused-asset-color",
