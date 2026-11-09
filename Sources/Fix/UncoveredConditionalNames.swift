@@ -35,10 +35,20 @@ struct UncoveredConditionalNames {
         self.filesWithCode = filesWithCode
     }
 
-    init(graph: SourceGraph) throws {
+    /// A file that cannot be read as UTF-8 is warned about and counted as one with code in such a clause: its clauses
+    /// are unknown, so it keeps its imports and the members code can use without naming them. The names it may write
+    /// stay unknown.
+    init(graph: SourceGraph, warn: (String) -> Void = { _ in }) {
         var collected = UncoveredConditionalNames(names: [])
         for file in graph.indexedSourceFiles {
-            let source = try String(contentsOfFile: file.path.string, encoding: .utf8)
+            let source: String
+            do {
+                source = try String(contentsOfFile: file.path.string, encoding: .utf8)
+            } catch {
+                warn("Could not read '\(file.path.string)' as UTF-8, its #if clauses are not checked: \(error.localizedDescription)")
+                collected = collected.merging(UncoveredConditionalNames(names: [], hasCode: true, filesWithCode: [file.path]))
+                continue
+            }
             // A unit older than the file, left in a shared store by an earlier build, misses the code added since
             // to the clauses its build compiled.
             let read = Self.read(source, variants: file.currentVariants)

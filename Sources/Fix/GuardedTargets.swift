@@ -16,10 +16,10 @@ public struct GuardedTargets {
     }
 
     /// Keeps the targets of the restrictive rules that code in an `#if` clause no scanned build compiled may use.
-    public mutating func keepUncoveredConditionalUses(in graph: SourceGraph) throws {
+    public mutating func keepUncoveredConditionalUses(in graph: SourceGraph, warn: (String) -> Void = { _ in }) {
         guard candidates.contains(where: \.target.rule.isRestrictive) else { return }
 
-        let uncovered = try UncoveredConditionalNames(graph: graph)
+        let uncovered = UncoveredConditionalNames(graph: graph, warn: warn)
         keep { target, declaration in
             target.rule.isRestrictive ? uncovered.skipReason(for: declaration, rule: target.rule) : nil
         }

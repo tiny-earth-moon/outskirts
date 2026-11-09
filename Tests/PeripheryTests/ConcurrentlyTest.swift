@@ -3,7 +3,7 @@ import Shared
 import XCTest
 
 final class ConcurrentlyTest: XCTestCase {
-    private struct Failure: Error, Equatable {
+    private struct Failure: Error {
         let id: Int
     }
 
@@ -27,10 +27,10 @@ final class ConcurrentlyTest: XCTestCase {
 
     func testRun_throwsTheErrorOfTheFirstBlockFirst() {
         XCTAssertThrowsError(try Concurrently.run({ throw Failure(id: 1) }, { throw Failure(id: 2) })) {
-            XCTAssertEqual($0 as? Failure, Failure(id: 1))
+            XCTAssertEqual(($0 as? Failure)?.id, 1)
         }
         XCTAssertThrowsError(try Concurrently.run({ 1 }, { throw Failure(id: 2) })) {
-            XCTAssertEqual($0 as? Failure, Failure(id: 2))
+            XCTAssertEqual(($0 as? Failure)?.id, 2)
         }
     }
 
@@ -46,7 +46,7 @@ final class ConcurrentlyTest: XCTestCase {
                 throw Failure(id: $0)
             }
         }) {
-            XCTAssertEqual($0 as? Failure, Failure(id: 3))
+            XCTAssertEqual(($0 as? Failure)?.id, 3)
         }
     }
 }
