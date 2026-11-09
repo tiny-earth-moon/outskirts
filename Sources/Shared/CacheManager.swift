@@ -1,5 +1,6 @@
 import Foundation
 import Logger
+import SystemPackage
 
 struct CacheEntryError: Error, CustomStringConvertible {
     let path: String
@@ -127,16 +128,6 @@ public enum CacheManager {
         now: Date = Date(),
         fileManager: FileManager = .default
     ) -> CacheRefreshResult {
-        var failures: [CacheEntryError] = []
-        for directory in directories where fileManager.fileExists(atPath: directory.path) {
-            do {
-                try recordProject(projectPath, in: directory, fileManager: fileManager)
-                try touch(directory, fileManager: fileManager)
-            } catch {
-                failures.append(error as? CacheEntryError ?? CacheEntryError(path: directory.path, underlying: error))
-            }
-        }
-
         let cache: URL
         if let cacheDirectory {
             cache = cacheDirectory
@@ -144,7 +135,19 @@ public enum CacheManager {
             do {
                 cache = try URL(fileURLWithPath: Constants.cachePath().string)
             } catch {
-                return CacheRefreshResult(failures: failures + [CacheEntryError(path: "cache directory", underlying: error)])
+                return CacheRefreshResult(failures: [CacheEntryError(path: "cache directory", underlying: error)])
+            }
+        }
+
+        var failures: [CacheEntryError] = []
+        for directory in directories where fileManager.fileExists(atPath: directory.path) {
+            do {
+                // A build folder replaced by a symbolic link must not lead the sidecar write out of the cache.
+                try OutputFile.confinedRealPath(of: FilePath(directory.path), within: FilePath(cache.path))
+                try recordProject(projectPath, in: directory, fileManager: fileManager)
+                try touch(directory, fileManager: fileManager)
+            } catch {
+                failures.append(error as? CacheEntryError ?? CacheEntryError(path: directory.path, underlying: error))
             }
         }
 
@@ -320,7 +323,11 @@ public enum CacheManager {
         return try fileManager.attributesOfItem(atPath: stamp.path)[.modificationDate] as? Date
     }
 
+    /// A symbolic link in place of the stamp is replaced by the stamp: setting its date would follow the link.
     private static func markSweep(_ stamp: URL, now: Date, fileManager: FileManager) throws {
+        if OutputFile.isSymbolicLink(stamp.path) {
+            try fileManager.removeItem(at: stamp)
+        }
         if !fileManager.fileExists(atPath: stamp.path), !fileManager.createFile(atPath: stamp.path, contents: nil) {
             throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: stamp.path])
         }
