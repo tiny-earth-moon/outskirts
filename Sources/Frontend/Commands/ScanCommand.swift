@@ -307,7 +307,8 @@ struct ScanCommand: ParsableCommand {
         let filteredResults = try outputFilter.filter(results, with: baseline)
 
         if configuration.pruneBaseline, let baselinePath = configuration.baseline {
-            try Baseline.pruned(keeping: outputFilter.baselineMatchedResults, format: baseline?.format ?? .v1, projectRoot: configuration.projectRoot).write(to: baselinePath)
+            try Baseline.pruned(keeping: outputFilter.baselineMatchedResults, format: baseline?.format ?? .v1, projectRoot: configuration.projectRoot)
+                .write(to: baselinePath, configuredIn: baselineOptions.baseline == nil ? configuration.projectRoot : nil)
             logger.info("Pruned \(outputFilter.staleBaselineEntries.count) stale entries from \(baselinePath.string)")
         }
 
@@ -318,7 +319,7 @@ struct ScanCommand: ParsableCommand {
                 matchedResults: outputFilter.baselineMatchedResults,
                 format: configuration.baselineFormat,
                 projectRoot: configuration.projectRoot
-            ).write(to: baselinePath)
+            ).write(to: baselinePath, configuredIn: baselineOptions.writeBaseline == nil ? configuration.projectRoot : nil)
         }
 
         let reportedResults = try ChangedSinceFilter(configuration: configuration, shell: shell, logger: logger).filter(filteredResults)
@@ -363,7 +364,12 @@ struct ScanCommand: ParsableCommand {
                 formattedOutput ?? ""
             }
 
-            try OutputFile.write(Data(output.utf8), to: resultsPath)
+            // A path from the configuration file is project content, which a link must not lead out of the project.
+            if resultsOptions.writeResults == nil {
+                try OutputFile.writeConfigured(Data(output.utf8), to: resultsPath, projectRoot: configuration.projectRoot)
+            } else {
+                try OutputFile.write(Data(output.utf8), to: resultsPath)
+            }
         }
 
         logger.endInterval(interval)

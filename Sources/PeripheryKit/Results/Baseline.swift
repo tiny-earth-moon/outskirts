@@ -139,9 +139,14 @@ public enum Baseline: Equatable {
     }
 
     /// Writes the file atomically, so that an interrupted run never leaves a truncated baseline, through a symbolic
-    /// link to the file it leads to (see `OutputFile.write`).
-    public func write(to path: FilePath) throws {
-        try OutputFile.write(encoded(), to: path)
+    /// link to the file it leads to (see `OutputFile.write`). A path from the configuration file gives the project
+    /// root, which a link must not leave (see `OutputFile.writeConfigured`).
+    public func write(to path: FilePath, configuredIn projectRoot: FilePath? = nil) throws {
+        if let projectRoot {
+            try OutputFile.writeConfigured(encoded(), to: path, projectRoot: projectRoot)
+        } else {
+            try OutputFile.write(encoded(), to: path)
+        }
     }
 
     /// Reads a baseline file, reporting the key at fault when the file is not a baseline.

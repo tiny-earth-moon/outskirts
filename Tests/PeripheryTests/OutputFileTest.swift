@@ -52,6 +52,53 @@ final class OutputFileTest: XCTestCase {
         XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: path("project/results.txt").string), "../outside/new.txt")
     }
 
+    func testConfiguredOutput_refusesALinkLeadingOutsideTheProjectRoot() throws {
+        try Data("kept".utf8).write(to: root.appendingPathComponent("outside/.zshrc"))
+        try fm.createSymbolicLink(atPath: path("project/baseline.json").string, withDestinationPath: path("outside/.zshrc").string)
+
+        XCTAssertThrowsError(try OutputFile.writeConfigured(Data("new".utf8), to: path("project/baseline.json"), projectRoot: path("project"))) { error in
+            XCTAssertTrue("\(error)".contains("from the configuration file"), "\(error)")
+        }
+
+        XCTAssertEqual(try String(contentsOfFile: path("outside/.zshrc").string, encoding: .utf8), "kept")
+    }
+
+    func testConfiguredOutput_refusesALinkedDirectoryLeadingOutsideTheProjectRoot() throws {
+        try fm.createSymbolicLink(atPath: path("project/out").string, withDestinationPath: path("outside").string)
+
+        XCTAssertThrowsError(try OutputFile.writeConfigured(Data("new".utf8), to: path("project/out/results.txt"), projectRoot: path("project")))
+
+        XCTAssertFalse(fm.fileExists(atPath: path("outside/results.txt").string))
+    }
+
+    func testConfiguredOutput_writesThroughALinkInsideTheProjectRootAndKeepsIt() throws {
+        try fm.createDirectory(at: root.appendingPathComponent("project/shared"), withIntermediateDirectories: true)
+        try Data("old".utf8).write(to: root.appendingPathComponent("project/shared/baseline.json"))
+        try fm.createSymbolicLink(atPath: path("project/baseline.json").string, withDestinationPath: "shared/baseline.json")
+
+        try OutputFile.writeConfigured(Data("new".utf8), to: path("project/baseline.json"), projectRoot: path("project"))
+
+        XCTAssertEqual(try String(contentsOfFile: path("project/shared/baseline.json").string, encoding: .utf8), "new")
+        XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: path("project/baseline.json").string), "shared/baseline.json")
+    }
+
+    func testConfiguredOutput_refusesADanglingLinkAndCreatesNothing() throws {
+        try fm.createSymbolicLink(atPath: path("project/baseline.json").string, withDestinationPath: "shared/missing.json")
+
+        XCTAssertThrowsError(try OutputFile.writeConfigured(Data("new".utf8), to: path("project/baseline.json"), projectRoot: path("project"))) { error in
+            XCTAssertTrue("\(error)".contains("dangling"), "\(error)")
+        }
+
+        XCTAssertFalse(fm.fileExists(atPath: path("project/shared").string))
+        XCTAssertTrue(OutputFile.isSymbolicLink(path("project/baseline.json").string))
+    }
+
+    func testConfiguredOutput_writesAPlainFileOutsideTheProjectRoot() throws {
+        try OutputFile.writeConfigured(Data("new".utf8), to: path("outside/results.txt"), projectRoot: path("project"))
+
+        XCTAssertEqual(try String(contentsOfFile: path("outside/results.txt").string, encoding: .utf8), "new")
+    }
+
     func testConfinedWrite_refusesALinkLeadingOutsideTheRoot() throws {
         try Data("kept".utf8).write(to: root.appendingPathComponent("outside/config.yml"))
         try fm.createSymbolicLink(atPath: path("project/.outskirts.yml").string, withDestinationPath: path("outside/config.yml").string)

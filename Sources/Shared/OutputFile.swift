@@ -14,6 +14,34 @@ public enum OutputFile {
         return destination
     }
 
+    /// Writes a file whose path comes from the configuration file (`baseline`, `write_baseline`, `write_results`), which
+    /// is project content: a cloned project could link it anywhere. A symbolic link at the destination is followed only
+    /// when the file it leads to is inside `projectRoot`, and a dangling link is refused rather than creating its
+    /// target; a path inside the project root must not leave it through a linked directory either. Returns the path
+    /// written.
+    @discardableResult
+    public static func writeConfigured(_ data: Data, to path: FilePath, projectRoot: FilePath) throws -> FilePath {
+        let hint = "outskirts does not write there; name the file on the command line to write it anyway."
+        let destination: FilePath
+        if isSymbolicLink(path.string) {
+            guard resolve(path) != nil else {
+                throw PeripheryError.usageError("\(path.string), from the configuration file, is a dangling symbolic link: \(hint)")
+            }
+
+            destination = try confinedRealPath(of: path, within: projectRoot, from: "the configuration file", hint: hint)
+        } else {
+            let root = FilePath(FileManager.default.currentDirectoryPath).pushing(projectRoot).lexicallyNormalized()
+            let absolute = FilePath(FileManager.default.currentDirectoryPath).pushing(path).lexicallyNormalized()
+            if try absolute.starts(with: root) || absolute.starts(with: FilePath(realPath(projectRoot))) {
+                try confinedRealPath(of: path, within: projectRoot, from: "the configuration file", hint: hint)
+            }
+            destination = path
+        }
+
+        try data.write(to: URL(fileURLWithPath: destination.string), options: .atomic)
+        return destination
+    }
+
     /// Writes a file outskirts chose itself, at the real path of `path`, which must be inside `root`, so that a
     /// symbolic link never leads the write elsewhere. A link inside `root` is kept, the file it leads to is written.
     /// Returns the real path written.
@@ -28,14 +56,7 @@ public enum OutputFile {
     /// when it is outside the real path of `root`.
     @discardableResult
     public static func confinedRealPath(of path: FilePath, within root: FilePath) throws -> FilePath {
-        let realRoot = try realPath(root)
-        let resolved = try realPathAllowingMissingLeaf(path)
-        let prefix = realRoot.hasSuffix("/") ? realRoot : realRoot + "/"
-        guard resolved == realRoot || resolved.hasPrefix(prefix) else {
-            throw PeripheryError.usageError("\(path.string) leads to \(resolved), outside \(realRoot), outskirts does not write there.")
-        }
-
-        return FilePath(resolved)
+        try confinedRealPath(of: path, within: root, from: nil, hint: "outskirts does not write there.")
     }
 
     /// Whether the last component of `path` is a symbolic link.
@@ -45,6 +66,19 @@ public enum OutputFile {
     }
 
     // MARK: - Private
+
+    @discardableResult
+    private static func confinedRealPath(of path: FilePath, within root: FilePath, from source: String?, hint: String) throws -> FilePath {
+        let realRoot = try realPath(root)
+        let resolved = try realPathAllowingMissingLeaf(path)
+        let prefix = realRoot.hasSuffix("/") ? realRoot : realRoot + "/"
+        guard resolved == realRoot || resolved.hasPrefix(prefix) else {
+            let origin = source.map { ", from \($0)," } ?? ""
+            throw PeripheryError.usageError("\(path.string)\(origin) leads to \(resolved), outside \(realRoot), \(hint)")
+        }
+
+        return FilePath(resolved)
+    }
 
     /// The file a link leads to, every link resolved; a dangling link leads to the file its last link names, which
     /// the write then creates.
