@@ -609,6 +609,24 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    /// A call that writes exactly the labels of an initializer calls it, not another whose remaining parameters would
+    /// have default values: `T(group:)` with `init(group:)`, `T()` with `init()`.
+    func testRetainsOnlyInitializersWithExactLabelsInPlatformConditionalBlocks() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureExactLabelsBootstrap")) {
+                self.assertReferenced(.functionConstructor("init(group:)"))
+                self.assertNotReferenced(.functionConstructor("init(group:childGroup:)"))
+            }
+            assertReferenced(.struct("FixtureExactLabelsDefaults")) {
+                self.assertReferenced(.functionConstructor("init()"))
+                self.assertNotReferenced(.functionConstructor("init(scale:)"))
+            }
+            assertReferenced(.struct("FixtureExactLabelsFallback")) {
+                self.assertReferenced(.functionConstructor("init(group:childGroup:)"))
+            }
+        }
+    }
+
     /// A clause a build compiles is in the index store: the `#else` of an `#if os(Windows)` nested in another block,
     /// and an `#if canImport(Dispatch)` on Apple platforms, retain no initializer or subscript of the types they name.
     /// An `#if canImport(UIKit)` is not compiled on macOS.

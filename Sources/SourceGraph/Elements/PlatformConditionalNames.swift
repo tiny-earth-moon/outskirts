@@ -66,6 +66,12 @@ public struct PlatformConditionalConstruction: Hashable, Sendable {
     /// Whether the call may reach the initializer of this name, `init(value:_:)`. A parameter missing from the call
     /// may have a default value and an unlabeled argument following another may fill the same variadic parameter, as
     /// the graph does not record either.
+    /// Whether the call writes exactly the labels of the initializer of this name: it then calls that initializer
+    /// rather than one whose other parameters would have default values.
+    func matchesExactly(initializerName: String) -> Bool {
+        labels == Self.parameterLabels(of: initializerName)
+    }
+
     func matches(initializerName: String) -> Bool {
         guard let labels else { return true }
 

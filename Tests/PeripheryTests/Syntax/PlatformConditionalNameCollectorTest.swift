@@ -214,6 +214,8 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         XCTAssertFalse(call.matches(initializerName: "init(label:_:)"))
         XCTAssertFalse(PlatformConditionalConstruction(typeName: "T", labels: ["_"]).matches(initializerName: "init()"))
         XCTAssertTrue(PlatformConditionalConstruction(typeName: "T", labels: nil).matches(initializerName: "init(a:)"))
+        XCTAssertTrue(PlatformConditionalConstruction(typeName: "T", labels: []).matchesExactly(initializerName: "init()"))
+        XCTAssertFalse(call.matchesExactly(initializerName: "init(value:_:scale:)"))
     }
 
     func testAnswersCanImportOnlyForSettledSystemModules() throws {

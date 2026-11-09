@@ -8,7 +8,7 @@ import Shared
 ///  - declarations whose name is written inside a platform conditional `#if` block, as the reference may live
 ///    in a branch that was not compiled; an operator member of a type only when the block names the type too,
 ///  - the members a clause that no indexed build compiles uses without writing their name: the initializers it calls
-///    (`T(...)`, `.init(...)` typed `T`, `T.self`) whose labels match, the subscripts of a type it names when it
+///    (`T(...)`, `.init(...)` typed `T`, `T.self`) whose labels match, exactly when one does, the subscripts of a type it names when it
 ///    accesses a value with `[ ]`, the `callAsFunction` of a type it names when it calls a value, and the witnesses of
 ///    a conformance one of its extensions declares.
 ///
@@ -111,9 +111,12 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
             let isValueCalled = valueCalledNames.contains(typeName)
             guard !constructions.isEmpty || isSubscripted || isValueCalled else { continue }
 
-            for member in members(of: type) {
+            let typeMembers = members(of: type)
+            let calls = calledInitializers(in: typeMembers, by: constructions)
+
+            for member in typeMembers {
                 let reason: String? = switch member.kind {
-                case .functionConstructor where constructions.contains(where: { $0.matches(initializerName: member.name) }):
+                case .functionConstructor where calls[member] != nil:
                     "initializer of '\(typeName)', called without its name in a platform conditional clause no indexed build compiles"
                 case .functionSubscript where isSubscripted:
                     "subscript of '\(typeName)', named in a platform conditional clause no indexed build compiles that accesses a value with [ ]"
@@ -127,6 +130,28 @@ final class PlatformConditionalRetainer: SourceGraphMutator {
                 }
             }
         }
+    }
+
+    /// The initializers each call may reach, with the call: those whose labels it writes exactly, or, when there is
+    /// none, those whose other parameters may have default values.
+    private func calledInitializers(
+        in members: Set<Declaration>,
+        by constructions: [PlatformConditionalConstruction]
+    ) -> [Declaration: PlatformConditionalConstruction] {
+        let initializers = members.filter { $0.kind == .functionConstructor }
+        var result: [Declaration: PlatformConditionalConstruction] = [:]
+
+        for construction in constructions {
+            let exactMatches = initializers.filter { construction.matchesExactly(initializerName: $0.name) }
+            let matches = exactMatches.isEmpty
+                ? initializers.filter { construction.matches(initializerName: $0.name) }
+                : exactMatches
+            for initializer in matches where result[initializer] == nil {
+                result[initializer] = construction
+            }
+        }
+
+        return result
     }
 
     /// The members of a type that bear the name of a requirement of a protocol it conforms to in an extension written
