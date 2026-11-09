@@ -55,12 +55,12 @@ Since 3.21.0.
 
 outskirts reads every index store it is given and merges their data per source file. A declaration referenced in any of them is used, so scanning the stores of all your build configurations, or of all your platforms, together reports only the code that none of them uses. This union also covers code compiled in a single configuration (`releaseName` above is used in the Release store, `debugName` in the Debug one) and the imports needed by only one platform.
 
-When every platform is built, also pass [`--disable-platform-conditional-retention`](options.md#--disable-platform-conditional-retention): code under `#if os(...)` is then checked like any other code, instead of being kept because outskirts cannot see the other branches.
+By default, code under `#if os(...)` is checked like any other code ([`--disable-platform-conditional-retention`](options.md#--disable-platform-conditional-retention) defaults to `true`), so building every platform is what keeps code used only on another platform from being reported. When you scan a single platform instead, `--no-disable-platform-conditional-retention` keeps the declarations referenced from the branches that were not compiled.
 
 - **Several index stores**: repeat `--index-store-path`, once per store. It implies `--skip-build`, so build each configuration or platform first.
 
   ```sh
-  outskirts scan --disable-platform-conditional-retention \
+  outskirts scan \
     --index-store-path .build-macos/out \
     --index-store-path .build-ios/out
   ```
@@ -74,7 +74,6 @@ When every platform is built, also pass [`--disable-platform-conditional-retenti
   xcodebuild build-for-testing -scheme MyScheme \
     -destination 'platform=macOS' -derivedDataPath ../dd
   outskirts scan --skip-build \
-    --disable-platform-conditional-retention \
     --index-store-path ../dd/Index.noindex/DataStore
   ```
 

@@ -322,25 +322,27 @@ final class SwiftIndexer: Indexer {
                 graph.withLock { $0.addParameterAttributeNames(parameterAttributeNames) }
             }
 
-            // Assets can be loaded by name, e.g. `Color("AccentColor")` or `UIColor(named: "AccentColor")`.
-            if configuration.detectsUnusedAssetCatalogSymbols,
-               !configuration.isAnalyzedGeneratedAssetSymbolsFile(sourceFile.path)
-            {
-                let literals = StringLiteralCollector.collect(from: multiplexingSyntaxVisitor.syntax)
+            let collectsAssetNames = configuration.detectsUnusedAssetCatalogSymbols
+                && !configuration.isAnalyzedGeneratedAssetSymbolsFile(sourceFile.path)
+            let stringLiterals = collectsAssetNames || localizedStringSyntaxVisitor != nil
+                ? StringLiteralCollector.collect(from: multiplexingSyntaxVisitor.syntax)
+                : []
 
-                if !literals.isEmpty {
-                    graph.withLock { $0.addAssetCatalogNameReferences(literals) }
-                }
+            // Assets can be loaded by name, e.g. `Color("AccentColor")` or `UIColor(named: "AccentColor")`.
+            if collectsAssetNames, !stringLiterals.isEmpty {
+                graph.withLock { $0.addAssetCatalogNameReferences(stringLiterals) }
             }
 
             if let localizedStringSyntaxVisitor {
                 collectUsedLocalizedStringKeys(using: localizedStringSyntaxVisitor)
 
-                if configuration.localizedStringKeyLiteralMatch {
-                    let literals = StringLiteralCollector.collect(from: multiplexingSyntaxVisitor.syntax)
-
-                    if !literals.isEmpty {
-                        graph.withLock { $0.addUsedLocalizedStringKeys(literals) }
+                if !stringLiterals.isEmpty {
+                    graph.withLock { graph in
+                        if configuration.localizedStringKeyLiteralMatch {
+                            graph.addUsedLocalizedStringKeys(stringLiterals)
+                        } else {
+                            graph.addLocalizedStringKeyCandidateLiterals(stringLiterals, file: sourceFile)
+                        }
                     }
                 }
             }
@@ -470,8 +472,8 @@ final class SwiftIndexer: Indexer {
 
         /// Keys built at runtime retain the catalogue keys starting with their literal prefix: in the catalogues of
         /// the calling module for a `bundle: .module` lookup, in every catalogue otherwise. A key without a literal
-        /// prefix may be any key: it retains nothing unless `retain_runtime_localized_keys` is set, and its call site
-        /// is recorded to be reported.
+        /// prefix may be any key: it retains only the keys equal to a string literal of its file unless
+        /// `retain_runtime_localized_keys` is set, and its call site is recorded to be reported.
         private func collectRuntimeLocalizedStringKeys(_ unresolvedKeys: [LocalizedStringUnresolvedKey]) {
             guard !unresolvedKeys.isEmpty else { return }
 

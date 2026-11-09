@@ -1280,6 +1280,25 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    func testDoesNotRetainPlatformConditionalDeclarationsByDefault() {
+        let defaultValue = Configuration().disablePlatformConditionalRetention
+        XCTAssertTrue(defaultValue)
+
+        analyze(retainPublic: true, disablePlatformConditionalRetention: defaultValue) {
+            assertReferenced(.class("FixtureClass226Default")) {
+                self.assertNotReferenced(.functionMethodInstance("unavailableOnIOS()"))
+                self.assertNotReferenced(.functionMethodInstance("onlyUsedOnIOS()"))
+            }
+        }
+
+        analyze(retainPublic: true, disablePlatformConditionalRetention: false) {
+            assertReferenced(.class("FixtureClass226Default")) {
+                self.assertReferenced(.functionMethodInstance("unavailableOnIOS()"))
+                self.assertReferenced(.functionMethodInstance("onlyUsedOnIOS()"))
+            }
+        }
+    }
+
     func testRetainsDefaultConstructor() {
         analyze(retainPublic: true) {
             assertReferenced(.class("FixtureClass41")) {
@@ -2951,6 +2970,30 @@ final class RetentionTest: FixtureSourceGraphTestCase {
                 self.assertReferenced(.functionMethodInstance("myFunc(withoutDefault:withDefault:)")) {
                     self.assertReferenced(.varParameter("withoutDefault"))
                     self.assertNotReferenced(.varParameter("withDefault"))
+                }
+            }
+        }
+    }
+
+    func testRetainsWitnessParametersOfConditionalProtocolRequirement() {
+        analyze(retainPublic: true) {
+            assertReferenced(.class("FixtureConditionalRequirement01Empty")) {
+                self.assertReferenced(.functionConstructor("init(seed:)")) {
+                    self.assertReferenced(.varParameter("seed"))
+                }
+                self.assertReferenced(.functionMethodInstance("evaluate(_:forHost:)")) {
+                    self.assertReferenced(.varParameter("trust"))
+                    self.assertReferenced(.varParameter("host"))
+                }
+            }
+            assertReferenced(.class("FixtureConditionalRequirement02Empty")) {
+                self.assertReferenced(.functionMethodInstance("nested(param:)")) {
+                    self.assertReferenced(.varParameter("param"))
+                }
+            }
+            assertReferenced(.class("FixtureConditionalRequirement03Empty")) {
+                self.assertReferenced(.functionMethodInstance("wrapped(param:)")) {
+                    self.assertReferenced(.varParameter("param"))
                 }
             }
         }

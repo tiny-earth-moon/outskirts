@@ -343,12 +343,13 @@ struct UnusedParameterParser {
     }
 
     private func isProtocolMember(_ syntax: SyntaxProtocol) -> Bool {
-        // The first enclosing declaration is the function itself, the second is its container.
+        // The first enclosing declaration is the function itself, the second is its container. An `#if` block is a
+        // declaration too, but not a container: a requirement declared under one still belongs to the protocol.
         var enclosingDecls = 0
         var node = syntax.parent
 
         while let current = node {
-            if current.isProtocol(DeclSyntaxProtocol.self) {
+            if current.isProtocol(DeclSyntaxProtocol.self), !current.is(IfConfigDeclSyntax.self) {
                 enclosingDecls += 1
 
                 if enclosingDecls == 2 {

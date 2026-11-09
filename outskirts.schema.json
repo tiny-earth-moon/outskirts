@@ -221,7 +221,7 @@
     "disable_platform_conditional_retention": {
       "description": "Do not retain declarations unavailable on a platform or referenced from platform conditional compilation blocks.",
       "type": "boolean",
-      "default": false
+      "default": true
     },
     "disable_unused_import_analysis": {
       "description": "Turn off the analysis of unused imports.",

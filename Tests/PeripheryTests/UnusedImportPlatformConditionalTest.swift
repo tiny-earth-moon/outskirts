@@ -46,7 +46,7 @@ final class UnusedImportPlatformConditionalTest: SPMSourceGraphTestCase {
     }
 
     func testSystemImportIsKeptWhenPlatformConditionalNamesAnUnresolvedDeclaration() {
-        let configuration = Configuration()
+        let configuration = Self.retainingConfiguration()
         configuration.enableUnusedSystemImports = true
         indexFixtures(configuration: configuration)
 
@@ -56,7 +56,7 @@ final class UnusedImportPlatformConditionalTest: SPMSourceGraphTestCase {
     // System module detection relies on the Darwin SDK layout; not reported on Linux yet (#280).
     #if os(macOS)
         func testSystemImportIsReportedWhenPlatformConditionalNamesOnlyScannedDeclarations() {
-            let configuration = Configuration()
+            let configuration = Self.retainingConfiguration()
             configuration.enableUnusedSystemImports = true
             indexFixtures(configuration: configuration)
 
@@ -66,7 +66,14 @@ final class UnusedImportPlatformConditionalTest: SPMSourceGraphTestCase {
 
     // MARK: - Private
 
-    private func indexFixtures(configuration: Configuration = Configuration()) {
+    /// Platform conditional retention is off by default, these tests turn it on.
+    private static func retainingConfiguration() -> Configuration {
+        let configuration = Configuration()
+        configuration.disablePlatformConditionalRetention = false
+        return configuration
+    }
+
+    private func indexFixtures(configuration: Configuration = retainingConfiguration()) {
         let files = [
             "Support/PlatformSupport.swift",
             "Client/PlatformOnlyUse.swift",

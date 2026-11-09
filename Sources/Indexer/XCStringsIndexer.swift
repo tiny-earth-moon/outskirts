@@ -85,8 +85,8 @@ final class XCStringsIndexer: Indexer {
 
     // MARK: - Private
 
-    /// A key built at runtime without a literal prefix may be any key. By default it retains nothing, and each call
-    /// site is reported so that its keys can be declared; with `retain_runtime_localized_keys`, it retains every key
+    /// A key built at runtime without a literal prefix may be any key. By default it retains only the keys equal to a
+    /// string literal of its file, and each call site is reported so that its other keys can be declared; with `retain_runtime_localized_keys`, it retains every key
     /// of the catalogues it may be looked up in.
     private func warnAboutUnprefixedRuntimeKeys() {
         let (locations, isGlobal, modules) = graph.withLock { graph in
@@ -99,7 +99,7 @@ final class XCStringsIndexer: Indexer {
 
         guard configuration.retainRuntimeLocalizedKeys else {
             for location in locations {
-                logger.warn("Localized string key built at runtime without a literal prefix at \(location): the String Catalog keys it looks up cannot be determined and are not retained. Declare them with localized_string_key_patterns, or set retain_runtime_localized_keys to retain every key.")
+                logger.warn("Localized string key built at runtime without a literal prefix at \(location): the String Catalog keys it looks up cannot be determined, only those equal to a string literal of its file are retained. Declare the others with localized_string_key_patterns, or set retain_runtime_localized_keys to retain every key.")
             }
             return
         }

@@ -8,6 +8,12 @@ import Shared
 /// with `retain_runtime_localized_keys`):
 /// in the catalogues of the calling module for a `bundle: .module` lookup, in every catalogue otherwise. A catalogue
 /// with an unknown owning module is matched against the runtime keys of every module.
+///
+/// A key built at runtime without a literal prefix usually comes from a literal held next to the lookup, e.g.
+/// `let keys = ["key"]` then `Bundle.main.localizedString(forKey: key, ...)` in a loop: every string literal of a
+/// file with such a lookup that equals a catalogue key marks that key as used. Literals of the other files are not
+/// considered, so that one lookup does not turn every literal of its module into a key.
+///
 /// Based on agoodkind/periphery@544a77d and 5c5af4c by Alex Goodkind.
 final class LocalizedStringRetainer: SourceGraphMutator {
     private let graph: SourceGraph
@@ -20,7 +26,7 @@ final class LocalizedStringRetainer: SourceGraphMutator {
 
     func mutate() throws {
         let matcher = try LocalizedStringKeyMatcher(
-            usedKeys: graph.usedLocalizedStringKeys,
+            usedKeys: graph.usedLocalizedStringKeys.union(unprefixedRuntimeLookupCandidateKeys()),
             patterns: configuration.localizedStringKeyPatterns
         )
 
@@ -41,6 +47,14 @@ final class LocalizedStringRetainer: SourceGraphMutator {
             if matcher.matches(key) || prefixes.contains(where: { key.hasPrefix($0) }) {
                 graph.markRetained(declaration)
             }
+        }
+    }
+
+    private func unprefixedRuntimeLookupCandidateKeys() -> Set<String> {
+        let files = Set(graph.unprefixedRuntimeLocalizedStringKeyLocations.map(\.file))
+
+        return files.reduce(into: Set<String>()) {
+            $0.formUnion(graph.localizedStringKeyCandidateLiteralsByFile[$1] ?? [])
         }
     }
 }

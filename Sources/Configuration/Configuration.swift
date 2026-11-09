@@ -110,7 +110,7 @@ public final class Configuration {
     @Setting(key: "report_unused_type_parameters", defaultValue: false)
     public var reportUnusedTypeParameters: Bool
 
-    @Setting(key: "disable_platform_conditional_retention", defaultValue: false)
+    @Setting(key: "disable_platform_conditional_retention", defaultValue: true)
     public var disablePlatformConditionalRetention: Bool
 
     @Setting(key: "disable_unused_import_analysis", defaultValue: false)

@@ -7,7 +7,8 @@ import SwiftSyntax
 /// Keys are collected in two ways:
 /// - `usedStringKeys` holds keys that are known to be used from syntax alone:
 ///   - `NSLocalizedString("key", ...)`, `String(localized: "key", ...)`, `LocalizedStringKey("key")`,
-///     `LocalizedStringResource("key", ...)`, `Text("key")` and `Bundle.localizedString(forKey: "key", ...)`.
+///     `LocalizedStringResource("key", ...)`, `Text("key")`, `Bundle.localizedString(forKey: "key", ...)` and
+///     `Bundle.localizedAttributedString(forKey: "key", ...)`.
 ///   - AppIntents `@Parameter(title:)` / `@Property(title:)` attribute arguments.
 ///   - Literals assigned to, returned from, or used as the default value of a declaration whose type is a
 ///     localized type (e.g. `let title: LocalizedStringResource = "key"`).
@@ -34,6 +35,9 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
     private static let localizedAttributeLabels: Set = [
         "title", "description", "requestValueDialog", "requestConfirmationDialog", "requestDisambiguationDialog",
     ]
+
+    /// `Bundle` methods looking a key up with their `forKey:` argument.
+    private static let bundleLookupNames: Set = ["localizedString", "localizedAttributedString"]
 
     public private(set) var usedStringKeys: Set<String> = []
     public private(set) var callSites: [LocalizedStringCallSite] = []
@@ -214,7 +218,7 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
 
         // Handle member access like Bundle.main.localizedString(forKey: "key", ...)
         if let memberAccess = calledExpression.as(MemberAccessExprSyntax.self),
-           memberAccess.declName.baseName.text == "localizedString",
+           Self.bundleLookupNames.contains(memberAccess.declName.baseName.text),
            let forKeyArg = node.arguments.first(where: { $0.label?.text == "forKey" })
         {
             insertLiteral(forKeyArg.expression)
@@ -240,9 +244,10 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
     }
 
     /// The key argument of the lookups that accept a key built at runtime: `NSLocalizedString(_:)`,
-    /// `LocalizedStringKey(_:)`, `LocalizedStringResource(_:)`, `String.LocalizationValue(_:)` and
-    /// `Bundle.localizedString(forKey:)`. `acceptsKeyFormat` is false for the lookups taking a plain `String`, for which
-    /// an interpolated literal is evaluated at runtime rather than turned into a format key.
+    /// `LocalizedStringKey(_:)`, `LocalizedStringResource(_:)`, `String.LocalizationValue(_:)`,
+    /// `Bundle.localizedString(forKey:)` and `Bundle.localizedAttributedString(forKey:)`. `acceptsKeyFormat` is false
+    /// for the lookups taking a plain `String`, for which an interpolated literal is evaluated at runtime rather than
+    /// turned into a format key.
     private func runtimeKeyArgument(of node: FunctionCallExprSyntax) -> (ExprSyntax, Bool)? {
         let calledExpression = node.calledExpression
         let firstUnlabeled = node.arguments.first.flatMap { $0.label == nil ? $0.expression : nil }
@@ -261,7 +266,7 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
         switch memberAccess.declName.baseName.text {
         case "LocalizationValue":
             return firstUnlabeled.map { ($0, true) }
-        case "localizedString":
+        case let name where Self.bundleLookupNames.contains(name):
             return node.arguments.first { $0.label?.text == "forKey" }.map { ($0.expression, false) }
         default:
             return nil
@@ -347,7 +352,7 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
 
     private func bundleScope(of node: FunctionCallExprSyntax) -> LocalizedStringUnresolvedKey.BundleScope {
         if let memberAccess = node.calledExpression.as(MemberAccessExprSyntax.self),
-           memberAccess.declName.baseName.text == "localizedString"
+           Self.bundleLookupNames.contains(memberAccess.declName.baseName.text)
         {
             return Self.isModuleBundle(memberAccess.base) ? .module : .unknown
         }

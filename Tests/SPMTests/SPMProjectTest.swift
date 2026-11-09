@@ -47,10 +47,25 @@ final class SPMProjectTest: SPMSourceGraphTestCase {
 
     #if os(macOS)
         func testUnprefixedRuntimeLookup_doesNotRetainEveryKeyByDefault() {
-            // `NSLocalizedString(keyName, bundle: .module)` may look up any key: nothing is retained without
-            // `retain_runtime_localized_keys`.
+            // `NSLocalizedString(keyName, bundle: .module)` may look up any key: without
+            // `retain_runtime_localized_keys`, only the keys spelled as a literal of its file are retained, not
+            // `dyn_runtime_key`, a literal of another module (`Frontend`).
             assertNotReferenced(.localizedString("dyn_runtime_key"))
             assertNotReferenced(.localizedString("spm_unused_key"))
+        }
+    #endif
+
+    #if os(macOS)
+        func testUnprefixedRuntimeLookup_retainsKeysSpelledAsLiteralsOfItsFile() {
+            // `let keys = ["dyn_literal_list_key"]` looked up through `localizedString(forKey: key)` in a loop.
+            assertReferenced(.localizedString("dyn_literal_list_key"))
+            // A key only named in a comment of the module stays reported.
+            assertNotReferenced(.localizedString("dyn_comment_only_key"))
+        }
+
+        func testUnprefixedRuntimeLookup_doesNotRetainKeysSpelledAsLiteralsOfAnotherFileOfItsModule() {
+            // `dyn_other_file_literal_key` is a literal of `DynamicKeyLabels.swift`, a file without a runtime lookup.
+            assertNotReferenced(.localizedString("dyn_other_file_literal_key"))
         }
     #endif
 }

@@ -283,6 +283,30 @@ final class LocalizedStringSyntaxVisitorTest: XCTestCase {
         XCTAssertTrue(visitor.usedStringKeys.contains("known_key"))
     }
 
+    func testCollectsUnprefixedRuntimeKeysOfEveryLookup() throws {
+        let visitor = try visit("""
+        NSLocalizedString(key, tableName: "Other", comment: "")
+        String(localized: String.LocalizationValue(key))
+        LocalizedStringKey(key)
+        Text(LocalizedStringKey(key))
+        Bundle.main.localizedString(forKey: key, value: nil, table: nil)
+        Bundle.module.localizedAttributedString(forKey: key, value: nil, table: nil)
+        """)
+
+        let keys = visitor.unresolvedKeys.map { "\($0.prefix)|\($0.bundleScope)|\($0.line)" }
+        XCTAssertEqual(keys, [
+            "|unknown|1", "|unknown|2", "|unknown|3", "|unknown|4", "|unknown|5", "|module|6",
+        ])
+    }
+
+    func testDetectsLocalizedAttributedStringLiteralKey() throws {
+        let usedKeys = try collectUsedStringKeys(from: """
+        let text = Bundle.main.localizedAttributedString(forKey: "attributed_key", value: nil, table: nil)
+        """)
+
+        XCTAssertEqual(usedKeys, ["attributed_key"])
+    }
+
     func testLiteralAndFormatKeysAreNotRuntimeKeys() throws {
         let visitor = try visit("""
         NSLocalizedString("plain_key", comment: "")

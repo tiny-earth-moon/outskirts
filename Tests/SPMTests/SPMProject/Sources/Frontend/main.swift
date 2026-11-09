@@ -10,6 +10,8 @@ func main() {
     print(LocalizationUsage.runtimeMessages(suffix: "alpha"))
     print(DynamicKeys.title(keyName: "dyn_runtime_key"))
     print(DynamicKeys.mixedTitle(flag: false, keyName: "dyn_runtime_key"))
+    print(DynamicKeyList.titles())
+    print(DynamicKeyLabels.label)
 }
 
 main()

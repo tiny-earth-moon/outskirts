@@ -12,6 +12,21 @@
 
 - None.
 
+## 3.21.1 (2026-11-09)
+
+##### Breaking
+
+- Platform conditional retention is off by default, as in Periphery 3.8: names referenced only from an uncompiled platform `#if` block, and declarations marked `@available(<platform>, unavailable)`, are reported again. Scan each platform you ship, or set `disable_platform_conditional_retention: false` (`--no-disable-platform-conditional-retention`) to keep the 3.21.0 behavior.
+
+##### Enhancements
+
+- None.
+
+##### Bug Fixes
+
+- Parameters of a protocol requirement declared inside an `#if` block are no longer reported as unused in its conforming implementations.
+- A String Catalog key looked up with a key built at runtime without a literal prefix is retained when the same file spells it as a string literal, e.g. `let keys = ["key"]` then `Bundle.main.localizedString(forKey: key, ...)`.
+
 ## 3.21.0 (2026-11-06)
 
 ##### Breaking

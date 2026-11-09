@@ -38,6 +38,9 @@ public final class SourceGraph {
     public private(set) var runtimeLocalizedStringKeyPrefixes: Set<String> = []
     /// Call sites of keys built at runtime without a literal prefix, whose catalogue keys cannot be determined.
     public private(set) var unprefixedRuntimeLocalizedStringKeyLocations: Set<Location> = []
+    /// String literals without interpolation of the Swift sources, by file: the candidate keys of the lookups of
+    /// keys built at runtime without a literal prefix in the same file.
+    public private(set) var localizedStringKeyCandidateLiteralsByFile: [SourceFile: Set<String>] = [:]
     public private(set) var synthesizedUses: Set<SynthesizedUse> = []
     /// Locations of the property components of key paths that are not the argument of a `keyPath:` subscript.
     public private(set) var keyPathComponentLocations: Set<Location> = []
@@ -306,6 +309,10 @@ public final class SourceGraph {
 
     public func addUnprefixedRuntimeLocalizedStringKeyLocations(_ locations: Set<Location>) {
         unprefixedRuntimeLocalizedStringKeyLocations.formUnion(locations)
+    }
+
+    public func addLocalizedStringKeyCandidateLiterals(_ literals: Set<String>, file: SourceFile) {
+        localizedStringKeyCandidateLiteralsByFile[file, default: []].formUnion(literals)
     }
 
     public func addAssetCatalogNameReferences(_ names: Set<String>) {

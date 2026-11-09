@@ -1,7 +1,16 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "dyn_comment_only_key" : {
+
+    },
+    "dyn_literal_list_key" : {
+
+    },
     "dyn_mixed_known_key" : {
+
+    },
+    "dyn_other_file_literal_key" : {
 
     },
     "dyn_runtime_key" : {

@@ -136,7 +136,7 @@ Limit: a type that provides its own description (`CustomStringConvertible`, `Cus
 
 ## Platform conditionals
 
-The index store only describes the platform outskirts built for, so code that is only used on another platform would be reported as unused. To avoid these false positives, outskirts retains:
+The index store only describes the platform outskirts built for, so code that is only used on another platform would be reported as unused. With platform conditional retention enabled (off by default, see below), outskirts avoids these false positives by retaining:
 
 - Declarations marked `@available(<platform>, unavailable)` (e.g. `@available(tvOS, unavailable)`), along with their members. `@available(*, unavailable)`, `swift` and `*ApplicationExtension` platforms are not affected.
 - Declarations whose name is written inside an `#if` block conditioned on `os()`, `targetEnvironment()`, `arch()` or `canImport()`, including its `#else` branches. Matching is done by name on the syntax tree, so unrelated declarations that share the name are retained too.
@@ -151,7 +151,7 @@ hapticFeedback()
 #endif
 ```
 
-This can be disabled with [`--disable-platform-conditional-retention`](options.md). Other conditions, such as `#if DEBUG`, are not covered: see [Code referenced only in an #if DEBUG branch](troubleshooting.md#code-referenced-only-in-an-if-debug-branch).
+Since 3.21.1 this retention is off by default ([`--disable-platform-conditional-retention`](options.md#--disable-platform-conditional-retention) defaults to `true`): code under `#if os(...)` is checked like any other code, so a declaration used only in a branch the indexed build did not compile is reported. Turn the retention back on with `--no-disable-platform-conditional-retention`, or `disable_platform_conditional_retention: false` in the configuration file, when you scan a single platform and want the behavior described above. Other conditions, such as `#if DEBUG`, are not covered: see [Code referenced only in an #if DEBUG branch](troubleshooting.md#code-referenced-only-in-an-if-debug-branch).
 
 ## Objective-C
 
