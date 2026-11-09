@@ -378,6 +378,13 @@ final class SwiftIndexer: Indexer {
                     }
                     graph.withLock { $0.addPlatformConditionalNameSites(sites) }
                 }
+
+                if !platformConditionalNameCollector.constructionSites.isEmpty, !configuration.explain.isEmpty {
+                    let sites = platformConditionalNameCollector.constructionSites.mapValues { sites in
+                        sites.map { PlatformConditionalNameSite(file: sourceFile, line: $0.line, condition: $0.condition) }
+                    }
+                    graph.withLock { $0.addPlatformConditionalConstructionSites(sites) }
+                }
             }
 
             addToGraph(parameterAttributeNameCollector.names) { $0.addParameterAttributeNames($1) }

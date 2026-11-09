@@ -1,5 +1,5 @@
 @testable import Indexer
-import SourceGraph
+@testable import SourceGraph
 import SwiftParser
 import SwiftSyntax
 @testable import SyntaxAnalysis
@@ -71,6 +71,7 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         XCTAssertEqual(collected.inheritedNames, ["FixtureBase"])
         XCTAssertEqual(collected.overriddenNames, ["update", "size", "subscript"])
         XCTAssertEqual(collected.otherClauseNames, [])
+        XCTAssertEqual(collected.operatorClauseNames, ["<~>": collected.references, "-": collected.references])
     }
 
     /// The names of the other `#if` blocks only account for imports: they are collected apart, both clauses whole.
@@ -126,6 +127,123 @@ final class PlatformConditionalNameCollectorTest: XCTestCase {
         XCTAssertThrowsError(try macOS.isActiveTargetOS(name: "Fuchsia"))
         XCTAssertThrowsError(try macOS.isActiveTargetArchitecture(name: "mips"))
         XCTAssertThrowsError(try macOS.isActiveTargetEnvironment(name: "macabi"))
+    }
+
+    /// The unnamed uses of a clause are only collected when no configuration compiles it: not from the `#else` of a
+    /// nested `#if os(Windows)`, nor from `canImport(Dispatch)` on macOS, nor without a configuration.
+    func testCollectsUnnamedUsesOnlyFromClausesNoConfigurationCompiles() {
+        let source = """
+        #if !os(WASI)
+        #if os(Windows)
+        _ = WindowsHandle(descriptor: 0)
+        #else
+        _ = PosixHandle(descriptor: 0)
+        _ = values[0]
+        #endif
+        #endif
+        #if canImport(Dispatch)
+        _ = DispatchBuffer(capacity: 0)
+        #endif
+        #if canImport(UIKit)
+        _ = UIKitView(frame: 0)
+        #endif
+        #if canImport(SomeLibrary)
+        _ = LibraryValue()
+        #endif
+        """
+
+        let collected = collectAll(source, [macOS])
+
+        XCTAssertEqual(collected.constructions, [
+            PlatformConditionalConstruction(typeName: "WindowsHandle", labels: ["descriptor"]),
+            PlatformConditionalConstruction(typeName: "UIKitView", labels: ["frame"]),
+        ])
+        XCTAssertEqual(collected.subscriptedNames, [])
+        XCTAssertTrue(collected.references.isSuperset(of: ["PosixHandle", "DispatchBuffer", "LibraryValue"]))
+        XCTAssertEqual(collectAll(source, []).constructions, [])
+    }
+
+    func testCollectsInitializerCallsThatWriteNoInitializerName() {
+        let source = """
+        #if os(iOS)
+        let camera: Camera? = .init(fieldOfView: 1, 2)
+        _ = Lens.init(radius:)
+        _ = Module.Sensor<Int>(size: 1) { _ in }
+        make(Filter.self)
+        let value = Callable()
+        value()
+        _ = list[0]
+        #endif
+        """
+
+        let collected = collectAll(source, [macOS])
+
+        XCTAssertTrue(collected.constructions.isSuperset(of: [
+            PlatformConditionalConstruction(typeName: "Camera", labels: ["fieldOfView", "_"]),
+            PlatformConditionalConstruction(typeName: "Lens", labels: ["radius"]),
+            PlatformConditionalConstruction(typeName: "Sensor", labels: ["size"]),
+            PlatformConditionalConstruction(typeName: "Filter", labels: nil),
+            PlatformConditionalConstruction(typeName: "Callable", labels: []),
+        ]))
+        XCTAssertTrue(collected.subscriptedNames.contains("list"))
+        XCTAssertTrue(collected.valueCalledNames.contains("Callable"))
+    }
+
+    /// `--explain` cites the line of the call, not the first line that names the type.
+    func testCollectsConstructionSitesForExplanations() {
+        let source = """
+        #if os(iOS)
+        func render(context: Context) {}
+        let renderer = Renderer(context: Context(device: device))
+        #endif
+        """
+        let syntax = Parser.parse(source: source)
+        let collector = PlatformConditionalNameCollector(
+            configurations: [macOS],
+            locationConverter: SourceLocationConverter(fileName: "Render.swift", tree: syntax)
+        )
+        collector.walk(syntax)
+
+        let construction = PlatformConditionalConstruction(typeName: "Context", labels: ["device"])
+        XCTAssertEqual(collector.constructionSites[construction]?.map(\.line), [3])
+        XCTAssertEqual(collector.sites["Context"]?.map(\.line), [2, 3])
+    }
+
+    /// An operator applied in a clause a configuration compiles is resolved by the index store.
+    func testCollectsOperatorClauseNamesOnlyFromClausesNotCertainlyCompiled() {
+        let source = """
+        #if canImport(Dispatch)
+        let amount = Amount() * 2
+        #if os(Windows)
+        let length = Length() * 2
+        #endif
+        #endif
+        """
+
+        let collected = collectAll(source, [macOS])
+
+        XCTAssertEqual(collected.operatorClauseNames["*"], ["Length", "*"])
+        XCTAssertTrue(collected.references.isSuperset(of: ["Amount", "*", "Length"]))
+    }
+
+    func testConstructionMatchesInitializersByLabels() {
+        let call = PlatformConditionalConstruction(typeName: "T", labels: ["value", "_"])
+        XCTAssertTrue(call.matches(initializerName: "init(value:_:)"))
+        XCTAssertTrue(call.matches(initializerName: "init(value:_:scale:)"))
+        XCTAssertTrue(call.matches(initializerName: "init(value:)"), "variadic")
+        XCTAssertFalse(call.matches(initializerName: "init(label:_:)"))
+        XCTAssertFalse(PlatformConditionalConstruction(typeName: "T", labels: ["_"]).matches(initializerName: "init()"))
+        XCTAssertTrue(PlatformConditionalConstruction(typeName: "T", labels: nil).matches(initializerName: "init(a:)"))
+        XCTAssertTrue(PlatformConditionalConstruction(typeName: "T", labels: []).matchesExactly(initializerName: "init()"))
+        XCTAssertFalse(call.matchesExactly(initializerName: "init(value:_:scale:)"))
+    }
+
+    func testAnswersCanImportOnlyForSettledSystemModules() throws {
+        let answering = macOS.answeringCanImport
+        XCTAssertTrue(try answering.canImport(importPath: [(.identifier("Dispatch"), "Dispatch")], version: .unversioned))
+        XCTAssertFalse(try answering.canImport(importPath: [(.identifier("UIKit"), "UIKit")], version: .unversioned))
+        XCTAssertThrowsError(try answering.canImport(importPath: [(.identifier("SomeLibrary"), "SomeLibrary")], version: .unversioned))
+        XCTAssertThrowsError(try macOS.canImport(importPath: [(.identifier("Dispatch"), "Dispatch")], version: .unversioned))
     }
 
     func testCollectsOnlyClausesNoConfigurationCompiled() {

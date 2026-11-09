@@ -24,7 +24,12 @@ import SwiftSyntax
 /// apart, in `PlatformConditionalNames.otherClauseNames`, which only account for imports.
 ///
 /// Besides the names written as references, operators included, `collected` tells what a clause uses without writing
-/// its name: the conformances its extensions declare, the members it overrides and the types it inherits from.
+/// its name: the members it overrides and the types it inherits from. The uses that would retain members not named
+/// anywhere (initializers, subscripts, `callAsFunction`, conformance witnesses) are only collected from the clauses
+/// that no configuration compiles with certainty, whatever `narrowsNestedBlocks`: every enclosing block is evaluated,
+/// and `canImport()` is answered for the system modules the platform settles. A clause that may be compiled, such as
+/// the `#else` of an `#if os(Windows)` nested in another block, or a `canImport()` clause of an unknown module, is
+/// described by the index store.
 public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor {
     private static let platformConditions: Set<String> = ["os", "targetEnvironment", "arch", "canImport"]
 
@@ -44,6 +49,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
 
     /// The sites of each name, only collected when a location converter is given (for `--explain`).
     public private(set) var sites: [String: [Site]] = [:]
+    /// The sites of each initializer call that writes no initializer name, likewise.
+    public private(set) var constructionSites: [PlatformConditionalConstruction: [Site]] = [:]
     /// The clauses whose names were collected.
     private(set) var clauses: [IfConfigClauseSyntax] = []
 
@@ -53,6 +60,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     private let locationConverter: SourceLocationConverter?
     /// The block whose clauses were all collected: the blocks it contains are not visited.
     private var collectedBlock: SyntaxIdentifier?
+    /// The clauses no configuration compiles whose unnamed uses were collected, nested blocks included.
+    private var unnamedUseClauses: Set<SyntaxIdentifier> = []
 
     /// - Parameter configurations: the configurations the file was compiled for. When empty, every clause of every
     ///   platform conditional block is collected.
@@ -100,6 +109,9 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     public func visit(_ node: IfConfigDeclSyntax) {
+        collectUnnamedUses(in: node)
+        collectOperatorUses(in: node)
+
         guard collectedBlock == nil else { return }
         guard collectsEveryBlock || node.clauses.contains(where: { isPlatformCondition($0.condition) }) else {
             // The platform conditional blocks it contains are still visited.
@@ -136,18 +148,132 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
                 collected.references.insert(name)
 
                 if let locationConverter {
-                    let condition = clause.condition.map { "\(clause.poundKeyword.text) \($0.trimmedDescription)" } ?? clause.poundKeyword.text
-                    let line = token.startLocation(converter: locationConverter).line
-                    sites[name, default: []].append(Site(line: line, condition: condition))
+                    sites[name, default: []].append(site(of: token, in: clause, converter: locationConverter))
                 }
             }
         }
 
         let declarationCollector = UnnamedUseCollector(viewMode: .sourceAccurate)
         declarationCollector.walk(elements)
-        collected.conformances.formUnion(declarationCollector.conformances)
         collected.overriddenNames.formUnion(declarationCollector.overriddenNames)
         collected.inheritedNames.formUnion(declarationCollector.inheritedNames)
+    }
+
+    private func site(of node: some SyntaxProtocol, in clause: IfConfigClauseSyntax, converter: SourceLocationConverter) -> Site {
+        let condition = clause.condition.map { "\(clause.poundKeyword.text) \($0.trimmedDescription)" } ?? clause.poundKeyword.text
+        return Site(line: node.startLocation(converter: converter).line, condition: condition)
+    }
+
+    /// For each operator applied in a clause of a platform conditional block that no configuration compiles with
+    /// certainty, the names written in that clause. A clause a configuration compiles, such as `#if canImport(Dispatch)`
+    /// on Apple platforms, is in the index store, which resolves its operators. The blocks it contains are visited on
+    /// their own.
+    private func collectOperatorUses(in node: IfConfigDeclSyntax) {
+        guard collectsEveryBlock || node.clauses.contains(where: { isPlatformCondition($0.condition) }) else { return }
+
+        let enclosingClauses = enclosingClauses(of: node)
+        let activeClausesByConfiguration = activeClausesByConfiguration(of: [node] + enclosingClauses.map(\.block))
+
+        for clause in node.clauses {
+            guard let elements = clause.elements else { continue }
+
+            let isCompiled = activeClausesByConfiguration.contains { activeClauses in
+                zip(activeClauses, [clause] + enclosingClauses.map(\.clause)).allSatisfy { activeClause, clause in
+                    guard case let .some(activeID) = activeClause else { return false }
+
+                    return activeID == clause.id
+                }
+            }
+            guard !isCompiled else { continue }
+
+            var names: Set<String> = []
+            var operators: Set<String> = []
+            for token in elements.tokens(viewMode: .sourceAccurate) {
+                guard let name = referencedName(token) else { continue }
+
+                names.insert(name)
+                if !token.tokenKind.isIdentifier {
+                    operators.insert(name)
+                }
+            }
+            for name in operators {
+                collected.operatorClauseNames[name, default: []].formUnion(names)
+            }
+        }
+    }
+
+    /// For each configuration, the clause it compiles of each block, as `provenActiveClause` tells.
+    private func activeClausesByConfiguration(of blocks: [IfConfigDeclSyntax]) -> [[SyntaxIdentifier??]] {
+        configurations.map { configuration in
+            blocks.map { provenActiveClause(of: $0, in: configuration.answeringCanImport) }
+        }
+    }
+
+    /// Collects the unnamed uses of the clauses of the block that no configuration compiles, unless an enclosing
+    /// clause already accounts for them.
+    private func collectUnnamedUses(in node: IfConfigDeclSyntax) {
+        guard !configurations.isEmpty else { return }
+
+        let enclosingClauses = enclosingClauses(of: node)
+        guard !enclosingClauses.contains(where: { unnamedUseClauses.contains($0.clause.id) }) else { return }
+
+        let activeClausesByConfiguration = activeClausesByConfiguration(of: [node] + enclosingClauses.map(\.block))
+        // A configuration that compiles another clause of an enclosing block compiles none of this block.
+        let excludesBlock = activeClausesByConfiguration.map { activeClauses in
+            zip(activeClauses.dropFirst(), enclosingClauses).contains { activeClause, enclosing in
+                guard case let .some(activeID) = activeClause else { return false }
+
+                return activeID != enclosing.clause.id
+            }
+        }
+
+        for clause in node.clauses {
+            let isUncompiled = zip(activeClausesByConfiguration, excludesBlock).allSatisfy { activeClauses, excludesBlock in
+                guard !excludesBlock else { return true }
+                guard case let .some(activeID) = activeClauses[0] else { return false }
+
+                return activeID != clause.id
+            }
+            guard isUncompiled, let elements = clause.elements else { continue }
+
+            unnamedUseClauses.insert(clause.id)
+            collectUnnamedUses(in: elements, of: clause)
+        }
+    }
+
+    private func collectUnnamedUses(in elements: IfConfigClauseSyntax.Elements, of clause: IfConfigClauseSyntax) {
+        var names: Set<String> = []
+        for token in elements.tokens(viewMode: .sourceAccurate) {
+            if let name = referencedName(token) {
+                names.insert(name)
+            }
+        }
+
+        let useCollector = UnnamedUseCollector(viewMode: .sourceAccurate)
+        useCollector.walk(elements)
+        collected.conformances.formUnion(useCollector.conformances)
+        for (construction, node) in useCollector.constructions(namedIn: names) {
+            collected.constructions.insert(construction)
+            if let locationConverter {
+                constructionSites[construction, default: []].append(site(of: node, in: clause, converter: locationConverter))
+            }
+        }
+        if useCollector.accessesSubscript {
+            collected.subscriptedNames.formUnion(names)
+        }
+        if useCollector.callsValue {
+            collected.valueCalledNames.formUnion(names)
+        }
+    }
+
+    /// The identifier of the clause the configuration compiles, `.some(nil)` when it compiles none, or `nil` when it
+    /// cannot be known.
+    private func provenActiveClause(of node: IfConfigDeclSyntax, in configuration: PlatformBuildConfiguration) -> SyntaxIdentifier?? {
+        guard node.clauses.allSatisfy({ $0.condition.map { isEvaluable($0, allowingCanImport: true) } ?? true }),
+              let clause = activeClause(of: node, in: configuration)
+        else { return nil }
+
+        return .some(clause?.id)
     }
 
     private func collectOtherClauseNames(in clause: IfConfigClauseSyntax) {
@@ -223,7 +349,7 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     private func isEvaluable(_ node: IfConfigDeclSyntax) -> Bool {
-        node.clauses.allSatisfy { $0.condition.map(isEvaluable) ?? true }
+        node.clauses.allSatisfy { $0.condition.map { isEvaluable($0) } ?? true }
     }
 
     /// The `#if` blocks the node is nested in, from the innermost, with the clause of each that contains it.
@@ -242,24 +368,24 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 
     /// Returns `true` when the condition only combines `os()`, `arch()` and `targetEnvironment()` checks with `!`,
-    /// `&&`, `||` and parentheses.
-    private func isEvaluable(_ condition: ExprSyntax) -> Bool {
+    /// `&&`, `||` and parentheses, and `canImport()` checks of a single module with `allowingCanImport`.
+    private func isEvaluable(_ condition: ExprSyntax, allowingCanImport: Bool = false) -> Bool {
         if let tuple = condition.as(TupleExprSyntax.self) {
             guard tuple.elements.count == 1, let element = tuple.elements.first, element.label == nil else {
                 return false
             }
 
-            return isEvaluable(element.expression)
+            return isEvaluable(element.expression, allowingCanImport: allowingCanImport)
         }
 
         if let prefix = condition.as(PrefixOperatorExprSyntax.self) {
-            return prefix.operator.text == "!" && isEvaluable(prefix.expression)
+            return prefix.operator.text == "!" && isEvaluable(prefix.expression, allowingCanImport: allowingCanImport)
         }
 
         if let sequence = condition.as(SequenceExprSyntax.self) {
             return sequence.elements.enumerated().allSatisfy { index, element in
                 if index.isMultiple(of: 2) {
-                    return isEvaluable(element)
+                    return isEvaluable(element, allowingCanImport: allowingCanImport)
                 }
 
                 guard let binaryOperator = element.as(BinaryOperatorExprSyntax.self) else { return false }
@@ -271,7 +397,8 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
         if let call = condition.as(FunctionCallExprSyntax.self) {
             guard let callee = call.calledExpression.as(DeclReferenceExprSyntax.self),
                   callee.argumentNames == nil,
-                  Self.evaluableConditions.contains(callee.baseName.text),
+                  Self.evaluableConditions.contains(callee.baseName.text)
+                  || (allowingCanImport && callee.baseName.text == "canImport"),
                   call.trailingClosure == nil,
                   call.additionalTrailingClosures.isEmpty,
                   call.arguments.count == 1,
@@ -319,12 +446,131 @@ public final class PlatformConditionalNameCollector: PeripherySyntaxNodeVisitor 
     }
 }
 
-/// Collects what the declarations of a clause use without writing a name: the conformances of its extensions, the
-/// members it overrides and the types its classes and protocols inherit from.
+/// Collects what the code of a clause uses without writing a name: the conformances of its extensions, the members
+/// it overrides, the types its classes and protocols inherit from, the initializers it calls, and whether it accesses
+/// a subscript or calls a value.
 private final class UnnamedUseCollector: SyntaxVisitor {
     private(set) var conformances: Set<PlatformConditionalConformance> = []
     private(set) var overriddenNames: Set<String> = []
     private(set) var inheritedNames: Set<String> = []
+    private(set) var accessesSubscript = false
+    /// The initializer calls, with the first expression that makes each.
+    private var typedConstructions: [PlatformConditionalConstruction: Syntax] = [:]
+    /// The labels of the `.init(...)` calls whose type the syntax does not tell, with the first call of each.
+    private var untypedConstructionLabels: [[String]: Syntax] = [:]
+    /// The names called directly, `name()`, which call a value when the clause binds them.
+    private var calledNames: Set<String> = []
+    private var boundNames: Set<String> = []
+    private var callsComplexValue = false
+
+    /// Whether the clause calls a value: a name it binds (`let value = T(); value()`), `$0()`, `value?()` or the
+    /// result of a call or subscript.
+    var callsValue: Bool {
+        callsComplexValue || !calledNames.isDisjoint(with: boundNames)
+    }
+
+    /// The initializer calls, those of untyped `.init(...)` ascribed to every name written in the clause, with the
+    /// expression that makes each.
+    func constructions(namedIn names: Set<String>) -> [PlatformConditionalConstruction: Syntax] {
+        var result = typedConstructions
+        for (labels, node) in untypedConstructionLabels {
+            for name in names {
+                let construction = PlatformConditionalConstruction(typeName: name, labels: labels)
+                if result[construction] == nil {
+                    result[construction] = node
+                }
+            }
+        }
+        return result
+    }
+
+    private func insert(_ typeName: String, labels: [String]?, at node: some SyntaxProtocol) {
+        let construction = PlatformConditionalConstruction(typeName: typeName, labels: labels)
+        if typedConstructions[construction] == nil {
+            typedConstructions[construction] = Syntax(node)
+        }
+    }
+
+    override func visit(_ node: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
+        let labels = Self.labels(of: node)
+        let callee = node.calledExpression
+
+        if let member = callee.as(MemberAccessExprSyntax.self), Self.isInit(member.declName) {
+            if let base = member.base {
+                if let typeName = Self.typeName(of: base) {
+                    insert(typeName, labels: labels, at: node)
+                }
+            } else if let contextTypeNames = Self.contextTypeNames(of: node) {
+                for typeName in contextTypeNames {
+                    insert(typeName, labels: labels, at: node)
+                }
+            } else {
+                if untypedConstructionLabels[labels] == nil {
+                    untypedConstructionLabels[labels] = Syntax(node)
+                }
+            }
+        } else if let typeName = Self.typeName(of: callee) {
+            // A function or method call is recorded too: it only matches a type of the same name.
+            insert(typeName, labels: labels, at: node)
+        }
+
+        if let reference = callee.as(DeclReferenceExprSyntax.self) {
+            if case .dollarIdentifier = reference.baseName.tokenKind {
+                callsComplexValue = true
+            } else {
+                calledNames.insert(reference.baseName.identifier?.name ?? reference.baseName.text)
+            }
+        } else if callee.is(FunctionCallExprSyntax.self) || callee.is(SubscriptCallExprSyntax.self)
+            || callee.is(OptionalChainingExprSyntax.self) || callee.is(ForceUnwrapExprSyntax.self)
+            || callee.is(TupleExprSyntax.self)
+        {
+            callsComplexValue = true
+        }
+
+        return .visitChildren
+    }
+
+    /// `T.init` unapplied, `T.init(value:)`, and `T.self`, which a generic function may construct.
+    override func visit(_ node: MemberAccessExprSyntax) -> SyntaxVisitorContinueKind {
+        guard let base = node.base, let typeName = Self.typeName(of: base) else { return .visitChildren }
+
+        if node.declName.baseName.tokenKind == .keyword(.self) {
+            insert(typeName, labels: nil, at: node)
+        } else if Self.isInit(node.declName),
+                  node.parent?.as(FunctionCallExprSyntax.self)?.calledExpression.id != node.id
+        {
+            let labels = node.declName.argumentNames.map { $0.arguments.map(\.name.text) }
+            insert(typeName, labels: labels, at: node)
+        }
+        return .visitChildren
+    }
+
+    override func visit(_: SubscriptCallExprSyntax) -> SyntaxVisitorContinueKind {
+        accessesSubscript = true
+        return .visitChildren
+    }
+
+    override func visit(_ node: IdentifierPatternSyntax) -> SyntaxVisitorContinueKind {
+        boundNames.insert(node.identifier.identifier?.name ?? node.identifier.text)
+        return .visitChildren
+    }
+
+    override func visit(_ node: FunctionParameterSyntax) -> SyntaxVisitorContinueKind {
+        let name = node.secondName ?? node.firstName
+        boundNames.insert(name.identifier?.name ?? name.text)
+        return .visitChildren
+    }
+
+    override func visit(_ node: ClosureParameterSyntax) -> SyntaxVisitorContinueKind {
+        let name = node.secondName ?? node.firstName
+        boundNames.insert(name.identifier?.name ?? name.text)
+        return .visitChildren
+    }
+
+    override func visit(_ node: ClosureShorthandParameterSyntax) -> SyntaxVisitorContinueKind {
+        boundNames.insert(node.name.identifier?.name ?? node.name.text)
+        return .visitChildren
+    }
 
     override func visit(_ node: ExtensionDeclSyntax) -> SyntaxVisitorContinueKind {
         if let typeName = Self.typeNames(of: node.extendedType).first {
@@ -376,6 +622,57 @@ private final class UnnamedUseCollector: SyntaxVisitor {
         }
     }
 
+    private static func isInit(_ name: DeclReferenceExprSyntax) -> Bool {
+        name.baseName.tokenKind == .keyword(.`init`)
+    }
+
+    /// The argument labels of the call, `_` for an unlabeled argument, without its trailing closures, whose labels the
+    /// syntax does not tell.
+    private static func labels(of call: FunctionCallExprSyntax) -> [String] {
+        call.arguments.map { $0.label?.text ?? "_" }
+    }
+
+    /// The name of the type an expression may refer to: `T`, `Module.T`, `T<Int>`.
+    private static func typeName(of expression: ExprSyntax) -> String? {
+        if let reference = expression.as(DeclReferenceExprSyntax.self) {
+            guard case .identifier = reference.baseName.tokenKind else { return nil }
+
+            return reference.baseName.identifier?.name ?? reference.baseName.text
+        }
+        if let member = expression.as(MemberAccessExprSyntax.self), member.base != nil {
+            guard case .identifier = member.declName.baseName.tokenKind else { return nil }
+
+            return member.declName.baseName.identifier?.name ?? member.declName.baseName.text
+        }
+        if let specialization = expression.as(GenericSpecializationExprSyntax.self) {
+            return typeName(of: specialization.expression)
+        }
+        if let typeExpression = expression.as(TypeExprSyntax.self) {
+            return typeNames(of: typeExpression.type).first
+        }
+        return nil
+    }
+
+    /// The type a `.init(...)` call constructs when the syntax tells it: the annotated type of the variable or the
+    /// parameter it initializes, optional or not.
+    private static func contextTypeNames(of call: FunctionCallExprSyntax) -> [String]? {
+        var node = Syntax(call)
+        while let parent = node.parent, parent.is(TryExprSyntax.self) || parent.is(AwaitExprSyntax.self) {
+            node = parent
+        }
+        guard let initializer = node.parent?.as(InitializerClauseSyntax.self) else { return nil }
+
+        let type: TypeSyntax? = if let binding = initializer.parent?.as(PatternBindingSyntax.self) {
+            binding.typeAnnotation?.type
+        } else {
+            initializer.parent?.as(FunctionParameterSyntax.self)?.type
+        }
+        guard let type else { return nil }
+
+        let names = typeNames(of: type)
+        return names.isEmpty ? nil : names
+    }
+
     private static func isOverride(_ modifiers: DeclModifierListSyntax) -> Bool {
         modifiers.contains { $0.name.tokenKind == .keyword(.override) }
     }
@@ -397,6 +694,12 @@ private final class UnnamedUseCollector: SyntaxVisitor {
         }
         if let composition = type.as(CompositionTypeSyntax.self) {
             return composition.elements.flatMap { typeNames(of: $0.type) }
+        }
+        if let optional = type.as(OptionalTypeSyntax.self) {
+            return typeNames(of: optional.wrappedType)
+        }
+        if let optional = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
+            return typeNames(of: optional.wrappedType)
         }
         return []
     }

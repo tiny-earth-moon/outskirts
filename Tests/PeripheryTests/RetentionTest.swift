@@ -585,6 +585,81 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    /// Naming a type in a platform conditional block does not call its initializers: only `T(...)`, `.init(...)`
+    /// typed `T` and `T.self` do, and a call only reaches the initializers its labels match.
+    func testRetainsOnlyInitializersConstructedInPlatformConditionalBlocks() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureNamedOnlyCamera")) {
+                self.assertNotReferenced(.functionConstructor("init(fieldOfView:)"))
+                self.assertNotReferenced(.functionSubscript("subscript(_:)"))
+                self.assertNotReferenced(.functionMethodInstance("callAsFunction()"))
+            }
+            assertReferenced(.struct("FixtureLabeledCamera")) {
+                self.assertReferenced(.functionConstructor("init(fieldOfView:aspect:)"))
+                self.assertNotReferenced(.functionConstructor("init(label:)"))
+            }
+            assertReferenced(.struct("FixtureTypedCamera")) {
+                self.assertReferenced(.functionConstructor("init(label:)"))
+                self.assertNotReferenced(.functionConstructor("init(fieldOfView:)"))
+            }
+            assertReferenced(.struct("FixtureMetatypeCamera")) {
+                self.assertReferenced(.functionConstructor("init(label:)"))
+                self.assertReferenced(.functionConstructor("init(fieldOfView:)"))
+            }
+        }
+    }
+
+    /// A call that writes exactly the labels of an initializer calls it, not another whose remaining parameters would
+    /// have default values: `T(group:)` with `init(group:)`, `T()` with `init()`.
+    func testRetainsOnlyInitializersWithExactLabelsInPlatformConditionalBlocks() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureExactLabelsBootstrap")) {
+                self.assertReferenced(.functionConstructor("init(group:)"))
+                self.assertNotReferenced(.functionConstructor("init(group:childGroup:)"))
+            }
+            assertReferenced(.struct("FixtureExactLabelsDefaults")) {
+                self.assertReferenced(.functionConstructor("init()"))
+                self.assertNotReferenced(.functionConstructor("init(scale:)"))
+            }
+            assertReferenced(.struct("FixtureExactLabelsFallback")) {
+                self.assertReferenced(.functionConstructor("init(group:childGroup:)"))
+            }
+        }
+    }
+
+    /// A clause a build compiles is in the index store: the `#else` of an `#if os(Windows)` nested in another block,
+    /// and an `#if canImport(Dispatch)` on Apple platforms, retain no initializer or subscript of the types they name.
+    /// An `#if canImport(UIKit)` is not compiled on macOS.
+    func testRetainsNoUnnamedUseFromCompiledPlatformConditionalClauses() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureCompiledElseHandle")) {
+                self.assertNotReferenced(.functionConstructor("init(descriptor:)"))
+                self.assertNotReferenced(.functionSubscript("subscript(_:)"))
+            }
+            assertReferenced(.struct("FixtureCompiledImportBuffer")) {
+                self.assertNotReferenced(.functionConstructor("init(capacity:)"))
+                self.assertNotReferenced(.functionSubscript("subscript(_:)"))
+            }
+            assertReferenced(.struct("FixtureUncompiledImportView")) {
+                self.assertReferenced(.functionConstructor("init(frame:)"))
+                self.assertNotReferenced(.functionConstructor("init(coder:)"))
+            }
+        }
+    }
+
+    /// `*` written alone in a platform conditional block does not use the `*` of every type, only of a type named
+    /// alongside it, in a clause no build compiles with certainty: `#if canImport(Dispatch)` is compiled on macOS.
+    func testReportsOperatorsOfTypesNotNamedWithTheOperatorInPlatformConditionalBlocks() {
+        analyze(retainPublic: true) {
+            assertReferenced(.struct("FixtureScaledAmount")) {
+                self.assertNotReferenced(.functionOperatorInfix("*(_:_:)"))
+            }
+            assertReferenced(.struct("FixtureScaledLength")) {
+                self.assertReferenced(.functionOperatorInfix("*(_:_:)"))
+            }
+        }
+    }
+
     func testDoesNotRetainDeclarationsOnlyNamedInPlatformConditionalBlocks() {
         analyze(retainPublic: true) {
             // A conformance extension, a declared function, protocol and typealias only write their own name.
