@@ -4,6 +4,7 @@ import XCTest
 
 final class ConcurrentlyTest: XCTestCase {
     private struct Failure: Error, Equatable {
+        // outskirts:ignore - only compared, through the synthesized Equatable conformance
         let id: Int
     }
 
