@@ -95,7 +95,7 @@ struct FixCommand: ParsableCommand {
         if let partialScan {
             guarded.keepRulesRequiringACompleteScan(because: partialScan.reason)
         }
-        try guarded.keepUncoveredConditionalUses(in: output.graph)
+        guarded.keepUncoveredConditionalUses(in: output.graph) { logger.warn($0) }
         guarded.keepClassesWithOpenMembers(in: output.graph)
         let workingTree: WorkingTreeState = try allowDirty ? .ignored : GitWorkingTree.state(at: configuration.projectRoot)
         let indexDates = IndexDates(scanStartedAt: scanStartedAt, unitDates: output.unitDates)
