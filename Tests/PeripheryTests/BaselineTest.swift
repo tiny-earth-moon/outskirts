@@ -483,6 +483,20 @@ final class BaselineTest: XCTestCase {
         ]))
     }
 
+    func testWriteBaseline_storesTheSameRelativeFileForAnUnnormalizedProjectRoot() throws {
+        for root in [rootA + "/", rootA + "/.", "/Users/dev/other/../checkout-a"] {
+            let written = Baseline.written(from: scanLib(root: rootA), union: nil, projectRoot: FilePath(root))
+
+            XCTAssertEqual(Set(written.entries.map(\.file)), ["Sources/Lib/Lib.swift"], root)
+        }
+    }
+
+    func testWriteBaseline_keepsTheAbsolutePathOfAFileOutsideTheProjectRoot() throws {
+        let written = Baseline.written(from: scanLib(root: rootB), union: nil, projectRoot: FilePath(rootA))
+
+        XCTAssertEqual(Set(written.entries.map(\.file)), [rootB + "/Sources/Lib/Lib.swift"])
+    }
+
     func testWriteBaseline_ofAVersionOneBaseline_keepsItsEntriesInVersionTwo() throws {
         let previous = try JSONDecoder().decode(Baseline.self, from: Data(versionOneFile.utf8))
         let written = Baseline.written(from: scanLib(root: rootA, importLines: [], extensionLines: []), union: previous, projectRoot: FilePath(rootA))

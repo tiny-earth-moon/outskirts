@@ -33,15 +33,18 @@ public enum Baseline: Equatable {
             self.file = file
         }
 
+        /// The file is relative to the project root when it lies under it, compared component by component once both
+        /// paths are normalized, and absolute otherwise.
         init(id: String, result: ScanResult, projectRoot: FilePath) {
-            let path = result.declaration.location.file.path.string
-            let rootPrefix = projectRoot.string.hasSuffix("/") ? projectRoot.string : projectRoot.string + "/"
+            let path = result.declaration.location.file.path.lexicallyNormalized()
+            let root = projectRoot.lexicallyNormalized()
+            var relative = path
 
             self.init(
                 id: id,
                 kind: result.declaration.kind.rawValue,
                 name: result.declaration.name,
-                file: path.hasPrefix(rootPrefix) ? String(path.dropFirst(rootPrefix.count)) : path
+                file: root.isAbsolute && relative.removePrefix(root) && !relative.isEmpty ? relative.string : path.string
             )
         }
     }
