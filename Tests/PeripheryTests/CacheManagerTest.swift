@@ -173,6 +173,44 @@ final class CacheManagerTest: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: leftover.path))
     }
 
+    func testEvict_leftoverRemovedMeanwhileByAnotherScanIsNotAFailure() throws {
+        let leftover = try makeDerivedData(".evicting-\(UUID().uuidString)", ageDays: 0)
+        let events = CacheEvents(willRemove: { entry in
+            if entry.lastPathComponent == leftover.lastPathComponent {
+                try? FileManager.default.removeItem(at: entry)
+            }
+        })
+
+        let result = CacheManager.$events.withValue(events) {
+            CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: [])
+        }
+
+        XCTAssertTrue(result.failures.isEmpty, "\(result.failures)")
+        XCTAssertFalse(fm.fileExists(atPath: leftover.path))
+    }
+
+    func testClearCache_emptiesACacheDirectoryThatIsASymbolicLinkAndKeepsTheLink() throws {
+        _ = try makeDerivedData("DerivedData-a", ageDays: 1)
+        let link = root.appendingPathComponent("linked-cache")
+        try fm.createSymbolicLink(at: link, withDestinationURL: cache)
+
+        XCTAssertNoThrow(try CacheManager.clear(cacheDirectory: link))
+
+        XCTAssertEqual(try fm.destinationOfSymbolicLink(atPath: link.path), cache.path)
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: cache.path), [])
+    }
+
+    func testEvict_sweepsACacheDirectoryThatIsASymbolicLink() throws {
+        _ = try makeDerivedData("DerivedData-stale", ageDays: 30)
+        let link = root.appendingPathComponent("linked-cache")
+        try fm.createSymbolicLink(at: link, withDestinationURL: cache)
+
+        let result = CacheManager.evictStale(cacheDirectory: link, maxAgeDays: 14, keeping: [])
+
+        XCTAssertTrue(result.failures.isEmpty, "\(result.failures)")
+        XCTAssertEqual(result.evicted.map(\.name), ["DerivedData-stale"])
+    }
+
     func testClearCache_keepsFolderCreatedDuringTheClear() throws {
         let old = try makeDerivedData("DerivedData-old", ageDays: 1)
         let created = cache.appendingPathComponent("DerivedData-created")
@@ -241,6 +279,55 @@ final class CacheManagerTest: XCTestCase {
 
         XCTAssertEqual(refresh(at: now.addingTimeInterval(CacheManager.evictionInterval + 1)).evicted.map(\.name), ["DerivedData-second"])
         XCTAssertGreaterThan(recorder.listings, 0)
+    }
+
+    func testRefresh_neverWritesTheSidecarThroughABuildFolderLinkedOutOfTheCache() throws {
+        let outside = root.appendingPathComponent("outside")
+        try fm.createDirectory(at: outside, withIntermediateDirectories: true)
+        let linked = cache.appendingPathComponent("DerivedData-linked")
+        try fm.createSymbolicLink(at: linked, withDestinationURL: outside)
+
+        let result = CacheManager.refresh(directories: [linked], projectPath: root.path, maxAgeDays: 0, maxSizeGB: 0, cacheDirectory: cache)
+
+        XCTAssertEqual(result.failures.map(\.path), [linked.path])
+        XCTAssertFalse(fm.fileExists(atPath: outside.appendingPathComponent(CacheManager.projectSidecarName).path))
+    }
+
+    func testRefresh_recordsTheProjectInABuildFolderOfTheCache() throws {
+        let folder = try makeDerivedData("DerivedData-current", ageDays: 0)
+
+        let result = CacheManager.refresh(directories: [folder], projectPath: root.path, maxAgeDays: 0, maxSizeGB: 0, cacheDirectory: cache)
+
+        XCTAssertTrue(result.failures.isEmpty, "\(result.failures)")
+        XCTAssertEqual(try String(contentsOf: folder.appendingPathComponent(CacheManager.projectSidecarName), encoding: .utf8), root.path)
+    }
+
+    func testRefresh_replacesASweepStampLinkInsteadOfDatingItsTarget() throws {
+        let outside = root.appendingPathComponent("outside-stamp")
+        try Data().write(to: outside)
+        let old = Date(timeIntervalSince1970: 1_000_000_000)
+        try fm.setAttributes([.modificationDate: old], ofItemAtPath: outside.path)
+        let stamp = cache.appendingPathComponent(CacheManager.evictionStampName)
+        try fm.createSymbolicLink(at: stamp, withDestinationURL: outside)
+
+        // Past the interval, measured from the date of the link itself.
+        let later = Date().addingTimeInterval(2 * CacheManager.evictionInterval)
+
+        let result = CacheManager.refresh(directories: [], projectPath: root.path, maxAgeDays: 14, maxSizeGB: 0, cacheDirectory: cache, now: later)
+
+        XCTAssertTrue(result.failures.isEmpty, "\(result.failures)")
+        XCTAssertEqual(try fm.attributesOfItem(atPath: outside.path)[.modificationDate] as? Date, old)
+        XCTAssertEqual(try fm.attributesOfItem(atPath: stamp.path)[.type] as? FileAttributeType, .typeRegular)
+    }
+
+    func testLease_neverCreatesTheLockFileThroughASymbolicLink() throws {
+        let folder = try makeDerivedData("DerivedData-planted", ageDays: 0)
+        let outside = root.appendingPathComponent("outside-lock")
+        try fm.createSymbolicLink(at: folder.appendingPathComponent(CacheLock.fileName), withDestinationURL: outside)
+
+        XCTAssertThrowsError(try CacheLease().hold(folder))
+
+        XCTAssertFalse(fm.fileExists(atPath: outside.path))
     }
 
     func testEvict_removesStaleKeepsRecentAndCurrent() throws {

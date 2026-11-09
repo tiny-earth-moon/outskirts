@@ -447,6 +447,21 @@ final class BaselineTest: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.string), ["baseline.json"])
     }
 
+    func testWrittenFile_writesTheTargetOfASymbolicLinkAndKeepsTheLink() throws {
+        let directory = try makeCheckoutDirectory("out")
+        try FileManager.default.createDirectory(atPath: directory.string, withIntermediateDirectories: true)
+        let target = directory.appending("shared.json")
+        let link = directory.appending("baseline.json")
+        try Data("shared".utf8).write(to: target.url)
+        try FileManager.default.createSymbolicLink(atPath: link.string, withDestinationPath: "shared.json")
+
+        try Baseline.v1(usrs: ["s:3Lib1aV"]).write(to: link)
+
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: link.string), "shared.json")
+        XCTAssertEqual(try Baseline.load(from: target).usrs, ["s:3Lib1aV"])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.string).sorted(), ["baseline.json", "shared.json"])
+    }
+
     // MARK: - Version 2
 
     private let versionOneFile = #"{"v1":{"usrs":["empty-extension-Used-Sources\/Lib\/Lib.swift","import-Util-Sources\/Lib\/Lib.swift","s:3Lib10unusedFuncyyF"]}}"#
@@ -465,6 +480,20 @@ final class BaselineTest: XCTestCase {
             .init(id: extensionId, kind: "extension", name: "Used", file: "Sources/Lib/Lib.swift"),
             .init(id: importId, kind: "module", name: "Util", file: "Sources/Lib/Lib.swift"),
         ]))
+    }
+
+    func testWriteBaseline_storesTheSameRelativeFileForAnUnnormalizedProjectRoot() throws {
+        for root in [rootA + "/", rootA + "/.", "/Users/dev/other/../checkout-a"] {
+            let written = Baseline.written(from: scanLib(root: rootA), union: nil, projectRoot: FilePath(root))
+
+            XCTAssertEqual(Set(written.entries.map(\.file)), ["Sources/Lib/Lib.swift"], root)
+        }
+    }
+
+    func testWriteBaseline_keepsTheAbsolutePathOfAFileOutsideTheProjectRoot() throws {
+        let written = Baseline.written(from: scanLib(root: rootB), union: nil, projectRoot: FilePath(rootA))
+
+        XCTAssertEqual(Set(written.entries.map(\.file)), [rootB + "/Sources/Lib/Lib.swift"])
     }
 
     func testWriteBaseline_ofAVersionOneBaseline_keepsItsEntriesInVersionTwo() throws {

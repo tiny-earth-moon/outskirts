@@ -1,5 +1,6 @@
 import Foundation
 import Logger
+import SystemPackage
 
 struct CacheEntryError: Error, CustomStringConvertible {
     let path: String
@@ -76,11 +77,14 @@ public enum CacheManager {
 
     /// Removes every entry of the cache directory, then the directory itself. Entries that have already
     /// vanished are ignored, the build folders a running scan holds are reported. Symbolic links are removed, never followed.
+    /// A cache directory that is itself a symbolic link, moved to another volume for instance, is emptied and kept, the
+    /// link with it, so that the next scan builds there again.
     static func clear(cacheDirectory: URL, fileManager: FileManager = .default) throws {
+        let isLink = OutputFile.isSymbolicLink(cacheDirectory.path)
         let entries: [URL]
         do {
             entries = try fileManager.contentsOfDirectory(
-                at: cacheDirectory,
+                at: listable(cacheDirectory),
                 includingPropertiesForKeys: nil,
                 options: []
             )
@@ -105,7 +109,7 @@ public enum CacheManager {
         }
 
         // Not recursive: a scan may have created and locked a build folder since the listing.
-        if failures.isEmpty, rmdir(cacheDirectory.path) != 0, ![ENOENT, ENOTEMPTY, EEXIST].contains(errno) {
+        if failures.isEmpty, !isLink, rmdir(cacheDirectory.path) != 0, ![ENOENT, ENOTEMPTY, EEXIST].contains(errno) {
             let error = NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSFilePathErrorKey: cacheDirectory.path])
             failures.append(CacheEntryError(path: cacheDirectory.path, underlying: error))
         }
@@ -127,16 +131,6 @@ public enum CacheManager {
         now: Date = Date(),
         fileManager: FileManager = .default
     ) -> CacheRefreshResult {
-        var failures: [CacheEntryError] = []
-        for directory in directories where fileManager.fileExists(atPath: directory.path) {
-            do {
-                try recordProject(projectPath, in: directory, fileManager: fileManager)
-                try touch(directory, fileManager: fileManager)
-            } catch {
-                failures.append(error as? CacheEntryError ?? CacheEntryError(path: directory.path, underlying: error))
-            }
-        }
-
         let cache: URL
         if let cacheDirectory {
             cache = cacheDirectory
@@ -144,7 +138,19 @@ public enum CacheManager {
             do {
                 cache = try URL(fileURLWithPath: Constants.cachePath().string)
             } catch {
-                return CacheRefreshResult(failures: failures + [CacheEntryError(path: "cache directory", underlying: error)])
+                return CacheRefreshResult(failures: [CacheEntryError(path: "cache directory", underlying: error)])
+            }
+        }
+
+        var failures: [CacheEntryError] = []
+        for directory in directories where fileManager.fileExists(atPath: directory.path) {
+            do {
+                // A build folder replaced by a symbolic link must not lead the sidecar write out of the cache.
+                try OutputFile.confinedRealPath(of: FilePath(directory.path), within: FilePath(cache.path))
+                try recordProject(projectPath, in: directory, fileManager: fileManager)
+                try touch(directory, fileManager: fileManager)
+            } catch {
+                failures.append(error as? CacheEntryError ?? CacheEntryError(path: directory.path, underlying: error))
             }
         }
 
@@ -234,7 +240,7 @@ public enum CacheManager {
         do {
             events.willList(cacheDirectory)
             entries = try fileManager.contentsOfDirectory(
-                at: cacheDirectory,
+                at: listable(cacheDirectory),
                 includingPropertiesForKeys: [.contentModificationDateKey],
                 options: []
             )
@@ -247,8 +253,10 @@ public enum CacheManager {
         var keptSize: Int64 = 0
 
         // Leftovers of removals that were interrupted: no scan uses them.
+        // Without the lock: another scan may be removing the same leftover, which is then already gone.
         for entry in entries where entry.lastPathComponent.hasPrefix(evictingPrefix) {
             do {
+                events.willRemove(entry)
                 try fileManager.removeItem(at: entry)
             } catch {
                 if !isMissing(error) {
@@ -314,13 +322,22 @@ public enum CacheManager {
 
     // MARK: - Private
 
+    /// The directory to list: listing a symbolic link to a directory gives no entries, its target does.
+    private static func listable(_ directory: URL) -> URL {
+        OutputFile.isSymbolicLink(directory.path) ? directory.resolvingSymlinksInPath() : directory
+    }
+
     private static func lastSweep(_ stamp: URL, fileManager: FileManager) throws -> Date? {
         guard fileManager.fileExists(atPath: stamp.path) else { return nil }
 
         return try fileManager.attributesOfItem(atPath: stamp.path)[.modificationDate] as? Date
     }
 
+    /// A symbolic link in place of the stamp is replaced by the stamp: setting its date would follow the link.
     private static func markSweep(_ stamp: URL, now: Date, fileManager: FileManager) throws {
+        if OutputFile.isSymbolicLink(stamp.path) {
+            try fileManager.removeItem(at: stamp)
+        }
         if !fileManager.fileExists(atPath: stamp.path), !fileManager.createFile(atPath: stamp.path, contents: nil) {
             throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: stamp.path])
         }

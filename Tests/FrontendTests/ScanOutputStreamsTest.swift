@@ -69,6 +69,24 @@ final class ScanOutputStreamsTest: XCTestCase {
         XCTAssertTrue(try reportNames(in: Data(contentsOf: report)).contains("UnusedFixtureType"))
     }
 
+    func testWriteResultsFromTheConfigurationFile_isRefusedOutsideTheProjectRootButNotOnTheCommandLine() throws {
+        let report = outputDirectory.appendingPathComponent("report.json")
+        try Data("kept".utf8).write(to: report)
+        let config = outputDirectory.appendingPathComponent("outskirts.yml")
+        try "write_results: \(report.path)\n".write(to: config, atomically: true, encoding: .utf8)
+
+        let fromFile = try scan(["--format", "json", "--config", config.path])
+
+        XCTAssertNotEqual(fromFile.status, 0)
+        XCTAssertTrue(fromFile.stderrText.contains("pass the path on the command line"), fromFile.stderrText)
+        XCTAssertEqual(try String(contentsOf: report, encoding: .utf8), "kept")
+
+        let fromCommandLine = try scan(["--format", "json", "--config", config.path, "--write-results", report.path])
+
+        XCTAssertEqual(fromCommandLine.status, 0, fromCommandLine.stderrText)
+        XCTAssertTrue(try reportNames(in: Data(contentsOf: report)).contains("UnusedFixtureType"))
+    }
+
     func testSkipStdoutResultsWithoutWriteResultsIsAUsageError() throws {
         let output = try scan(["--format", "json", "--skip-stdout-results"])
 

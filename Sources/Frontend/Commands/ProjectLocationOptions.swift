@@ -11,9 +11,11 @@ struct ProjectLocationOptions: ParsableArguments {
     @Option(help: "Path to configuration file, relative paths being resolved from '--project-root'. By default outskirts looks for .outskirts.yml (or .periphery.yml) in the project root", completion: .file(extensions: ["yml", "yaml"]))
     var config: FilePath?
 
-    /// Makes the project root the current directory, from which relative paths are resolved, and returns it.
+    /// Makes the project root the current directory, from which relative paths are resolved, and returns it, absolute
+    /// and normalized: a relative `--project-root` is resolved from the directory the command was typed in, before
+    /// the change.
     func changeToProjectRoot() throws -> FilePath {
-        let projectRoot = projectRoot ?? FilePath(FileManager.default.currentDirectoryPath)
+        let projectRoot = FilePath(FileManager.default.currentDirectoryPath).pushing(projectRoot ?? FilePath()).lexicallyNormalized()
         if !FileManager.default.changeCurrentDirectoryPath(projectRoot.string) {
             throw PeripheryError.changeCurrentDirectoryFailed(projectRoot)
         }

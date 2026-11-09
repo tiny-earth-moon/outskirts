@@ -355,6 +355,27 @@ final class ConfigurationLoadTest: XCTestCase {
         XCTAssertEqual(reloaded.outputFormat, .githubMarkdown)
     }
 
+    func testSave_throwsWhenTheFileCannotBeWritten() throws {
+        let configuration = Configuration()
+        configuration.strict = true
+
+        XCTAssertThrowsError(try configuration.save(to: FilePath(directory.appendingPathComponent("missing/saved.yml").path)))
+    }
+
+    func testSaveWithinARoot_refusesALinkLeadingOutsideIt() throws {
+        let root = directory.appendingPathComponent("project")
+        let outside = directory.appendingPathComponent("outside.yml")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try "strict: false\n".write(to: outside, atomically: true, encoding: .utf8)
+        try FileManager.default.createSymbolicLink(at: root.appendingPathComponent(".outskirts.yml"), withDestinationURL: outside)
+        let configuration = Configuration()
+        configuration.strict = true
+
+        XCTAssertThrowsError(try configuration.save(to: FilePath(root.appendingPathComponent(".outskirts.yml").path), within: FilePath(root.path)))
+
+        XCTAssertEqual(try String(contentsOf: outside, encoding: .utf8), "strict: false\n")
+    }
+
     // MARK: - Default file lookup
 
     func testDefaultLookupPrefersOutskirtsFile() throws {

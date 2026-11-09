@@ -96,8 +96,9 @@ enum CacheLock {
 
     // MARK: - Private
 
+    /// Never through a symbolic link, which could create the lock file out of the cache.
     private static func open(in directory: URL) throws -> Int32 {
-        let descriptor = Foundation.open(directory.appendingPathComponent(fileName).path, O_RDONLY | O_CREAT | O_CLOEXEC, 0o644)
+        let descriptor = Foundation.open(directory.appendingPathComponent(fileName).path, O_RDONLY | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0o644)
         guard descriptor >= 0 else { throw posixError(errno, directory) }
 
         return descriptor

@@ -24,6 +24,17 @@ final class ProjectDetectionTest: XCTestCase {
         try super.tearDownWithError()
     }
 
+    func testRelativeProjectRoot_isReturnedAbsoluteFromTheDirectoryTheCommandWasTypedIn() throws {
+        try FileManager.default.createDirectory(at: directory.appendingPathComponent("sub"), withIntermediateDirectories: true)
+        let typedIn = FilePath(FileManager.default.currentDirectoryPath)
+        let options = try ProjectLocationOptions.parse(["--project-root", "./sub/../sub"])
+
+        let projectRoot = try options.changeToProjectRoot()
+
+        XCTAssertEqual(projectRoot, typedIn.appending("sub"))
+        XCTAssertEqual(projectRoot, FilePath(FileManager.default.currentDirectoryPath))
+    }
+
     func testBazelWorkspaceWithAPackageManifestIsDetectedAsSwiftPM() throws {
         try write("MODULE.bazel")
         try write("WORKSPACE")

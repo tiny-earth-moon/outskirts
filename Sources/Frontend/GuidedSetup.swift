@@ -2,6 +2,7 @@ import Configuration
 import Foundation
 import Logger
 import Shared
+import SystemPackage
 
 #if canImport(XcodeSupport)
     import XcodeSupport
@@ -65,7 +66,7 @@ final class GuidedSetup: SetupGuideHelpers {
             shouldSave = selectBoolean()
 
             if shouldSave {
-                try configuration.save()
+                try configuration.save(within: FilePath("."))
             }
         }
 
