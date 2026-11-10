@@ -38,14 +38,14 @@ final class EntryPointAttributeRetainer: SourceGraphMutator {
                 where extensionDeclaration.hasAttribute(named: "main")
             {
                 retainEntryPoint(extendedDeclaration)
-                graph.markRetainedWithAncestors(extensionDeclaration)
+                graph.markRetainedWithAncestors(extensionDeclaration, reason: RetentionReason(Self.self, "@main entry point"))
                 retainMainFunction(in: extensionDeclaration)
             }
         }
     }
 
     private func retainEntryPoint(_ declaration: Declaration) {
-        graph.markRetainedWithAncestors(declaration)
+        graph.markRetainedWithAncestors(declaration, reason: RetentionReason(Self.self, Self.entryPointDetail(of: declaration)))
         graph.markMainAttributed(declaration)
     }
 
@@ -57,7 +57,7 @@ final class EntryPointAttributeRetainer: SourceGraphMutator {
             guard !mainFunctions.isEmpty else { continue }
 
             for function in mainFunctions {
-                graph.markRetainedWithAncestors(function)
+                graph.markRetainedWithAncestors(function, reason: RetentionReason(Self.self, "static main() of a @main entry point"))
             }
             return
         }
@@ -70,6 +70,11 @@ final class EntryPointAttributeRetainer: SourceGraphMutator {
         return declaration.references
             .filter { $0.declarationKind == .extensionProtocol }
             .compactMap { graph.declaration(withUsr: $0.usr) }
+    }
+
+    private static func entryPointDetail(of declaration: Declaration) -> String {
+        let attribute = ["main", "UIApplicationMain", "NSApplicationMain"].first { declaration.hasAttribute(named: $0) }
+        return "@\(attribute ?? "main") entry point"
     }
 
     private static func mainFunctions(in declaration: Declaration) -> [Declaration] {

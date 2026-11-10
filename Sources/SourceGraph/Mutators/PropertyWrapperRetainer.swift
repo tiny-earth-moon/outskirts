@@ -16,13 +16,13 @@ final class PropertyWrapperRetainer: SourceGraphMutator {
         for decl in graph.declarations(ofKinds: Declaration.Kind.toplevelAttributableKind) where decl.attributes.contains(where: { $0.name == "propertyWrapper" }) {
             decl.declarations
                 .filter { $0.kind == .varInstance && specialProperties.contains($0.name) }
-                .forEach { graph.markRetained($0) }
+                .forEach { graph.markRetained($0, reason: RetentionReason(Self.self, "property wrapper requirement")) }
 
             // The compiler reads and writes a wrapped property of a class through this static subscript, and the
             // index store records no reference to it.
             decl.declarations
                 .filter { $0.kind == .functionSubscript && $0.name == enclosingInstanceSubscriptName }
-                .forEach { graph.markRetained($0) }
+                .forEach { graph.markRetained($0, reason: RetentionReason(Self.self, "property wrapper requirement")) }
 
             // A wrapper applied to a parameter is initialized by the compiler at every call site, from the argument
             // or from a projected value passed as `$label:`, which the index store does not record as a reference to
@@ -30,7 +30,7 @@ final class PropertyWrapperRetainer: SourceGraphMutator {
             if graph.parameterAttributeNames.contains(decl.name) {
                 decl.declarations
                     .filter { $0.kind == .functionConstructor && isParameterWrapperInitializer($0) }
-                    .forEach { graph.markRetained($0) }
+                    .forEach { graph.markRetained($0, reason: RetentionReason(Self.self, "property wrapper requirement")) }
             }
         }
     }

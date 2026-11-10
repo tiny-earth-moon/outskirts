@@ -2,6 +2,7 @@ import Foundation
 import Logger
 import Shared
 import SystemPackage
+import TestShared
 @testable import XcodeSupport
 import XCTest
 
@@ -20,7 +21,7 @@ final class XcodebuildListDerivedDataTest: XCTestCase {
 
     private func makeProject(shell: Shell) throws -> (Xcodebuild, XcodeProject) {
         let logger = Logger(quiet: true, verbose: false, colorMode: .never)
-        let xcodebuild = Xcodebuild(shell: shell, logger: logger)
+        let xcodebuild = Xcodebuild(shell: shell, logger: logger, cacheDirectory: TestCacheDirectory.path)
         var loadedProjectPaths: Set<FilePath> = []
         let project = try XcodeProject(path: UIKitProjectPath, loadedProjectPaths: &loadedProjectPaths, xcodebuild: xcodebuild, shell: shell, logger: logger)
         return (xcodebuild, project)
@@ -38,10 +39,9 @@ final class XcodebuildListDerivedDataTest: XCTestCase {
         _ = try project.schemes(additionalArguments: [])
 
         let command = try listCommand(in: shell)
-        let cachePath = try Constants.cachePath().string
+        let cachePath = TestCacheDirectory.path.string
         XCTAssertTrue(command.contains("-IDECustomDerivedDataLocation=\(cachePath)/DerivedData-"), command)
         XCTAssertFalse(command.contains("'"), command)
-        XCTAssertTrue(cachePath.hasSuffix("/Library/Caches/com.github.tiny-earth-moon.outskirts"), cachePath)
     }
 
     func testCleanBuildRemovesTheDerivedDataUsedByList() throws {

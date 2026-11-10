@@ -19,14 +19,15 @@
             projectPath: FilePath,
             configuration: Configuration,
             shell: Shell,
-            logger: Logger
+            logger: Logger,
+            cacheDirectory: FilePath? = nil
         ) throws {
             if configuration.outputFormat.supportsAuxiliaryOutput {
                 let asterisk = logger.colorize("*", .boldGreen)
                 logger.info("\(asterisk) Inspecting project...")
             }
 
-            let xcodebuild = Xcodebuild(shell: shell, logger: logger)
+            let xcodebuild = Xcodebuild(shell: shell, logger: logger, cacheDirectory: cacheDirectory)
 
             guard !configuration.schemes.isEmpty else {
                 throw PeripheryError.usageError("The '--schemes' option is required.")

@@ -12,6 +12,21 @@
 
 - None.
 
+## 3.22.0 (2026-11-10)
+
+##### Breaking
+
+- None.
+
+##### Enhancements
+
+- `scan --explain <declaration>` shows why a declaration is reported, used or retained: the chain of references or the retention rule that keeps it. It accepts a name, a USR or a `file:line` location, and can be repeated. Results are unchanged with or without it.
+- Release bottles and the macOS archive carry build provenance attestations: `gh attestation verify` checks that a download was built by this repository's workflow from the release commit.
+
+##### Bug Fixes
+
+- File patterns (`index_exclude`, `report_exclude`, `report_include`, `retain_files`, `localized_string_catalog_exclude`) follow the case sensitivity of the volume holding the project: no change on a case-insensitive macOS volume; on Linux and on case-sensitive volumes, patterns now match exactly.
+
 ## 3.21.4 (2026-11-10)
 
 ##### Breaking

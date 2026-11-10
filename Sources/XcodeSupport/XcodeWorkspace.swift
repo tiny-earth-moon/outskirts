@@ -33,7 +33,7 @@ public final class XcodeWorkspace: XcodeProjectlike {
         let projectPaths = collectProjectPaths(in: xcworkspace.data.children)
         var loadedProjectPaths: Set<FilePath> = []
         let projects = try projectPaths.compactMapSet {
-            try XcodeProject(path: sourceRoot.pushing($0), loadedProjectPaths: &loadedProjectPaths, referencedBy: self.path, shell: shell, logger: logger)
+            try XcodeProject(path: sourceRoot.pushing($0), loadedProjectPaths: &loadedProjectPaths, referencedBy: self.path, xcodebuild: xcodebuild, shell: shell, logger: logger)
         }
 
         targets = projects.reduce(into: .init()) { result, project in

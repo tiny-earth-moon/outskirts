@@ -23,7 +23,7 @@ final class SideEffectPropertyRetainer: SourceGraphMutator {
                   property.isInitializedByCall || (property.isInitializedByReference && readsLazyVoidProperty(property))
             else { continue }
 
-            graph.markRetained(property)
+            graph.markRetained(property, reason: RetentionReason(Self.self, "stored Void property whose initializer runs a side effect"))
         }
     }
 

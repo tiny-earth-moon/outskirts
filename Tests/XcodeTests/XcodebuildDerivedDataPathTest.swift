@@ -5,6 +5,7 @@
     @testable import ProjectDrivers
     import Shared
     import SystemPackage
+    import TestShared
     @testable import XcodeSupport
     import XCTest
 
@@ -31,9 +32,9 @@
 
         private let logger = Logger(quiet: true, verbose: false, colorMode: .never)
 
-        private func makeXcodebuild() -> (Xcodebuild, RecordingShell) {
+        private func makeXcodebuild(cacheDirectory: FilePath? = TestCacheDirectory.path) -> (Xcodebuild, RecordingShell) {
             let shell = RecordingShell()
-            return (Xcodebuild(shell: shell, logger: logger), shell)
+            return (Xcodebuild(shell: shell, logger: logger, cacheDirectory: cacheDirectory), shell)
         }
 
         private func derivedDataPath(
@@ -92,8 +93,25 @@
 
             let path = try derivedDataPath()
 
-            let expected = try Constants.cachePath().appending("DerivedData-\(version)-\(projectHash)-\(schemesHash)").string
+            let expected = TestCacheDirectory.path.appending("DerivedData-\(version)-\(projectHash)-\(schemesHash)").string
             XCTAssertEqual(path, expected)
+        }
+
+        func testDerivedDataPathDefaultsToTheUserCacheDirectory() throws {
+            let (xcodebuild, _) = makeXcodebuild(cacheDirectory: nil)
+
+            let path = try xcodebuild.derivedDataPath(for: ProjectStub(), schemes: ["SchemeA"])
+
+            let cachePath = try Constants.cachePath()
+            XCTAssertTrue(cachePath.string.hasSuffix("/Library/Caches/com.github.tiny-earth-moon.outskirts"), cachePath.string)
+            XCTAssertEqual(path.removingLastComponent(), cachePath)
+        }
+
+        func testDriverBuildsInTheTestCacheDirectory() throws {
+            let path = FilePath(try buildDerivedDataPath(configuration: Configuration()))
+
+            XCTAssertEqual(path.removingLastComponent(), TestCacheDirectory.path)
+            XCTAssertFalse(path.starts(with: try Constants.cachePath()), "A test build writes in the user cache: \(path)")
         }
 
         func testDerivedDataPathIsIndependentOfOutputOptions() throws {

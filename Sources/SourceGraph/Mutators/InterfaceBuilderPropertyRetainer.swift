@@ -21,7 +21,7 @@ final class InterfaceBuilderPropertyRetainer {
                 // IBInspectable properties in extensions: check if referenced
                 if decl.attributes.contains(where: { ibInspectableAttributes.contains($0.name) }) {
                     if referencedAttributes.contains(decl.name) {
-                        graph.markRetained(decl)
+                        graph.markRetained(decl, reason: RetentionReason(Self.self, "referenced by an Interface Builder file"))
                     }
                 }
             }
@@ -37,7 +37,7 @@ final class InterfaceBuilderPropertyRetainer {
             where decl.attributes.contains(where: { ibActionAttributes.contains($0.name) }) &&
             selectors.contains(Self.selector(of: decl))
         {
-            graph.markRetained(decl)
+            graph.markRetained(decl, reason: RetentionReason(Self.self, "referenced by an Interface Builder file"))
         }
     }
 
@@ -57,7 +57,7 @@ final class InterfaceBuilderPropertyRetainer {
             // Check IBOutlet properties
             if decl.attributes.contains(where: { ibOutletAttributes.contains($0.name) }) {
                 if referencedOutlets.contains(decl.name) {
-                    graph.markRetained(decl)
+                    graph.markRetained(decl, reason: RetentionReason(Self.self, "referenced by an Interface Builder file"))
                 }
                 continue
             }
@@ -65,7 +65,7 @@ final class InterfaceBuilderPropertyRetainer {
             // Check IBAction/IBSegueAction methods
             if decl.attributes.contains(where: { ibActionAttributes.contains($0.name) }) {
                 if referencedActions.contains(Self.selector(of: decl)) {
-                    graph.markRetained(decl)
+                    graph.markRetained(decl, reason: RetentionReason(Self.self, "referenced by an Interface Builder file"))
                 }
                 continue
             }
@@ -73,7 +73,7 @@ final class InterfaceBuilderPropertyRetainer {
             // Check IBInspectable properties
             if decl.attributes.contains(where: { ibInspectableAttributes.contains($0.name) }) {
                 if referencedAttributes.contains(decl.name) {
-                    graph.markRetained(decl)
+                    graph.markRetained(decl, reason: RetentionReason(Self.self, "referenced by an Interface Builder file"))
                 }
                 continue
             }

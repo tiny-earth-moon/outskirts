@@ -1,6 +1,7 @@
 import Extensions
 import FilenameMatcher
 import Foundation
+import Logger
 import Shared
 import SystemPackage
 import Yams
@@ -242,6 +243,9 @@ public final class Configuration {
     public var guidedSetup: Bool = false
     public var projectRoot: FilePath = .init()
 
+    /// The declarations to explain (`--explain`, command line only): names, USRs or `file:line` locations.
+    public var explain: [String] = []
+
     public var hasNonDefaultValues: Bool {
         settings.contains(where: \.hasNonDefaultValue)
     }
@@ -425,9 +429,43 @@ public final class Configuration {
     ]
 
     public func buildFilenameMatchers(with patterns: [String]) -> [FilenameMatcher] {
-        // TODO: respect filesystem case sensitivity.
         let pwd = FilePath.current.string
-        return patterns.map { FilenameMatcher(relativePattern: $0, to: pwd, caseSensitive: false) }
+        let caseSensitive: Bool
+        do {
+            caseSensitive = try Self.volumeIsCaseSensitive(at: pwd)
+        } catch {
+            caseSensitive = Self.platformDefaultCaseSensitivity
+            Logger(quiet: quiet, verbose: verbose, colorMode: .never, messagesToStderr: true)
+                .debug("Cannot read the case sensitivity of the volume at \(pwd) (\(error)); file patterns match \(caseSensitive ? "case-sensitively" : "case-insensitively").")
+        }
+        return patterns.map { FilenameMatcher(relativePattern: $0, to: pwd, caseSensitive: caseSensitive) }
+    }
+
+    /// Whether the volume holding `path` distinguishes names by case.
+    /// - Throws: When the volume does not report its case sensitivity.
+    public static func volumeIsCaseSensitive(at path: String) throws -> Bool {
+        let values = try URL(fileURLWithPath: path).resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey])
+        guard let value = values.volumeSupportsCaseSensitiveNames else {
+            throw VolumeCaseSensitivityUnavailable(path: path)
+        }
+
+        return value
+    }
+
+    public struct VolumeCaseSensitivityUnavailable: Error, CustomStringConvertible {
+        public let path: String
+        public var description: String {
+            "the volume at \(path) does not report whether names are case-sensitive"
+        }
+    }
+
+    /// Used when the volume cannot be queried: case-insensitive on Apple platforms, case-sensitive elsewhere.
+    public static var platformDefaultCaseSensitivity: Bool {
+        #if canImport(Darwin)
+            false
+        #else
+            true
+        #endif
     }
 
     /// The configuration file to read: the given one, which must exist, or else the first existing default file.

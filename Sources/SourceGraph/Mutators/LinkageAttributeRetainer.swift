@@ -21,11 +21,11 @@ final class LinkageAttributeRetainer: SourceGraphMutator {
     func mutate() {
         for decl in graph.allDeclarations where !decl.attributes.isEmpty {
             if isImplementation(decl) {
-                graph.markRetained(decl)
-                graph.markRetained(decl.descendentDeclarations)
+                graph.markRetained(decl, reason: RetentionReason(Self.self, "linkage attribute (@_cdecl, @_silgen_name, @_used or @_section)"))
+                graph.markRetained(decl.descendentDeclarations, reason: RetentionReason(Self.self, "linkage attribute (@_cdecl, @_silgen_name, @_used or @_section)"))
             } else if isLinkageVisible(decl) {
-                graph.markRetained(decl)
-                graph.markRetained(decl.unusedParameters)
+                graph.markRetained(decl, reason: RetentionReason(Self.self, "linkage attribute (@_cdecl, @_silgen_name, @_used or @_section)"))
+                graph.markRetained(decl.unusedParameters, reason: RetentionReason(Self.self, "linkage attribute (@_cdecl, @_silgen_name, @_used or @_section)"))
             }
         }
     }

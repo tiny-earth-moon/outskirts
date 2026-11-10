@@ -12,6 +12,7 @@ Issues carry a priority label, from `P1` (first) to `P3`.
 
 Recent releases, newest first:
 
+- **3.22.0** (2026-11-10): `scan --explain`; build provenance attestations for the bottles and the archive; file patterns follow the volume's case sensitivity.
 - **3.21.4** (2026-11-10): `Void` properties initialized for their side effect retained; unreadable index units reported; safer output, baseline, shell and cache handling.
 - **3.21.3** (2026-11-10): Metal functions looked up through SwiftUI `ShaderLibrary` retained; redundant public no longer reports declarations used by `@inlinable` accessors.
 - **3.21.2** (2026-11-09): retention fixes (property wrappers, generic `allCases`, preview helpers, protocol extension `main()`, First Responder actions); stable redundant public results; unused system imports on Linux.
@@ -39,9 +40,7 @@ Recent releases, newest first:
 Analysis and retention:
 
 - Assign-only analysis of properties without an explicit type annotation ([#214](https://github.com/tiny-earth-moon/outskirts/issues/214)).
-- `retain_public` per module, for packages that mix libraries and apps ([#217](https://github.com/tiny-earth-moon/outskirts/issues/217)).
 - Platform `#if` retention limited to the clauses the indexed build did not compile ([#218](https://github.com/tiny-earth-moon/outskirts/issues/218)).
-- `scan --explain`, to show why a declaration is reported, used or retained ([#234](https://github.com/tiny-earth-moon/outskirts/issues/234)).
 - Opt-in analysis of enum cases only matched in patterns and never constructed ([#224](https://github.com/tiny-earth-moon/outskirts/issues/224)).
 - A type in a `where Self ==` protocol extension is retained even when its members are unused ([#223](https://github.com/tiny-earth-moon/outskirts/issues/223)).
 - Gate the `appendInterpolation` workaround on the toolchains that need it ([#222](https://github.com/tiny-earth-moon/outskirts/issues/222)).

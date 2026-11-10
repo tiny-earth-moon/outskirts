@@ -26,9 +26,9 @@ final class MetalFunctionRetainer: SourceGraphMutator {
 
         for declaration in graph.declarations(ofKind: .metalFunction) {
             if retainsEverything || names.contains(declaration.name) {
-                graph.markRetained(declaration)
+                graph.markRetained(declaration, reason: RetentionReason(Self.self, "named by a Metal function"))
             } else if configuration.retainPublic, declaration.attributes.contains(.metalExported) {
-                graph.markRetained(declaration)
+                graph.markRetained(declaration, reason: RetentionReason(Self.self, "Metal exported function with --retain-public"))
             }
         }
 

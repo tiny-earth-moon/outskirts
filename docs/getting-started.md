@@ -41,11 +41,13 @@ base=https://github.com/tiny-earth-moon/outskirts/releases/download/$version
 curl -fLO "$base/outskirts-$version-macos-arm64.tar.gz"
 curl -fLO "$base/outskirts-$version-macos-arm64.tar.gz.sha256"
 shasum -a 256 -c "outskirts-$version-macos-arm64.tar.gz.sha256"
+gh attestation verify "outskirts-$version-macos-arm64.tar.gz" \
+  -R tiny-earth-moon/outskirts
 tar xzf "outskirts-$version-macos-arm64.tar.gz"
 "./outskirts-$version-macos-arm64/outskirts" version
 ```
 
-The archive holds `outskirts`, the `periphery` compatibility symlink and `LICENSE.md`; put the folder on your `PATH` or copy both entries to it. Without the checksum check, `curl -fL "$base/outskirts-$version-macos-arm64.tar.gz" | tar xz` extracts it in one step. The binary does not bundle `libIndexStore.dylib`: Xcode at `/Applications/Xcode.app` or the Command Line Tools must be installed. It is not signed or notarized; that is fine when fetched with `curl`, which sets no quarantine attribute, but a copy downloaded with a browser is blocked by Gatekeeper until you run `xattr -d com.apple.quarantine` on it.
+The archive holds `outskirts`, the `periphery` compatibility symlink and `LICENSE.md`; put the folder on your `PATH` or copy both entries to it. `gh attestation verify` checks that the archive was built by this repository's Bottle workflow from the release commit; it needs the [GitHub CLI](https://cli.github.com) and works the same on a downloaded bottle. Releases before the attestations were added have none. Without the checksum check, `curl -fL "$base/outskirts-$version-macos-arm64.tar.gz" | tar xz` extracts it in one step. The binary does not bundle `libIndexStore.dylib`: Xcode at `/Applications/Xcode.app` or the Command Line Tools must be installed. It is not signed or notarized; that is fine when fetched with `curl`, which sets no quarantine attribute, but a copy downloaded with a browser is blocked by Gatekeeper until you run `xattr -d com.apple.quarantine` on it.
 
 ### From source
 

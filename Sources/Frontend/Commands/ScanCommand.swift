@@ -139,6 +139,7 @@ struct ScanCommand: ParsableCommand {
         }
 
         configuration.guidedSetup = projectOptions.setup
+        configuration.explain = resultsOptions.explain
         configuration.projectRoot = projectRoot
         apply(to: configuration)
 

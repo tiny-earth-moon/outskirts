@@ -12,7 +12,7 @@ public extension Xcodebuild {
             try CacheManager.touch(currentURL)
         }
         return try CacheManager.evictStale(
-            cacheDirectory: URL(fileURLWithPath: Constants.cachePath().string),
+            cacheDirectory: URL(fileURLWithPath: resolvedCacheDirectory().string),
             maxAgeDays: maxAgeDays,
             maxSizeGB: maxSizeGB,
             keeping: currentURL
