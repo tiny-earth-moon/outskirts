@@ -27,11 +27,12 @@ struct IndexCoverage {
         }
     }
 
-    /// Targets with only some of their files indexed. Throws when none of the expected files is indexed.
+    /// Targets with only some of their files indexed, or with none when some units of the store cannot be read (their
+    /// files may be the target's). Throws when none of the expected files is indexed.
     func gaps() throws -> [Gap] {
         let indexed = Set(plan.sourceFiles.keys.map { $0.path.lexicallyNormalized() })
         let expected = plan.expectedSourceFiles
-            .mapValues { $0.filter { !configuration.isIndexExcluded($0) } }
+            .mapValues { Set($0.map { $0.lexicallyNormalized() }.filter { !configuration.isIndexExcluded($0) }) }
             .filter { !$0.value.isEmpty }
         let allExpected = Set(expected.values.joined())
 
@@ -42,10 +43,12 @@ struct IndexCoverage {
             )
         }
 
-        // A target without any indexed file was most likely not built (e.g. outside the scanned scheme).
+        // A target without any indexed file was most likely not built (e.g. outside the scanned scheme), unless units
+        // were lost to read errors.
+        let unitsWereLost = !plan.unreadableUnits.isEmpty
         return expected.sorted { $0.key < $1.key }.compactMap { target, files in
             let missing = files.subtracting(indexed)
-            guard !missing.isEmpty, missing.count < files.count else { return nil }
+            guard !missing.isEmpty, unitsWereLost || missing.count < files.count else { return nil }
 
             return Gap(target: target, files: missing.sorted { $0.string < $1.string })
         }

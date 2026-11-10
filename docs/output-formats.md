@@ -71,7 +71,7 @@ outskirts scan --format json \
 
 ## csv
 
-One header line, `Kind,Name,Modifiers,Attributes,Accessibility,IDs,Location,Hints`, then one line per result. Fields are quoted as described by RFC 4180.
+One header line, `Kind,Name,Modifiers,Attributes,Accessibility,IDs,Location,Hints`, then one line per result. Fields are quoted as described by RFC 4180. A field that starts with `=`, `+`, `-`, `@`, a tab or a carriage return, such as the name of an operator (`==(_:_:)`), is prefixed with an apostrophe (`'==(_:_:)`) so that spreadsheet apps do not read it as a formula.
 
 ## checkstyle
 
@@ -89,7 +89,7 @@ One workflow command per result (`::warning file=…,line=…,col=…,title=…:
 
 A [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html) log that GitHub code scanning turns into alerts, which are tracked across commits, can be dismissed with a reason and decorate pull requests. Each rule links to the section of the [Analysis](analysis.md) page that describes it.
 
-Each result carries a `peripheryResult/v1` fingerprint (a SHA-256 of the rule and the ids of the declaration) that GitHub uses to recognise the same alert in the next run. The key keeps its former `peripheryResult/v1` name on purpose, so that the alerts already tracked by code scanning keep matching after the rename. Paths are relative to the project root and resolved against the `%SRCROOT%` base id. See [GitHub code scanning](ci.md#github-code-scanning).
+Each result carries a `peripheryResult/v1` fingerprint (a SHA-256 of the rule and the ids of the declaration) that GitHub uses to recognise the same alert in the next run. The key keeps its former `peripheryResult/v1` name on purpose, so that the alerts already tracked by code scanning keep matching after the rename. Paths are relative to the project root and resolved against the `%SRCROOT%` base id. Columns are counted in UTF-16 code units, the SARIF default, rather than in the UTF-8 bytes of the other formats. See [GitHub code scanning](ci.md#github-code-scanning).
 
 ## gitlab-codequality
 

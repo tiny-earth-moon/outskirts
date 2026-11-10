@@ -87,6 +87,45 @@ final class CacheManagerTest: XCTestCase {
         XCTAssertTrue(fm.fileExists(atPath: unrelated.path))
     }
 
+    func testEviction_renamesTheFolderOutOfReachBeforeRemovingIt() throws {
+        let stale = try makeDerivedData("DerivedData-stale", ageDays: 30)
+        let fileManager = RemovalObservingFileManager()
+        fileManager.onRemove = { [fm] _ in
+            // A scan starting while the removal runs gets a fresh folder, never the one being removed.
+            fileManager.originalExistedDuringRemoval = fm.fileExists(atPath: stale.path)
+            if !fileManager.originalExistedDuringRemoval {
+                try? fm.createDirectory(at: stale, withIntermediateDirectories: false)
+            }
+        }
+
+        let evicted = try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: nil, fileManager: fileManager)
+
+        XCTAssertEqual(evicted.map(\.name), ["DerivedData-stale"])
+        XCTAssertFalse(fileManager.originalExistedDuringRemoval)
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: stale.path), [])
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: cache.path).filter { $0.hasPrefix(".evicting-") }, [])
+    }
+
+    func testEvict_removesLeftoversOfInterruptedRemovals() throws {
+        let leftover = try makeDerivedData(".evicting-\(UUID().uuidString)", ageDays: 0)
+
+        XCTAssertNoThrow(try CacheManager.evictStale(cacheDirectory: cache, maxAgeDays: 14, keeping: nil))
+
+        XCTAssertFalse(fm.fileExists(atPath: leftover.path))
+    }
+
+    func testClearCache_keepsFolderCreatedDuringTheClear() throws {
+        let old = try makeDerivedData("DerivedData-old", ageDays: 1)
+        let created = cache.appendingPathComponent("DerivedData-created")
+        let fileManager = RemovalObservingFileManager()
+        fileManager.onRemove = { [fm] _ in try? fm.createDirectory(at: created, withIntermediateDirectories: false) }
+
+        XCTAssertNoThrow(try CacheManager.clear(cacheDirectory: cache, fileManager: fileManager))
+
+        XCTAssertFalse(fm.fileExists(atPath: old.path))
+        XCTAssertTrue(fm.fileExists(atPath: created.path))
+    }
+
     func testEvict_zeroDisablesEviction() throws {
         let stale = try makeDerivedData("DerivedData-stale", ageDays: 365)
 
@@ -251,5 +290,16 @@ extension CacheManagerTest {
 
         XCTAssertFalse(fm.fileExists(atPath: legacy.path))
         XCTAssertFalse(fm.fileExists(atPath: current.path))
+    }
+}
+
+/// Calls `onRemove` before each removal.
+private final class RemovalObservingFileManager: FileManager, @unchecked Sendable {
+    var onRemove: (URL) -> Void = { _ in }
+    var originalExistedDuringRemoval = true
+
+    override func removeItem(at url: URL) throws {
+        onRemove(url)
+        try super.removeItem(at: url)
     }
 }

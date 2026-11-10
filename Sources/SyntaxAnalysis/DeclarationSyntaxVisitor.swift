@@ -25,6 +25,8 @@ public final class DeclarationSyntaxVisitor: PeripherySyntaxVisitor {
         hasGenericFunctionReturnedMetatypeParameters: Bool,
         isOptionalType: Bool,
         hasNonNilInitialValue: Bool,
+        isInitializedByCall: Bool,
+        isInitializedByReference: Bool,
         isActor: Bool,
         isConstant: Bool,
         hasBody: Bool
@@ -410,6 +412,8 @@ public final class DeclarationSyntaxVisitor: PeripherySyntaxVisitor {
             hasGenericFunctionReturnedMetatypeParameters: hasGenericFunctionReturnedMetatypeParameters,
             isOptionalType: variableType.map { typeSyntaxInspector.isOptional($0) } ?? false,
             hasNonNilInitialValue: hasNonNilInitialValue,
+            isInitializedByCall: variableInitFunctionCallExpr != nil,
+            isInitializedByReference: variableInitExpr.map { $0.is(DeclReferenceExprSyntax.self) || $0.is(MemberAccessExprSyntax.self) } ?? false,
             isActor: isActor,
             isConstant: isConstant,
             hasBody: hasBody

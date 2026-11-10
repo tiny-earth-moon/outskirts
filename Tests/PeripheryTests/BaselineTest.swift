@@ -413,6 +413,23 @@ final class BaselineTest: XCTestCase {
         XCTAssertEqual(written.usrs, [importId, extensionId, "s:3Lib10unusedFuncyyF"])
     }
 
+    func testWriteBaseline_withADuplicateId_keepsTheLastEntryOnce() throws {
+        let previous = Baseline.v2(entries: [
+            .init(id: "s:3Lib1aV", name: "old"),
+            .init(id: "s:3Lib1aV", name: "new"),
+        ])
+        let written = Baseline.written(from: [], union: previous, projectRoot: FilePath(rootA))
+
+        XCTAssertEqual(written, .v2(entries: [.init(id: "s:3Lib1aV", name: "new")]))
+    }
+
+    func testWriteBaseline_withADuplicateUsr_holdsItOnce() throws {
+        let previous = Baseline.v1(usrs: ["s:3Lib1aV", "s:3Lib1aV"])
+        let written = Baseline.written(from: [], union: previous, projectRoot: FilePath(rootA))
+
+        XCTAssertEqual(written, .v2(entries: [.init(id: "s:3Lib1aV")]))
+    }
+
     func testWriteBaseline_withoutABaseline_holdsTheResults() throws {
         XCTAssertEqual(Baseline.written(from: scanLib(root: rootA), union: nil, projectRoot: FilePath(rootA)).usrs, [importId, extensionId])
     }
@@ -445,6 +462,21 @@ final class BaselineTest: XCTestCase {
 
         XCTAssertEqual(try Baseline.load(from: path).usrs, ["s:3Lib1aV"])
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.string), ["baseline.json"])
+    }
+
+    func testWrittenFile_writesTheTargetOfASymbolicLinkAndKeepsTheLink() throws {
+        let directory = try makeCheckoutDirectory("out")
+        try FileManager.default.createDirectory(atPath: directory.string, withIntermediateDirectories: true)
+        let target = directory.appending("shared.json")
+        let link = directory.appending("baseline.json")
+        try Data("shared".utf8).write(to: target.url)
+        try FileManager.default.createSymbolicLink(atPath: link.string, withDestinationPath: "shared.json")
+
+        try Baseline.v1(usrs: ["s:3Lib1aV"]).write(to: link)
+
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: link.string), "shared.json")
+        XCTAssertEqual(try Baseline.load(from: target).usrs, ["s:3Lib1aV"])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.string).sorted(), ["baseline.json", "shared.json"])
     }
 
     // MARK: - Version 2

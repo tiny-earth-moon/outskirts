@@ -12,6 +12,26 @@
 
 - None.
 
+## 3.21.4 (2026-11-10)
+
+##### Breaking
+
+- None.
+
+##### Enhancements
+
+- None.
+
+##### Bug Fixes
+
+- No longer reported as unused: a stored instance property of type `Void` whose initializer runs a side effect (a call, or the read of a static `Void` property), and what that initializer runs.
+- Index store: units that cannot be read are reported instead of silently dropping their files, and the scan fails when the store holds no usable unit for existing source files instead of reporting every declaration as unused. Expected source files are normalized (`.` and `..` components) before being compared with the index.
+- Baseline: writing a baseline that holds the same id twice no longer crashes.
+- Output: baseline and results files are never written over a symbolic link by replacing it, and output paths from the configuration file are confined to the project root. CSV fields that a spreadsheet would read as a formula are shown as text. SARIF columns are counted in UTF-16 code units and the `missingMetalFunction` rule is declared.
+- Configuration warnings follow `--quiet` and the color mode.
+- Subprocess output with invalid UTF-8 no longer fails the scan, glob expansion stops on symbolic link cycles, and a process that was never launched is never interrupted.
+- Build cache: an evicted build folder is renamed out of reach before being removed, so that a concurrent scan never builds into it.
+
 ## 3.21.3 (2026-11-10)
 
 ##### Breaking

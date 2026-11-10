@@ -56,6 +56,8 @@ struct Store {
 
 Members are reported on their own when their type is used but they are not, and a type reported as a whole does not repeat its members.
 
+A stored instance property of type `Void` initialized by a call, such as `private let setUp: Void = Registry.install()`, or by a read of a static or global `Void` property, such as `private let setUp: Void = Registry.installOnce`, is kept along with what its initializer uses: initializing the instance runs the call, or the lazy initializer of the property it reads, which is the property's purpose. A `static`, global or `lazy` property runs its initializer only on its first read, so it is still reported when nothing reads it.
+
 ## Function parameters
 
 outskirts finds unused function parameters. Parameters of protocol requirements and of overridden methods are handled with care, as explained below.

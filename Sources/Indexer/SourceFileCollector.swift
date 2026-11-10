@@ -7,6 +7,13 @@ import SourceGraph
 import SystemPackage
 
 public struct SourceFileCollector {
+    private struct StoreUnits {
+        let path: FilePath
+        let collected: [(FilePath, FilePath, IndexStore, UnitReader, String, Date?)]
+        let unreadable: [String]
+        let hasIgnoredUnit: Bool
+    }
+
     private let indexStorePaths: Set<FilePath>
     private let excludedTestTargets: Set<String>
     private let logger: ContextualLogger
@@ -24,18 +31,21 @@ public struct SourceFileCollector {
         self.configuration = configuration
     }
 
-    public func collect() throws -> [SourceFile: [IndexUnit]] {
+    /// The source files to index, and the names of the index store units that cannot be read.
+    public func collect() throws -> (sourceFiles: [SourceFile: [IndexUnit]], unreadableUnits: [String]) {
         let excludedTargets = excludedTestTargets.union(configuration.excludeTargets)
         let currentFilePath = FilePath.current
 
-        let collected = try JobPool(jobs: Array(indexStorePaths))
-            .flatMap { indexStorePath in
+        let storeResults = try JobPool(jobs: Array(indexStorePaths))
+            .flatMap { indexStorePath -> [StoreUnits] in
                 logger.debug("Reading \(indexStorePath)")
                 let indexStore = try IndexStore(path: indexStorePath.string)
+                let (units, unreadable) = indexStore.readUnits()
 
                 let unitsDirectory = indexStorePath.appending("v5/units")
+                var hasIgnoredUnit = false
 
-                return indexStore.units.filter { !$0.isSystem }.compactMap { unit -> (FilePath, FilePath, IndexStore, UnitReader, String, Date?)? in
+                let collected = units.filter { !$0.isSystem }.compactMap { unit -> (FilePath, FilePath, IndexStore, UnitReader, String, Date?)? in
                     let filePath = unit.mainFile
 
                     guard !filePath.isEmpty else {
@@ -51,15 +61,37 @@ public struct SourceFileCollector {
                         }
 
                         if excludedTargets.contains(unit.moduleName) {
+                            hasIgnoredUnit = true
                             return nil
                         }
 
                         return (file, indexStorePath, indexStore, unit, unit.moduleName, Self.modificationDate(of: unitsDirectory.appending(unit.name)))
                     }
 
+                    if file.exists {
+                        hasIgnoredUnit = true
+                    }
+
                     return nil
                 }
+
+                return [StoreUnits(path: indexStorePath, collected: collected, unreadable: unreadable, hasIgnoredUnit: hasIgnoredUnit)]
             }
+        let unreadableUnits = storeResults.reduce(into: [FilePath: Set<String>]()) { $0[$1.path] = Set($1.unreadable) }
+        if let warning = try Self.unreadableUnitsWarning(unreadableUnits, relativeTo: currentFilePath, strict: configuration.strictIndex) {
+            logger.warn(warning)
+        }
+
+        let collectedUnits = storeResults.flatMap(\.collected)
+
+        // Without expected files (a generic project config), nothing else notices a store with no usable unit, and
+        // the scan would report "no unused code". Leaving every unit out with `exclude_targets` or `index_exclude` is
+        // the user's choice.
+        if collectedUnits.isEmpty, !storeResults.contains(where: \.hasIgnoredUnit) {
+            throw PeripheryError.emptyIndexStore(indexStorePaths: indexStorePaths.map(\.string).sorted())
+        }
+
+        let collected = collectedUnits
             .reduce(into: [FilePath: [(FilePath, IndexStore, UnitReader, String, Date?)]]()) { result, tuple in
                 let (file, indexStorePath, indexStore, unit, module, date) = tuple
                 result[file, default: []].append((indexStorePath, indexStore, unit, module, date))
@@ -89,7 +121,7 @@ public struct SourceFileCollector {
             logger.warn(warning)
         }
 
-        return sourceFiles
+        return (sourceFiles, unreadableUnits.values.flatMap(\.self).sorted())
     }
 
     /// A unit written before its source file was last modified describes an older version of the file, e.g. a unit
@@ -145,14 +177,11 @@ public struct SourceFileCollector {
         guard count > 0 else { return nil }
 
         func display(_ path: FilePath) -> String {
-            path.starts(with: base) ? path.relativeTo(base).string : path.string
+            Self.display(path, relativeTo: base)
         }
 
         func list(_ files: Set<FilePath>) -> String {
-            let names = files.map(display).sorted()
-            let shown = names.prefix(examples).joined(separator: ", ")
-
-            return names.count > examples ? "\(shown) and \(names.count - examples) more" : shown
+            Self.list(files.map(display), examples: examples)
         }
 
         let subject = count == 1 ? "1 source file is newer than its index data" : "\(count) source files are newer than their index data"
@@ -177,7 +206,51 @@ public struct SourceFileCollector {
         return warning
     }
 
+    /// A single warning for the scan, naming each index store with its number of unreadable units and a few of them.
+    /// The source files these units describe are missing from the scan, so their declarations are not indexed and
+    /// whatever only they reference is reported as unused.
+    static func unreadableUnitsWarning(_ unreadableUnits: [FilePath: Set<String>], relativeTo base: FilePath, examples: Int = 3) -> String? {
+        let stores = unreadableUnits
+            .filter { !$0.value.isEmpty }
+            .sorted { ($1.value.count, $0.key.string) < ($0.value.count, $1.key.string) }
+        let count = stores.reduce(0) { $0 + $1.value.count }
+
+        guard count > 0 else { return nil }
+
+        let subject = count == 1 ? "1 index store unit cannot be read" : "\(count) index store units cannot be read"
+        let location = if stores.count == 1, let (store, names) = stores.first {
+            " in \(display(store, relativeTo: base)): \(list(Array(names), examples: examples))"
+        } else {
+            ": " + stores.map { "\($0.value.count) in \(display($0.key, relativeTo: base)) (\(list(Array($0.value), examples: examples)))" }.joined(separator: ", ")
+        }
+        let files = count == 1 ? "The source file it describes is" : "The source files they describe are"
+
+        return "\(subject)\(location). \(files) left out of the scan, so declarations used only there may be reported as unused: rebuild the project before scanning, or pass '--clean-build' to start from an empty index store."
+    }
+
+    /// The warning to print for the unreadable units, if any; with `strict_index`, the scan fails instead.
+    static func unreadableUnitsWarning(_ unreadableUnits: [FilePath: Set<String>], relativeTo base: FilePath, strict: Bool) throws -> String? {
+        guard let warning = unreadableUnitsWarning(unreadableUnits, relativeTo: base) else { return nil }
+
+        if strict {
+            throw PeripheryError.unreadableIndexUnits(message: warning + " Failing as '--strict-index' is set.")
+        }
+
+        return warning
+    }
+
     // MARK: - Private
+
+    private static func display(_ path: FilePath, relativeTo base: FilePath) -> String {
+        path.starts(with: base) ? path.relativeTo(base).string : path.string
+    }
+
+    private static func list(_ names: [String], examples: Int) -> String {
+        let names = names.sorted()
+        let shown = names.prefix(examples).joined(separator: ", ")
+
+        return names.count > examples ? "\(shown) and \(names.count - examples) more" : shown
+    }
 
     private static func modificationDate(of path: FilePath) -> Date? {
         do {

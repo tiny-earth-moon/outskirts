@@ -26,6 +26,8 @@ public struct EvictedCacheEntry: Equatable {
 public enum CacheManager {
     public static let derivedDataPrefix = "DerivedData-"
     static let projectSidecarName = ".outskirts-project"
+    /// The prefix of a build folder renamed for removal, out of reach of the scans that start meanwhile.
+    static let evictingPrefix = ".evicting-"
 
     /// Clears the outskirts cache directory and the one left by releases that predate the rename.
     public static func clearIncludingLegacy(cachesDirectory: URL? = nil, fileManager: FileManager = .default) throws {
@@ -61,14 +63,10 @@ public enum CacheManager {
             }
         }
 
-        if failures.isEmpty {
-            do {
-                try fileManager.removeItem(at: cacheDirectory)
-            } catch {
-                if !isMissing(error) {
-                    failures.append(CacheEntryError(path: cacheDirectory.path, underlying: error))
-                }
-            }
+        // Not recursive: a scan may have created a build folder since the listing.
+        if failures.isEmpty, rmdir(cacheDirectory.path) != 0, ![ENOENT, ENOTEMPTY, EEXIST].contains(errno) {
+            let error = NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSFilePathErrorKey: cacheDirectory.path])
+            failures.append(CacheEntryError(path: cacheDirectory.path, underlying: error))
         }
 
         if !failures.isEmpty {
@@ -140,9 +138,20 @@ public enum CacheManager {
         var remaining: [(url: URL, modified: Date, size: Int64)] = []
         var keptSize: Int64 = 0
 
-        func remove(_ entry: URL, size: Int64) -> Bool {
+        // Leftovers of removals that were interrupted: no scan uses them.
+        for entry in entries where entry.lastPathComponent.hasPrefix(evictingPrefix) {
             do {
                 try fileManager.removeItem(at: entry)
+            } catch {
+                if !isMissing(error) {
+                    failures.append(CacheEntryError(path: entry.path, underlying: error))
+                }
+            }
+        }
+
+        func remove(_ entry: URL, size: Int64) -> Bool {
+            do {
+                try removeOutOfReach(entry, fileManager: fileManager)
                 evicted.append(EvictedCacheEntry(name: entry.lastPathComponent, size: size))
                 return true
             } catch {
@@ -190,6 +199,13 @@ public enum CacheManager {
     }
 
     // MARK: - Private
+
+    /// Renames a build folder out of reach, then removes it: a scan that starts meanwhile never sees it half removed.
+    private static func removeOutOfReach(_ entry: URL, fileManager: FileManager) throws {
+        let renamed = entry.deletingLastPathComponent().appendingPathComponent("\(evictingPrefix)\(UUID().uuidString)")
+        try fileManager.moveItem(at: entry, to: renamed)
+        try fileManager.removeItem(at: renamed)
+    }
 
     /// Whether the folder records a project path that no longer exists. A folder without a sidecar is never an orphan.
     private static func isOrphan(_ directory: URL, fileManager: FileManager) -> Bool {

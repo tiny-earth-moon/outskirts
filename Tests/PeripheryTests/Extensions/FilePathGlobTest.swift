@@ -1,3 +1,4 @@
+import Synchronization
 import SystemPackage
 import XCTest
 
@@ -30,6 +31,25 @@ final class FilePathGlobTest: XCTestCase {
     override func tearDownWithError() throws {
         super.tearDown()
         try fileManager.removeItem(atPath: baseDir)
+    }
+
+    func testSymlinkCycle_terminatesAndListsOnce() throws {
+        let root = "\(baseDir)/cycle"
+        try fileManager.createDirectory(atPath: "\(root)/sub", withIntermediateDirectories: true)
+        fileManager.createFile(atPath: "\(root)/sub/file.ext", contents: nil)
+        try fileManager.createSymbolicLink(atPath: "\(root)/sub/self", withDestinationPath: ".")
+        try fileManager.createSymbolicLink(atPath: "\(root)/sub/again", withDestinationPath: "..")
+
+        let pattern = "\(root)/**/*.ext"
+        let result = Mutex<[FilePath]?>(nil)
+        let finished = expectation(description: "glob finished")
+        Thread.detachNewThread {
+            result.withLock { $0 = FilePath.glob(pattern).sorted() }
+            finished.fulfill()
+        }
+        wait(for: [finished], timeout: 10)
+
+        XCTAssertPathsEqual(result.withLock { $0 } ?? [], ["\(root)/sub/file.ext"])
     }
 
     func testBraces() {

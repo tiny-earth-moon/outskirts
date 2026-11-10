@@ -12,6 +12,7 @@ Issues carry a priority label, from `P1` (first) to `P3`.
 
 Recent releases, newest first:
 
+- **3.21.4** (2026-11-10): `Void` properties initialized for their side effect retained; unreadable index units reported; safer output, baseline, shell and cache handling.
 - **3.21.3** (2026-11-10): Metal functions looked up through SwiftUI `ShaderLibrary` retained; redundant public no longer reports declarations used by `@inlinable` accessors.
 - **3.21.2** (2026-11-09): retention fixes (property wrappers, generic `allCases`, preview helpers, protocol extension `main()`, First Responder actions); stable redundant public results; unused system imports on Linux.
 - **3.21.1** (2026-11-09): platform conditional retention off by default, as in Periphery 3.8; two false positives fixed (parameters of requirements under `#if`, catalog keys looked up at runtime).

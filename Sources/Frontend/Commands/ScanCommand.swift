@@ -132,9 +132,10 @@ struct ScanCommand: ParsableCommand {
         }
 
         let configuration = Configuration()
+        var configurationWarnings: [String] = []
 
         if !projectOptions.setup {
-            try configuration.load(from: projectOptions.config)
+            try configuration.load(from: projectOptions.config) { configurationWarnings.append($0) }
         }
 
         configuration.guidedSetup = projectOptions.setup
@@ -155,6 +156,7 @@ struct ScanCommand: ParsableCommand {
         let baseline = try ScanPreflight.validatePaths(of: configuration)
 
         let logger = Logger(configuration: configuration)
+        configurationWarnings.forEach { logger.warn($0) }
         ScanPreflight.applyOutputFormatRequirements(to: configuration, logger: logger)
         logger.contextualized(with: "version").debug(PeripheryVersion)
         let shell = ShellImpl(logger: logger) {
@@ -189,12 +191,12 @@ struct ScanCommand: ParsableCommand {
         let filteredResults = try outputFilter.filter(results, with: baseline)
 
         if configuration.pruneBaseline, let baselinePath = configuration.baseline {
-            try Self.writeBaseline(.pruned(keeping: outputFilter.baselineMatchedResults, projectRoot: configuration.projectRoot), to: baselinePath)
+            try Self.writeBaseline(.pruned(keeping: outputFilter.baselineMatchedResults, projectRoot: configuration.projectRoot), to: baselinePath, configuredIn: baselineOptions.baseline == nil ? configuration.projectRoot : nil)
             logger.info("Pruned \(outputFilter.staleBaselineEntries.count) stale entries from \(baselinePath.string)")
         }
 
         if let baselinePath = configuration.writeBaseline {
-            try Self.writeBaseline(.written(from: filteredResults, union: baseline, projectRoot: configuration.projectRoot), to: baselinePath)
+            try Self.writeBaseline(.written(from: filteredResults, union: baseline, projectRoot: configuration.projectRoot), to: baselinePath, configuredIn: baselineOptions.writeBaseline == nil ? configuration.projectRoot : nil)
         }
 
         let reportedResults = try ChangedSinceFilter(configuration: configuration, shell: shell, logger: logger).filter(filteredResults)
@@ -222,7 +224,12 @@ struct ScanCommand: ParsableCommand {
                 formattedOutput ?? ""
             }
 
-            try output.write(to: resultsPath.url, atomically: true, encoding: .utf8)
+            // A path from the configuration file is project content, which a link must not lead out of the project.
+            if resultsOptions.writeResults == nil {
+                try OutputFile.writeConfigured(Data(output.utf8), to: resultsPath, projectRoot: configuration.projectRoot)
+            } else {
+                try OutputFile.write(Data(output.utf8), to: resultsPath)
+            }
         }
 
         logger.endInterval(interval)
@@ -258,8 +265,8 @@ struct ScanCommand: ParsableCommand {
         return .staleBaselineEntries(count: staleEntryCount)
     }
 
-    static func writeBaseline(_ baseline: Baseline, to path: FilePath) throws {
-        try baseline.write(to: path)
+    static func writeBaseline(_ baseline: Baseline, to path: FilePath, configuredIn projectRoot: FilePath? = nil) throws {
+        try baseline.write(to: path, configuredIn: projectRoot)
     }
 
     // MARK: - Private

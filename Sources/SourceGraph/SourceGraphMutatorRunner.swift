@@ -57,6 +57,7 @@ public final class SourceGraphMutatorRunner {
         AppIntentsRetainer.self,
         StringInterpolationAppendInterpolationRetainer.self,
         PropertyWrapperRetainer.self,
+        SideEffectPropertyRetainer.self,
         MacroWrappedPropertyReferenceBuilder.self,
         ResultBuilderRetainer.self,
         CodablePropertyRetainer.self,

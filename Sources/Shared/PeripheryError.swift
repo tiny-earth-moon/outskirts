@@ -3,7 +3,7 @@ import SystemPackage
 
 public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
     case shellCommandFailed(cmd: [String], status: Int32, output: String)
-    case shellOutputEncodingFailed(cmd: [String], encoding: String.Encoding)
+    case shellCommandKilled(cmd: [String], signal: Int32, output: String)
     case executableNotFound(name: String, searchPath: [String])
     case usageError(String)
     case notInGitWorkTree(path: String)
@@ -28,15 +28,19 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
     case changeCurrentDirectoryFailed(FilePath)
     case noIndexedSourceFiles(fileCount: Int, indexStorePaths: [String])
     case outdatedIndexData(message: String)
+    case unreadableIndexUnits(message: String)
+    case emptyIndexStore(indexStorePaths: [String])
 
     public var errorDescription: String? {
         switch self {
         case let .shellCommandFailed(cmd, status, output):
             let joinedCmd = cmd.shellQuoted
             return "Shell command '\(joinedCmd)' returned exit status '\(status)':\n\(output)"
-        case let .shellOutputEncodingFailed(cmd, encoding):
+        case let .shellCommandKilled(cmd, signal, output):
             let joinedCmd = cmd.shellQuoted
-            return "Shell command '\(joinedCmd)' output encoding to \(encoding) failed."
+            let name = Self.signalName(signal).map { " (\($0))" } ?? ""
+            let hint = signal == SIGKILL ? ", possibly out of memory" : ""
+            return "Shell command '\(joinedCmd)' was killed by signal \(signal)\(name)\(hint):\n\(output)"
         case let .executableNotFound(name, searchPath):
             if name.isEmpty {
                 return "Cannot run an empty command."
@@ -91,6 +95,25 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
             return "None of the \(fileCount) source file(s) of the scanned targets have index data, so no results can be reported. Index store(s):\(paths)\nThe index store is probably stale or was produced by a different build; rebuild the project and make sure '--index-store-path' points to its index store."
         case let .outdatedIndexData(message):
             return message
+        case let .unreadableIndexUnits(message):
+            return message
+        case let .emptyIndexStore(indexStorePaths):
+            let paths = indexStorePaths.map { "\n  - \($0)" }.joined()
+            return "The index store(s) hold no unit for an existing source file, so no results can be reported. Index store(s):\(paths)\nBuild the project first, and make sure the index store paths point to the index store of that build."
+        }
+    }
+
+    private static func signalName(_ signal: Int32) -> String? {
+        switch signal {
+        case SIGINT: "SIGINT"
+        case SIGTERM: "SIGTERM"
+        case SIGKILL: "SIGKILL"
+        case SIGABRT: "SIGABRT"
+        case SIGSEGV: "SIGSEGV"
+        case SIGBUS: "SIGBUS"
+        case SIGILL: "SIGILL"
+        case SIGTRAP: "SIGTRAP"
+        default: nil
         }
     }
 

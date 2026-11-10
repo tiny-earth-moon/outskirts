@@ -79,7 +79,7 @@ private final class Glob {
         let searchRoot = resolve(base: base, remainder: beforeGlobstar)
 
         let directories: [URL] = if FileManager.default.fileExists(atPath: searchRoot) {
-            exploreDirectories(url: URL(fileURLWithPath: searchRoot))
+            exploreDirectories(url: URL(fileURLWithPath: searchRoot), visited: [])
         } else {
             []
         }
@@ -108,7 +108,15 @@ private final class Glob {
         return FilePath(joined.path).lexicallyNormalized().string
     }
 
-    private func exploreDirectories(url: URL) -> [URL] {
+    /// Lists `url` and its subdirectories. Symbolic links are followed, but a directory already on the current
+    /// path (by device and inode) is not entered again, so a link to an ancestor cannot recurse forever.
+    private func exploreDirectories(url: URL, visited: Set<DirectoryIdentity>) -> [URL] {
+        guard let identity = DirectoryIdentity(path: url.path), !visited.contains(identity) else {
+            return []
+        }
+
+        let visited = visited.union([identity])
+
         let subURLs = try? FileManager.default.contentsOfDirectory(atPath: url.path).flatMap { subPath -> [URL] in
             if excludedDirectories.contains(subPath) {
                 return []
@@ -120,10 +128,23 @@ private final class Glob {
                 return []
             }
 
-            return exploreDirectories(url: subPathURL)
+            return exploreDirectories(url: subPathURL, visited: visited)
         }
 
         return [url] + (subURLs ?? [])
+    }
+
+    private struct DirectoryIdentity: Hashable {
+        let device: UInt64
+        let inode: UInt64
+
+        init?(path: String) {
+            var info = stat()
+            guard stat(path, &info) == 0 else { return nil }
+
+            device = UInt64(info.st_dev)
+            inode = UInt64(info.st_ino)
+        }
     }
 
     private func isDirectory(path: String) -> Bool {

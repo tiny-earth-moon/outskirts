@@ -15,7 +15,7 @@ final class ShellProcessStore: Sendable {
     func stopRunning(signal: Int32) {
         stopping.withLock { $0 = true }
         processes.withLock { processes in
-            for process in processes {
+            for process in processes where process.isRunning {
                 if signal == SIGINT {
                     process.interrupt()
                 } else {
@@ -70,22 +70,22 @@ public final class ShellImpl: Shell {
 
     @discardableResult
     public func exec(_ args: [String]) throws -> String {
-        let (status, stdout, stderr) = try exec(args)
+        let (status, reason, stdout, stderr) = try exec(args)
 
-        if status == 0 {
+        if reason == .exit, status == 0 {
             return stdout
         }
 
-        throw PeripheryError.shellCommandFailed(
-            cmd: args,
-            status: status,
-            output: [stdout, stderr].filter { !$0.isEmpty }.joined(separator: "\n").trimmed
-        )
+        let output = [stdout, stderr].filter { !$0.isEmpty }.joined(separator: "\n").trimmed
+        if reason == .uncaughtSignal {
+            throw PeripheryError.shellCommandKilled(cmd: args, signal: status, output: output)
+        }
+        throw PeripheryError.shellCommandFailed(cmd: args, status: status, output: output)
     }
 
     // MARK: - Private
 
-    private func exec(_ cmd: [String]) throws -> (Int32, String, String) {
+    private func exec(_ cmd: [String]) throws -> (Int32, Process.TerminationReason, String, String) {
         guard let executable = cmd.first else {
             throw PeripheryError.executableNotFound(name: "", searchPath: [])
         }
@@ -98,8 +98,6 @@ public final class ShellImpl: Shell {
         process.arguments = Array(cmd.dropFirst())
 
         logger.debug(cmd.shellQuoted)
-        store.add(process)
-        defer { store.remove(process) }
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
@@ -107,6 +105,8 @@ public final class ShellImpl: Shell {
         process.standardError = stderrPipe
 
         try process.run()
+        store.add(process)
+        defer { store.remove(process) }
 
         var standardOutput = ""
         var standardError = ""
@@ -129,31 +129,19 @@ public final class ShellImpl: Shell {
             Self.parkUntilExit()
         }
 
+        // Decoded leniently: a stray non UTF-8 byte, such as a Latin-1 path in a compiler warning, must neither
+        // fail a successful command nor hide the output of a failed one.
         if let stdoutData = try results.withLock({ try $0[0].get() }) {
-            guard let stdoutStr = String(data: stdoutData, encoding: .utf8)
-            else {
-                throw PeripheryError.shellOutputEncodingFailed(
-                    cmd: cmd,
-                    encoding: .utf8
-                )
-            }
-
-            standardOutput = stdoutStr
+            // swiftlint:disable:next optional_data_string_conversion
+            standardOutput = String(decoding: stdoutData, as: UTF8.self)
         }
 
         if let stderrData = try results.withLock({ try $0[1].get() }) {
-            guard let stderrStr = String(data: stderrData, encoding: .utf8)
-            else {
-                throw PeripheryError.shellOutputEncodingFailed(
-                    cmd: cmd,
-                    encoding: .utf8
-                )
-            }
-
-            standardError = stderrStr
+            // swiftlint:disable:next optional_data_string_conversion
+            standardError = String(decoding: stderrData, as: UTF8.self)
         }
 
-        return (process.terminationStatus, standardOutput, standardError)
+        return (process.terminationStatus, process.terminationReason, standardOutput, standardError)
     }
 
     private static func parkUntilExit() -> Never {

@@ -45,22 +45,12 @@ The Markdown files of `docs/` are the documentation: they are published as https
 
 Conventional Commits with a scope, in English: `fix(indexer): ...`, `build: ...`, `docs: ...`, `chore(fork): ...`. One logical change per commit.
 
-## Fork process
+## Pull requests
 
-- One issue = one PR = one patch version.
-- The PR body must contain `Closes #N`, otherwise the issue stays open after the merge.
-- Never edit `CHANGELOG.md` in a fix PR (it conflicts on every merge). Only the release commit fills it.
-- Release commit `chore(release): X.Y.Z`: move the `## master` section into `## X.Y.Z (date)` and leave an empty `## master` (same template as the previous release); bump the version in `Sources/Shared/Version.swift`.
-- Real-project check before every release (added after #135, 2026-11-01): run the release candidate read-only on an existing index of a real project (`outskirts scan --skip-build --format json` on a large project you maintain, using its existing index store) and compare the number of results per kind with the previous release; a sudden drop or jump (e.g. 376 unused `localized_string` keys to 0) blocks the release until explained. A fixture-only green run is not enough: the regression of 3.12.10 was invisible to the SwiftPM fixtures.
-- Release steps: merge, push the tag `X.Y.Z` (it starts the Bottle workflow; for an existing tag, run it by hand with `gh workflow run bottle.yml -f tag=X.Y.Z`), `gh release create`, then once the workflow is green:
-  - download the bottles and the archive: `gh run download <run-id> -p 'outskirts-bottle-X.Y.Z-*' -p outskirts-archive-X.Y.Z`;
-  - attach them to the release: `gh release upload X.Y.Z outskirts-X.Y.Z.*.bottle.tar.gz outskirts-X.Y.Z-macos-arm64.tar.gz outskirts-X.Y.Z-macos-arm64.tar.gz.sha256` (one bottle per tag: `arm64_golden_gate`, `arm64_tahoe`, `arm64_sequoia`);
-  - update the formula in the `tiny-earth-moon/homebrew-tap` tap: tag tarball url + sha256, and the `bottle do` block of the workflow's "Merged bottle block" job, or `scripts/bottle-block.sh` run on every `outskirts--X.Y.Z.*.bottle.json`, newest macOS first;
-  - bump the pinned version in the downstream projects' Brewfiles.
-- Homebrew bottles (`.github/workflows/bottle.yml`, read-only; on tags, on master for source changes, and as a pull request check only when the build changes: `Package.swift`, `Package.resolved`, the workflow or the bottle scripts): arm64, built by Homebrew from the formula printed by `scripts/bottle-formula.sh`, whose install, caveats and test blocks the tap formula must keep identical; one matrix job per tag, with the Xcode version prefix and bottle tag as parameters (Xcode 27.2 on `xcode-27` for `arm64_golden_gate`, the newest Xcode 26.x on `macos-26` for `arm64_tahoe` and on `macos-15` for `arm64_sequoia`). The bottled binary loads `libIndexStore.dylib` from `/Applications/Xcode.app`, or else from the Command Line Tools (rpaths added at link time; Apple's library is never bundled). With neither installed there, install from source: `brew reinstall --build-from-source outskirts`. The Xcode 27 job also packages that binary, the `periphery` symlink and `LICENSE.md` as `outskirts-X.Y.Z-macos-arm64.tar.gz` with its `.sha256`; the archive job runs it and scans a fixture package on `macos-26` with `/Applications/Xcode.app` as the only Xcode. `scripts/tests/test-bottle-block.sh` tests the block script.
-- Pull requests run the Xcode 27 macOS job, both Linux jobs, the site and the release scripts; the macOS job on the minimum Xcode 26 runs on master and on manual runs (`gh workflow run Test --ref <branch>`), as macOS runners are scarce.
-- External contributions: cherry-pick keeping the original author, add a `Co-authored-by` trailer, and thank the contributor on the original PR.
-- CI (`.github/workflows/test.yml`): macOS job (build, strict self-scan with `.outskirts.yml`, full tests, swiftformat, swiftlint), minimum-Xcode job (Xcode 26.x: build and tests), release scripts job and site job (`npm run check`) must be green before merging.
+- One issue, one pull request. The PR body contains `Closes #N` so that the issue closes on merge.
+- Never edit `CHANGELOG.md` in a pull request: the release commit fills it.
+- CI (`.github/workflows/test.yml`) must be green before merging: build, strict self-scan with `.outskirts.yml`, tests, swiftformat and swiftlint on macOS, the Linux jobs, the release scripts and the site (`npm run check`).
+- External contributions keep their original author, with a `Co-authored-by` trailer when changes are made on top.
 
 ## Importing changes from other forks
 

@@ -677,6 +677,8 @@ final class SwiftIndexer: Indexer {
                 }
                 decl.isOptionalType = result.isOptionalType
                 decl.hasNonNilInitialValue = result.hasNonNilInitialValue
+                decl.isInitializedByCall = result.isInitializedByCall
+                decl.isInitializedByReference = result.isInitializedByReference
 
                 decl.hasGenericFunctionReturnedMetatypeParameters = result.hasGenericFunctionReturnedMetatypeParameters
                 decl.isActor = result.isActor

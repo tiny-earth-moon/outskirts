@@ -239,6 +239,10 @@ public final class Declaration {
     public var isOptionalType: Bool = false
     /// Whether the variable is declared with an initial value other than `nil`. Only meaningful for variables.
     public var hasNonNilInitialValue: Bool = false
+    /// Whether the variable is initialized by a call, such as `f()`, `Type()` or `{ ... }()`. Only meaningful for variables.
+    public var isInitializedByCall: Bool = false
+    /// Whether the variable is initialized by a reference to a declaration, such as `value` or `Type.value`. Only meaningful for variables.
+    public var isInitializedByReference: Bool = false
     public var hasGenericFunctionReturnedMetatypeParameters: Bool = false
     /// The index reports actors as classes; actors cannot be subclassed.
     public var isActor: Bool = false

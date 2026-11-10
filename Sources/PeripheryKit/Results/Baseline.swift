@@ -65,7 +65,9 @@ public enum Baseline: Codable, Equatable {
     /// The baseline `--write-baseline` writes, in version 2: the results, and the entries of the baseline that was
     /// read, which are never dropped. A result replaces the entry of the same id.
     public static func written(from results: [ScanResult], union existing: Baseline?, projectRoot: FilePath) -> Baseline {
-        var entries = Dictionary(uniqueKeysWithValues: (existing?.entries ?? []).map { ($0.id, $0) })
+        // A baseline may hold an id twice (a merge, a manual edit): matching reads its ids as a set, so the last
+        // entry of the id is kept.
+        var entries = Dictionary((existing?.entries ?? []).map { ($0.id, $0) }) { _, new in new }
         entries.merge(Self.entries(of: results, projectRoot: projectRoot)) { _, new in new }
         return .v2(entries: entries.values.sorted { $0.id < $1.id })
     }
@@ -90,10 +92,15 @@ public enum Baseline: Codable, Equatable {
         return try encoder.encode(self) + Data("\n".utf8)
     }
 
-    /// Writes the file atomically: the contents go to a temporary file that replaces the destination, so that an
-    /// interrupted run never leaves a truncated baseline.
-    public func write(to path: FilePath) throws {
-        try encoded().write(to: path.url, options: .atomic)
+    /// Writes the file atomically, so that an interrupted run never leaves a truncated baseline, through a symbolic
+    /// link to the file it leads to (see `OutputFile.write`). A path from the configuration file gives the project
+    /// root, which a link must not leave (see `OutputFile.writeConfigured`).
+    public func write(to path: FilePath, configuredIn projectRoot: FilePath? = nil) throws {
+        if let projectRoot {
+            try OutputFile.writeConfigured(encoded(), to: path, projectRoot: projectRoot)
+        } else {
+            try OutputFile.write(encoded(), to: path)
+        }
     }
 
     /// Reads a baseline file, reporting the key at fault when the file is not a baseline.

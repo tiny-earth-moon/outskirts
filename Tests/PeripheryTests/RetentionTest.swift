@@ -1987,6 +1987,48 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
+    func testRetainsVoidPropertyInitializedByCall() {
+        analyze(retainPublic: true) {
+            assertReferenced(.class("FixtureSideEffectOwner")) {
+                self.assertReferenced(.varInstance("instanceEffect"))
+                self.assertReferenced(.varInstance("variableEffect"))
+                self.assertReferenced(.varInstance("closureEffect"))
+                self.assertReferenced(.varInstance("inferredEffect"))
+                self.assertReferenced(.varInstance("staticReadEffect"))
+                self.assertReferenced(.varInstance("globalReadEffect"))
+            }
+            assertReferenced(.enum("FixtureOneShot")) {
+                self.assertReferenced(.varStatic("runOnce"))
+            }
+            assertReferenced(DeclarationDescription(kind: .varGlobal, name: "fixtureGlobalOnce", line: nil))
+            assertReferenced(.enum("FixtureSideEffects")) {
+                self.assertReferenced(.functionMethodStatic("runForInstance()"))
+                self.assertReferenced(.functionMethodStatic("runForVariable()"))
+                self.assertReferenced(.functionMethodStatic("runInClosure()"))
+                self.assertReferenced(.functionMethodStatic("runForInferred()"))
+                self.assertReferenced(.functionMethodStatic("runOnceForStatic()"))
+                self.assertReferenced(.functionMethodStatic("runOnceForGlobal()"))
+            }
+        }
+    }
+
+    func testDoesNotRetainVoidPropertyWithoutInitializingCall() {
+        analyze(retainPublic: true) {
+            assertReferenced(.class("FixtureLazyEffectOwner")) {
+                self.assertNotReferenced(.varStatic("staticEffect"))
+                self.assertNotReferenced(.varInstance("lazyEffect"))
+                self.assertNotReferenced(.varInstance("lazyReadEffect"))
+                self.assertNotReferenced(.varInstance("literalEffect"))
+                self.assertAssignOnlyProperty(.varInstance("unassignedEffect"))
+                self.assertNotReferenced(.varInstance("unreadValue"))
+                self.assertNotReferenced(.varInstance("computedEffect"))
+            }
+            assertNotReferenced(DeclarationDescription(kind: .varGlobal, name: "fixtureGlobalEffect", line: nil))
+            // Nothing calls the helpers, so the whole enum is unused.
+            assertNotReferenced(.enum("FixtureLazyEffects"))
+        }
+    }
+
     func testRetainsDynamicMemberLookupSubscript() {
         analyze(retainPublic: true) {
             assertReferenced(.struct("FixtureStruct7")) {
