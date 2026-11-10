@@ -15,7 +15,10 @@ final class FilenameMatcherCaseSensitivityTest: XCTestCase {
         XCTAssertEqual(try Configuration.volumeIsCaseSensitive(at: directory.path), !upperExists)
     }
 
-    func testUnreadableVolumeThrows() {
+    func testUnreadableVolumeThrows() throws {
+        #if !canImport(Darwin)
+            throw XCTSkip("Only Darwin reads the case sensitivity of a volume; Linux is always case-sensitive.")
+        #endif
         let missing = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
         XCTAssertThrowsError(try Configuration.volumeIsCaseSensitive(at: missing))
     }

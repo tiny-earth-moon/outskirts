@@ -444,12 +444,17 @@ public final class Configuration {
     /// Whether the volume holding `path` distinguishes names by case.
     /// - Throws: When the volume does not report its case sensitivity.
     public static func volumeIsCaseSensitive(at path: String) throws -> Bool {
-        let values = try URL(fileURLWithPath: path).resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey])
-        guard let value = values.volumeSupportsCaseSensitiveNames else {
-            throw VolumeCaseSensitivityUnavailable(path: path)
-        }
+        #if canImport(Darwin)
+            let values = try URL(fileURLWithPath: path).resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey])
+            guard let value = values.volumeSupportsCaseSensitiveNames else {
+                throw VolumeCaseSensitivityUnavailable(path: path)
+            }
 
-        return value
+            return value
+        #else
+            // Foundation on Linux does not report this resource value; Linux file systems are case-sensitive.
+            return true
+        #endif
     }
 
     public struct VolumeCaseSensitivityUnavailable: Error, CustomStringConvertible {
