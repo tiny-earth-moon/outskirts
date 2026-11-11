@@ -1,5 +1,3 @@
-// periphery:ignore:all
-
 import Foundation
 
 public typealias VersionString = String
@@ -36,6 +34,7 @@ public extension VersionString {
         compare(toVersion: targetVersion) == .orderedDescending
     }
 
+    // periphery:ignore - completes the public comparison API alongside the other isVersion variants
     func isVersion(greaterThanOrEqualTo targetVersion: String) -> Bool {
         compare(toVersion: targetVersion) != .orderedAscending
     }

@@ -9,6 +9,8 @@ import Shared
 /// Must come before ProtocolConformanceReferenceBuilder, which inverts the references from
 /// conforming members to protocol requirements that this mutator relies on.
 final class JSExportRetainer: SourceGraphMutator {
+    private static let retentionDetail = "retain_js_accessible"
+
     private let graph: SourceGraph
     private let configuration: Configuration
 
@@ -21,14 +23,14 @@ final class JSExportRetainer: SourceGraphMutator {
         guard configuration.retainJsAccessible else { return }
 
         for proto in graph.declarations(ofKind: .protocol) where inheritsJSExport(proto) {
-            graph.markRetained(proto, reason: RetentionReason(Self.self, "retain_js_accessible"))
+            graph.markRetained(proto, reason: RetentionReason(Self.self, Self.retentionDetail))
 
             for member in proto.declarations {
-                graph.markRetained(member, reason: RetentionReason(Self.self, "retain_js_accessible"))
+                graph.markRetained(member, reason: RetentionReason(Self.self, Self.retentionDetail))
 
                 for reference in graph.references(to: member) where reference.kind == .related {
                     if let implementation = reference.parent {
-                        graph.markRetained(implementation, reason: RetentionReason(Self.self, "retain_js_accessible"))
+                        graph.markRetained(implementation, reason: RetentionReason(Self.self, Self.retentionDetail))
                     }
                 }
             }

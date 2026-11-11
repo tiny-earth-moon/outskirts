@@ -20,9 +20,13 @@ jobs:
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Select Xcode 27.2
         run: sudo xcode-select -s /Applications/Xcode_27.2.app
       - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        env:
+          MISE_LOCKED: 1
         with:
           cache: false
       - name: Lint
@@ -32,7 +36,9 @@ jobs:
       - name: Cache SwiftPM
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .build
+          path: |
+            .build/checkouts
+            .build/repositories
           key: ${{ runner.os }}-outskirts-xcode-27.2-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-outskirts-xcode-27.2-spm-
@@ -54,6 +60,8 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Select the newest Xcode 26.x
         run: |
           xcode=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -n 1)
@@ -63,7 +71,9 @@ jobs:
       - name: Cache SwiftPM
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .build
+          path: |
+            .build/checkouts
+            .build/repositories
           key: ${{ runner.os }}-outskirts-xcode-26-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-outskirts-xcode-26-spm-
@@ -76,6 +86,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Test scripts/bottle-block.sh
         run: scripts/tests/test-bottle-block.sh
   linux:
@@ -84,10 +96,14 @@ jobs:
     container: swift:6.4-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Cache SwiftPM
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .build
+          path: |
+            .build/checkouts
+            .build/repositories
           key: ${{ runner.os }}-outskirts-swift-6.4-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-outskirts-swift-6.4-spm-
@@ -104,10 +120,14 @@ jobs:
     container: swift:6.1-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Cache SwiftPM
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .build
+          path: |
+            .build/checkouts
+            .build/repositories
           key: ${{ runner.os }}-outskirts-swift-6.1-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-outskirts-swift-6.1-spm-
@@ -125,6 +145,8 @@ jobs:
         working-directory: site
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install
         run: npm ci --no-audit --no-fund
       - name: Check

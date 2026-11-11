@@ -3,11 +3,11 @@ import Foundation
 import Shared
 
 /// Retains references from non-Swift assets, such as interface builder, Info.plist and CoreData models.
-final class AssetReferenceRetainer: SourceGraphMutator {
+final class AssetReferenceRetainer: GraphOnlyMutator {
     private let graph: SourceGraph
     private let interfaceBuilderPropertyRetainer: InterfaceBuilderPropertyRetainer
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
         interfaceBuilderPropertyRetainer = .init(graph: graph)
     }

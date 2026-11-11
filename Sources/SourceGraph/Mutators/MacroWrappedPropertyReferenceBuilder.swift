@@ -7,11 +7,11 @@ import Shared
 /// property (`foo`); it references the separate macro-generated declaration instead. These generated declarations
 /// are implicit and therefore always retained, leaving `foo` without references. This mutator forwards each
 /// reference to `$foo`/`_foo` onto `foo` so that it's considered used.
-final class MacroWrappedPropertyReferenceBuilder: SourceGraphMutator {
+final class MacroWrappedPropertyReferenceBuilder: GraphOnlyMutator {
     private let graph: SourceGraph
     private let prefixes = ["$", "_"]
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

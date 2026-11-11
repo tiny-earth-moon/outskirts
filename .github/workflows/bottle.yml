@@ -12,10 +12,9 @@ name: Bottle
 # with /Applications/Xcode.app as the only Xcode.
 #
 # Read-only: bottles, JSON files and the archive are workflow artifacts. On a push to master or a
-# tag, the bottle job also attests their build provenance (`gh attestation verify`). For a
-# release, the maintainer downloads them, attaches the bottles and the archive to the GitHub release and
-# pastes the block printed by scripts/bottle-block.sh (merged over every JSON file by the block
-# job, also in its summary) into the tap formula.
+# tag, the bottle job also attests their build provenance (`gh attestation verify`). The block
+# job merges every JSON file and prints the formula bottle block (scripts/bottle-block.sh) in its
+# summary.
 #
 # libIndexStore.dylib: outskirts links @rpath/libIndexStore.dylib and swift-index-store only
 # puts the building Xcode in the rpath (e.g. /Applications/Xcode_27.2.app). A bottle build adds

@@ -5,8 +5,7 @@ import XCTest
 /// Runs the `outskirts` executable on a small package and checks which stream carries what.
 final class ScanOutputStreamsTest: XCTestCase {
     private static let package: Result<URL, Error> = Result {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("periphery-streams-\(UUID().uuidString)")
+        let root = uniqueTemporaryURL("periphery-streams")
         let sources = root.appendingPathComponent("Sources/Fixture")
         try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
         try """
@@ -30,9 +29,7 @@ final class ScanOutputStreamsTest: XCTestCase {
     }
 
     override func setUpWithError() throws {
-        outputDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("periphery-streams-output-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+        outputDirectory = try makeTemporaryDirectory("periphery-streams-output")
         addTeardownBlock { [outputDirectory] in
             if let outputDirectory {
                 try? FileManager.default.removeItem(at: outputDirectory)
@@ -125,32 +122,14 @@ final class ScanOutputStreamsTest: XCTestCase {
     }
 
     private func scan(_ arguments: [String]) throws -> ScanOutput {
-        let package = try Self.package.get()
-        let stdoutFile = outputDirectory.appendingPathComponent("stdout.txt")
-        let stderrFile = outputDirectory.appendingPathComponent("stderr.txt")
-        FileManager.default.createFile(atPath: stdoutFile.path, contents: nil)
-        FileManager.default.createFile(atPath: stderrFile.path, contents: nil)
-
-        let exited = DispatchSemaphore(value: 0)
-        let process = Process()
-        process.executableURL = try peripheryExecutable()
-        process.arguments = ["scan", "--disable-update-check"] + arguments
-        process.currentDirectoryURL = package
-        process.standardOutput = try FileHandle(forWritingTo: stdoutFile)
-        process.standardError = try FileHandle(forWritingTo: stderrFile)
-        process.terminationHandler = { _ in exited.signal() }
-        try process.run()
-
-        if exited.wait(timeout: .now() + 300) == .timedOut {
-            kill(process.processIdentifier, SIGKILL)
-            XCTFail("periphery did not exit within 300s")
-        }
-
-        return try ScanOutput(
-            status: process.terminationStatus,
-            stdout: Data(contentsOf: stdoutFile),
-            stderr: Data(contentsOf: stderrFile)
+        let output = try runCapturingOutput(
+            peripheryExecutable(),
+            ["scan", "--disable-update-check"] + arguments,
+            currentDirectoryURL: Self.package.get(),
+            outputDirectory: outputDirectory,
+            timeout: (300, "periphery")
         )
+        return ScanOutput(status: output.status, stdout: output.stdout, stderr: output.stderr)
     }
 
     private func peripheryExecutable() throws -> URL {

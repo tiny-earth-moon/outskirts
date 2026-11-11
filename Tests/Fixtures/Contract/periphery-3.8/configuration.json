@@ -1,0 +1,237 @@
+{
+  "source": "Sources/Configuration/Configuration.swift at tag 3.8.0 (@Setting keys and types)",
+  "keys": {
+    "project": {
+      "type": "FilePath?",
+      "value": "App.xcodeproj"
+    },
+    "format": {
+      "type": "OutputFormat",
+      "value": "json"
+    },
+    "schemes": {
+      "type": "[String]",
+      "value": [
+        "App"
+      ]
+    },
+    "exclude_tests": {
+      "type": "Bool",
+      "value": true
+    },
+    "exclude_targets": {
+      "type": "[String]",
+      "value": [
+        "Demo"
+      ]
+    },
+    "index_exclude": {
+      "type": "[String]",
+      "value": [
+        "**/Generated/**",
+        "**/*?.build/**/*",
+        "**/SourcePackages/checkouts/**"
+      ],
+      "unordered": true,
+      "note": "3.8 loads the union of the given globs and the defaults, as a set"
+    },
+    "report_exclude": {
+      "type": "[String]",
+      "value": [
+        "**/Mocks/**"
+      ]
+    },
+    "report_include": {
+      "type": "[String]",
+      "value": [
+        "Sources/**"
+      ]
+    },
+    "build_arguments": {
+      "type": "[String]",
+      "value": [
+        "-c",
+        "release"
+      ]
+    },
+    "xcode_list_arguments": {
+      "type": "[String]",
+      "value": [
+        "-quiet"
+      ]
+    },
+    "retain_assign_only_property_types": {
+      "type": "[String]",
+      "value": [
+        "CGFloat"
+      ]
+    },
+    "external_encodable_protocols": {
+      "type": "[String]",
+      "value": [
+        "ExternalEncodable"
+      ]
+    },
+    "external_codable_protocols": {
+      "type": "[String]",
+      "value": [
+        "ExternalCodable"
+      ]
+    },
+    "external_test_case_classes": {
+      "type": "[String]",
+      "value": [
+        "QuickSpec"
+      ]
+    },
+    "retain_objc_accessible": {
+      "type": "Bool",
+      "value": true
+    },
+    "retain_objc_annotated": {
+      "type": "Bool",
+      "value": true
+    },
+    "retain_files": {
+      "type": "[String]",
+      "value": [
+        "Sources/Legacy/**"
+      ]
+    },
+    "retain_public": {
+      "type": "Bool",
+      "value": true
+    },
+    "no_retain_spi": {
+      "type": "[String]",
+      "value": [
+        "Internal"
+      ]
+    },
+    "retain_assign_only_properties": {
+      "type": "Bool",
+      "value": true
+    },
+    "retain_unused_protocol_func_params": {
+      "type": "Bool",
+      "value": true
+    },
+    "retain_swift_ui_previews": {
+      "type": "Bool",
+      "value": true
+    },
+    "disable_redundant_public_analysis": {
+      "type": "Bool",
+      "value": true
+    },
+    "disable_unused_import_analysis": {
+      "type": "Bool",
+      "value": true
+    },
+    "superfluous_ignore_comments": {
+      "type": "Bool",
+      "value": false
+    },
+    "retain_unused_imported_modules": {
+      "type": "[String]",
+      "value": [
+        "Foundation"
+      ]
+    },
+    "retain_codable_properties": {
+      "type": "Bool",
+      "value": true
+    },
+    "retain_encodable_properties": {
+      "type": "Bool",
+      "value": true
+    },
+    "retain_equatable_properties": {
+      "type": "Bool",
+      "value": true
+    },
+    "retain_hashable_properties": {
+      "type": "Bool",
+      "value": true
+    },
+    "verbose": {
+      "type": "Bool",
+      "value": true
+    },
+    "quiet": {
+      "type": "Bool",
+      "value": true
+    },
+    "color": {
+      "type": "ColorOption",
+      "value": "never"
+    },
+    "disable_update_check": {
+      "type": "Bool",
+      "value": true
+    },
+    "strict": {
+      "type": "Bool",
+      "value": true
+    },
+    "index_store_path": {
+      "type": "[FilePath]",
+      "value": [
+        "/tmp/contract/index/store"
+      ]
+    },
+    "skip_build": {
+      "type": "Bool",
+      "value": true
+    },
+    "skip_schemes_validation": {
+      "type": "Bool",
+      "value": true
+    },
+    "clean_build": {
+      "type": "Bool",
+      "value": true
+    },
+    "relative_results": {
+      "type": "Bool",
+      "value": true
+    },
+    "json_package_manifest_path": {
+      "type": "FilePath?",
+      "value": "package.json"
+    },
+    "baseline": {
+      "type": "FilePath?",
+      "value": "baseline.json"
+    },
+    "write_baseline": {
+      "type": "FilePath?",
+      "value": "baseline-out.json"
+    },
+    "write_results": {
+      "type": "FilePath?",
+      "value": "results.json"
+    },
+    "generic_project_config": {
+      "type": "FilePath?",
+      "value": "generic.json"
+    }
+  },
+  "removedBazelKeys": {
+    "bazel": {
+      "type": "Bool"
+    },
+    "bazel_filter": {
+      "type": "String?"
+    },
+    "bazel_query": {
+      "type": "String?"
+    },
+    "bazel_index_store": {
+      "type": "String?"
+    },
+    "bazel_check_visibility": {
+      "type": "Bool"
+    }
+  }
+}

@@ -3,6 +3,7 @@ import Foundation
 @testable import Frontend
 import Logger
 import Shared
+import TestShared
 import XCTest
 
 final class CrashPathsTest: XCTestCase {
@@ -12,8 +13,7 @@ final class CrashPathsTest: XCTestCase {
     override func setUpWithError() throws {
         try super.setUpWithError()
         originalDirectory = FileManager.default.currentDirectoryPath
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent("periphery-crash-paths-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        directory = try makeTemporaryDirectory("periphery-crash-paths")
         XCTAssertTrue(FileManager.default.changeCurrentDirectoryPath(directory.path))
     }
 

@@ -5,6 +5,7 @@ import Foundation
 import PeripheryKit
 import Shared
 import SystemPackage
+import TestShared
 import XCTest
 
 final class ScanPreflightPathsTest: XCTestCase {
@@ -13,8 +14,7 @@ final class ScanPreflightPathsTest: XCTestCase {
 
     override func setUpWithError() throws {
         originalDirectory = FileManager.default.currentDirectoryPath
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("periphery-preflight-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        let url = try makeTemporaryDirectory("periphery-preflight")
         // Resolve symlinks (/var -> /private/var) so that the paths match the ones the process reports.
         directory = FilePath(url.resolvingSymlinksInPath().path)
     }

@@ -24,6 +24,8 @@ final class UpdateChecker: Sendable {
         debugLogger = logger.contextualized(with: "update-check")
         isEnabled = !configuration.disableUpdateCheck && configuration.outputFormat.supportsAuxiliaryOutput
         let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = Self.requestTimeout
+        config.timeoutIntervalForResource = Self.requestTimeout
         urlSession = URLSession(configuration: config)
         latestReleaseURL = UpdateNotice.latestReleaseURL
         semaphore = DispatchSemaphore(value: 0)
@@ -49,28 +51,53 @@ final class UpdateChecker: Sendable {
                 return
             }
 
-            guard let jsonData = data,
-                  let jsonObject = try? JSONSerialization.jsonObject(with: jsonData, options: []) as? [AnyHashable: Any],
-                  let tagName = jsonObject["tag_name"] as? String
-            else {
-                var json = "N/A"
-
-                if let data, let decoded = String(bytes: data, encoding: .utf8) {
-                    json = decoded
-                }
-
-                let message = "Failed to identify latest release tag in: \(json)"
-                state.withLock { $0.error = PeripheryError.updateCheckError(message: message) }
-                debugLogger.debug(message)
-                semaphore.signal()
-                return
+            switch Self.latestVersion(fromResponse: data) {
+            case let .success(tagName):
+                state.withLock { $0.latestVersion = tagName }
+            case let .failure(error):
+                debugLogger.debug(error.description)
+                state.withLock { $0.error = error }
             }
-
-            state.withLock { $0.latestVersion = tagName }
             semaphore.signal()
         }
 
         task.resume()
+    }
+
+    static let requestTimeout: TimeInterval = 30
+    static let maximumResponseSize = 64 * 1024
+
+    /// Extracts the release tag from a latest-release response, accepting only a plain version made of digits and dots.
+    static func latestVersion(fromResponse data: Data?) -> Result<String, PeripheryError> {
+        guard let data else {
+            return .failure(.updateCheckError(message: "Empty latest release response."))
+        }
+        guard data.count <= maximumResponseSize else {
+            return .failure(.updateCheckError(message: "Latest release response is \(data.count) bytes, larger than the \(maximumResponseSize) bytes limit."))
+        }
+
+        let jsonObject: Any
+        do {
+            jsonObject = try JSONSerialization.jsonObject(with: data, options: [])
+        } catch {
+            return .failure(.updateCheckError(message: "Latest release response is not valid JSON: \(error.localizedDescription)"))
+        }
+
+        guard let tagName = (jsonObject as? [AnyHashable: Any])?["tag_name"] as? String else {
+            return .failure(.updateCheckError(message: "Failed to identify latest release tag."))
+        }
+        guard isPlainVersion(tagName) else {
+            return .failure(.updateCheckError(message: "Ignoring latest release tag that is not a plain version."))
+        }
+
+        return .success(tagName)
+    }
+
+    static func isPlainVersion(_ value: String) -> Bool {
+        let components = value.split(separator: ".", omittingEmptySubsequences: false)
+        return components.count <= 4 && components.allSatisfy { component in
+            !component.isEmpty && component.count <= 9 && component.allSatisfy { ("0" ... "9").contains($0) }
+        }
     }
 
     func notifyIfAvailable() {

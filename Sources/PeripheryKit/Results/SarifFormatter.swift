@@ -89,7 +89,7 @@ final class SarifFormatter: OutputFormatter {
 
     private func sarifResult(_ result: ScanResult) -> [String: Any] {
         let descriptions = describe(result, colored: false)
-        let ruleId = describe(result.annotation)
+        let ruleId = result.annotation.name
         let declarationLocation = declarationLocation(from: result.declaration)
 
         var object: [String: Any] = [

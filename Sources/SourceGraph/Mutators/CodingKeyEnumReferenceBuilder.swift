@@ -3,10 +3,10 @@ import Foundation
 import Shared
 
 /// Builds a reference from a `Codable` conforming type to any child enum that conforms to `CodingKey`.
-final class CodingKeyEnumReferenceBuilder: SourceGraphMutator {
+final class CodingKeyEnumReferenceBuilder: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

@@ -1,5 +1,9 @@
+import Extensions
 import Foundation
 import Logger
+import Shared
+import SystemPackage
+import TestShared
 import XCTest
 
 final class LoggerStreamsTest: XCTestCase {
@@ -40,6 +44,32 @@ final class LoggerStreamsTest: XCTestCase {
         XCTAssertEqual(stderr, "")
     }
 
+    func testUnreadableGlobDirectory_warnsThroughLoggerAndIsSilentWhenQuiet() throws {
+        let root = NSTemporaryDirectory() + "LoggerStreamsTest-\(UUID().uuidString)"
+        let locked = root + "/locked"
+        try FileManager.default.createDirectory(atPath: locked + "/sub", withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: locked)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked)
+            try? FileManager.default.removeItem(atPath: root)
+        }
+        let pattern = locked + "/**/*.swift"
+
+        let logger = Logger(quiet: false, verbose: false, colorMode: .never)
+        let (stdout, stderr) = capture {
+            _ = FilePath.glob(pattern, onUnreadableDirectory: logger.warnUnreadableDirectory)
+        }
+        XCTAssertEqual(stdout, "")
+        XCTAssertTrue(stderr.hasPrefix("warning: Cannot list directory '\(locked)'"), stderr)
+
+        let quietLogger = Logger(quiet: true, verbose: false, colorMode: .never)
+        let quiet = capture {
+            _ = FilePath.glob(pattern, onUnreadableDirectory: quietLogger.warnUnreadableDirectory)
+        }
+        XCTAssertEqual(quiet.stdout, "")
+        XCTAssertEqual(quiet.stderr, "")
+    }
+
     // MARK: - Private
 
     private func capture(_ body: () -> Void) -> (stdout: String, stderr: String) {
@@ -51,7 +81,7 @@ final class LoggerStreamsTest: XCTestCase {
     }
 
     private func redirect(_ descriptor: Int32, of stream: UnsafeMutablePointer<FILE>, _ body: () -> Void) -> String {
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("periphery-logger-\(UUID().uuidString)")
+        let file = uniqueTemporaryURL("periphery-logger")
         defer { try? FileManager.default.removeItem(at: file) }
 
         fflush(stream)

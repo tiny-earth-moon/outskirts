@@ -1,6 +1,6 @@
 import Configuration
 import Foundation
-import IndexStore
+@preconcurrency import IndexStore
 import Logger
 import Shared
 import SourceGraph
@@ -35,6 +35,9 @@ public struct SourceFileCollector {
     public func collect() throws -> (sourceFiles: [SourceFile: [IndexUnit]], unreadableUnits: [String]) {
         let excludedTargets = excludedTestTargets.union(configuration.excludeTargets)
         let currentFilePath = FilePath.current
+        let logger = logger
+        // `Configuration` is not `Sendable`: the jobs only read it, and nothing mutates it while they run.
+        nonisolated(unsafe) let configuration = configuration
 
         let storeResults = try JobPool(jobs: Array(indexStorePaths))
             .flatMap { indexStorePath -> [StoreUnits] in
@@ -54,7 +57,7 @@ public struct SourceFileCollector {
 
                     let file = FilePath.makeAbsolute(filePath, relativeTo: currentFilePath)
 
-                    if !isExcluded(file) {
+                    if !configuration.isIndexExcluded(file) {
                         guard file.exists else {
                             logger.debug("Source file does not exist: \(file.string)")
                             return nil
@@ -258,9 +261,5 @@ public struct SourceFileCollector {
         } catch {
             return nil
         }
-    }
-
-    private func isExcluded(_ file: FilePath) -> Bool {
-        configuration.isIndexExcluded(file)
     }
 }

@@ -17,8 +17,9 @@ public final class ImportSyntaxVisitor: PeripherySyntaxVisitor {
     }
 
     public func visit(_ node: ImportDeclSyntax) {
-        let parts = node.path.map(\.name.text)
-        let module = parts.first ?? ""
+        // The parser always yields at least one path component, even for malformed imports.
+        guard let module = node.path.first?.name.text else { return }
+
         let attributes = node.attributes.compactMap {
             if case let .attribute(attr) = $0 {
                 attr.attributeName.trimmed.description
@@ -28,7 +29,7 @@ public final class ImportSyntaxVisitor: PeripherySyntaxVisitor {
         }
         let location = sourceLocationBuilder.location(at: node.positionAfterSkippingLeadingTrivia)
         let endLocation = sourceLocationBuilder.location(at: node.endPositionBeforeTrailingTrivia)
-        let isConditional = node.parent?.parent?.parent?.is(IfConfigClauseSyntax.self) ?? false
+        let isConditional = isInsideIfConfigClause(node)
         let statement = ImportStatement(
             module: module,
             isTestable: attributes.contains("testable"),
@@ -39,6 +40,13 @@ public final class ImportSyntaxVisitor: PeripherySyntaxVisitor {
             commentCommands: CommentCommand.parseCommands(in: node.leadingTrivia.merging(node.trailingTrivia))
         )
         importStatements.append(statement)
+    }
+
+    /// An import directly inside `#if` sits at ImportDecl -> CodeBlockItem -> CodeBlockItemList -> IfConfigClause.
+    private func isInsideIfConfigClause(_ node: ImportDeclSyntax) -> Bool {
+        node.parent?.as(CodeBlockItemSyntax.self)?
+            .parent?.as(CodeBlockItemListSyntax.self)?
+            .parent?.is(IfConfigClauseSyntax.self) ?? false
     }
 
     public func visit(_ node: DeclModifierSyntax) {

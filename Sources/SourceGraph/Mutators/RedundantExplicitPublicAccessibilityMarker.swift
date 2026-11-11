@@ -43,7 +43,7 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
 
     private func markPass(nonExtensionKinds: Set<Declaration>, extensionKinds: Set<Declaration>) throws {
         for decl in nonExtensionKinds {
-            // Open declarations are not yet implemented.
+            // An open declaration is not checked itself; only its public members are, when enabled.
             guard !decl.accessibility.isExplicitly(.open) else {
                 if configuration.enableRedundantPublicMembers, !graph.isRetained(decl) {
                     validatePublicMembers(of: decl)
@@ -55,7 +55,7 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
         }
 
         for decl in extensionKinds {
-            // Open declarations are not yet implemented.
+            // Open declarations are not checked.
             guard !decl.accessibility.isExplicitly(.open) else { continue }
 
             try validateExtension(decl)

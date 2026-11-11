@@ -1,0 +1,8 @@
+| 5 Results |
+| :- |
+| **Unused struct 'UnusedFixtureType'**<br>Sources/Fixture/Fixture.swift:1:8 |
+| **Redundant protocol 'RedundantMarker' (never used as an existential type)**<br>Sources/Fixture/Fixture.swift:3:10 |
+| **Redundant protocol conformance 'RedundantMarker'**<br>Sources/Fixture/Fixture.swift:9:22 |
+| **Redundant public accessibility for struct 'Helper' (not used outside of Fixture)**<br>Sources/Fixture/Fixture.swift:5:15 |
+| **Redundant public accessibility for initializer 'init()' (not used outside of Fixture)**<br>Sources/Fixture/Fixture.swift:6:12 |
+| **Unused parameter 'unusedParameter'**<br>Sources/Fixture/Fixture.swift:14:23 |

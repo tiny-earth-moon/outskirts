@@ -25,9 +25,7 @@ final class QuietModeTest: XCTestCase {
     }
 
     override func setUpWithError() throws {
-        outputDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("periphery-quiet-output-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+        outputDirectory = try makeTemporaryDirectory("periphery-quiet-output")
         addTeardownBlock { [outputDirectory] in
             if let outputDirectory {
                 try? FileManager.default.removeItem(at: outputDirectory)
@@ -146,8 +144,7 @@ final class QuietModeTest: XCTestCase {
     }
 
     private static func makePackage(source: String, configuration: String? = nil) throws -> URL {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("periphery-quiet-\(UUID().uuidString)")
+        let root = uniqueTemporaryURL("periphery-quiet")
         let sources = root.appendingPathComponent("Sources/Fixture")
         try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
         try """
@@ -167,31 +164,13 @@ final class QuietModeTest: XCTestCase {
     }
 
     private func scan(_ arguments: [String], in package: Result<URL, Error>) throws -> ScanOutput {
-        let package = try package.get()
-        let stdoutFile = outputDirectory.appendingPathComponent("stdout.txt")
-        let stderrFile = outputDirectory.appendingPathComponent("stderr.txt")
-        FileManager.default.createFile(atPath: stdoutFile.path, contents: nil)
-        FileManager.default.createFile(atPath: stderrFile.path, contents: nil)
-
-        let exited = DispatchSemaphore(value: 0)
-        let process = Process()
-        process.executableURL = try locatePeripheryExecutable(near: Self.self)
-        process.arguments = ["scan", "--disable-update-check"] + arguments
-        process.currentDirectoryURL = package
-        process.standardOutput = try FileHandle(forWritingTo: stdoutFile)
-        process.standardError = try FileHandle(forWritingTo: stderrFile)
-        process.terminationHandler = { _ in exited.signal() }
-        try process.run()
-
-        if exited.wait(timeout: .now() + 300) == .timedOut {
-            kill(process.processIdentifier, SIGKILL)
-            XCTFail("outskirts did not exit within 300s")
-        }
-
-        return try ScanOutput(
-            status: process.terminationStatus,
-            stdout: Data(contentsOf: stdoutFile),
-            stderr: Data(contentsOf: stderrFile)
+        let output = try runCapturingOutput(
+            locatePeripheryExecutable(near: Self.self),
+            ["scan", "--disable-update-check"] + arguments,
+            currentDirectoryURL: package.get(),
+            outputDirectory: outputDirectory,
+            timeout: (300, "outskirts")
         )
+        return ScanOutput(status: output.status, stdout: output.stdout, stderr: output.stderr)
     }
 }

@@ -45,10 +45,8 @@ extension SPMProjectDriver: ProjectDriver {
     }
 
     public func plan(logger: ContextualLogger) throws -> IndexPlan {
-        let indexStorePaths: Set<FilePath> = if !configuration.indexStorePath.isEmpty {
-            Set(configuration.indexStorePath)
-        } else {
-            try [pkg.indexStorePath(additionalArguments: configuration.buildArguments)]
+        let indexStorePaths = try resolveIndexStorePaths(configured: configuration.indexStorePath) {
+            try pkg.indexStorePath(additionalArguments: configuration.buildArguments)
         }
 
         // Load package description once and reuse it
@@ -119,7 +117,7 @@ extension SPMProjectDriver: ProjectDriver {
             // SwiftPM processes Interface Builder files and Core Data models implicitly, without a `resources:` declaration,
             // and `swift package describe` only lists the declared resources.
             for ext in extensions {
-                for file in FilePath.glob("\(targetPath.string)/**/*.\(ext)") {
+                for file in FilePath.glob("\(targetPath.string)/**/*.\(ext)", onUnreadableDirectory: logger.warnUnreadableDirectory) {
                     // SwiftPM ignores hidden files and directories, such as `.build` and `.scratch`.
                     let relativeComponents = file.components.dropFirst(targetPath.components.count)
                     guard !relativeComponents.contains(where: { $0.string.hasPrefix(".") }) else { continue }

@@ -19,6 +19,7 @@ outskirts explores your Swift project, builds a map of what refers to what, and 
 - [Comment commands](comment-commands.md)
 - [Excluding files](excluding-files.md)
 - [Baselines](baselines.md)
+- [Fixing unused String Catalog keys](fix.md)
 
 ## Integrate
 

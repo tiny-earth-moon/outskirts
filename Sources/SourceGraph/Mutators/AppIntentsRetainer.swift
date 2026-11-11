@@ -6,7 +6,7 @@ import Shared
 ///
 /// Types conforming to these protocols are discovered and invoked by the system at runtime,
 /// so they should not be reported as unused.
-final class AppIntentsRetainer: SourceGraphMutator {
+final class AppIntentsRetainer: GraphOnlyMutator {
     private let graph: SourceGraph
 
     /// USR prefix for Swift symbols from the AppIntents module.
@@ -14,7 +14,7 @@ final class AppIntentsRetainer: SourceGraphMutator {
     /// For AppIntents (10 characters), this becomes "s:10AppIntents".
     private static let appIntentsModuleUsrPrefix = "s:10AppIntents"
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

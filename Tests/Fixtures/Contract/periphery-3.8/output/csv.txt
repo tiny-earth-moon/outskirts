@@ -1,0 +1,7 @@
+Kind,Name,Modifiers,Attributes,Accessibility,IDs,Location,Hints
+struct,UnusedFixtureType,,,internal,s:7Fixture06UnusedA4TypeV,Sources/Fixture/Fixture.swift:1:8,unused
+protocol,RedundantMarker,,,internal,s:7Fixture15RedundantMarkerP,Sources/Fixture/Fixture.swift:3:10,redundantProtocol
+protocol,RedundantMarker,,,,s:7Fixture15RedundantMarkerP,Sources/Fixture/Fixture.swift:9:22,redundantConformance
+struct,Helper,,public,public,s:7Fixture6HelperV,Sources/Fixture/Fixture.swift:5:15,redundantPublicAccessibility
+function.constructor,init(),,public,public,s:7Fixture6HelperVACycfc,Sources/Fixture/Fixture.swift:6:12,redundantPublicAccessibility
+var.parameter,unusedParameter,,,internal,param-unusedParameter-run(_:)-s:7Fixture5EntryV3runyySiF,Sources/Fixture/Fixture.swift:14:23,unused

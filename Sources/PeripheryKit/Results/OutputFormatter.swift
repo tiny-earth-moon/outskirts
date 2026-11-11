@@ -32,6 +32,14 @@ extension OutputFormatter {
         return msg
     }
 
+    /// The conformances of a redundant protocol, each with its hint, as the secondary rows of the result.
+    func redundantConformances(of result: ScanResult) -> [(Reference, String)] {
+        guard case let .redundantProtocol(references, inherited) = result.annotation else { return [] }
+
+        let hint = redundantConformanceHint(with: inherited)
+        return sortedReferences(references).map { ($0, hint) }
+    }
+
     /// References are held in a set, whose order changes from one process to the next. Output must not depend on it.
     func sortedReferences(_ references: Set<Reference>) -> [Reference] {
         references.sorted {
@@ -47,33 +55,22 @@ extension OutputFormatter {
         return String(bytes: data, encoding: .utf8)
     }
 
-    func describe(_ annotation: ScanResult.Annotation) -> String {
-        switch annotation {
-        case .unused:
-            "unused"
-        case .assignOnlyProperty:
-            "assignOnlyProperty"
-        case .unassignedOptionalProperty:
-            "unassignedOptionalProperty"
-        case .redundantProtocol:
-            "redundantProtocol"
-        case .redundantPublicAccessibility:
-            "redundantPublicAccessibility"
-        case .redundantOpenAccessibility:
-            "redundantOpenAccessibility"
-        case .missingFinal:
-            "missingFinal"
-        case .redundantAccessLevel:
-            "redundantAccessLevel"
-        case .emptyExtension:
-            "emptyExtension"
-        case .superfluousIgnoreCommand:
-            "superfluousIgnoreCommand"
-        case let .unusedAssetCatalogSymbol(symbol):
-            symbol.kind.annotationName
-        case .missingMetalFunction:
-            "missingMetalFunction"
-        }
+    /// The keys that Code Climate and GitLab Code Quality issues share.
+    func codeQualityIssue(_ result: ScanResult, colored: Bool) -> [AnyHashable: Any] {
+        let location = declarationLocation(from: result.declaration)
+        let description = describe(result, colored: colored)
+            .map(\.1)
+            .joined(separator: ", ")
+
+        return [
+            "description": description,
+            "check_name": result.annotation.name,
+            "fingerprint": result.declaration.usrs.sorted().joined(separator: "."),
+            "location": [
+                "path": outputPath(location).url.relativePath,
+                "lines": ["begin": location.line] as [AnyHashable: Any],
+            ] as [AnyHashable: Any],
+        ]
     }
 
     func describe(_ result: ScanResult, colored: Bool) -> [(Location, String)] {
@@ -81,6 +78,7 @@ extension OutputFormatter {
         var secondaryResults: [(Location, String)] = []
         let location = declarationLocation(from: result.declaration)
         let kindDisplayName = declarationKindDisplayName(from: result.declaration)
+        let capitalizedKind = kindDisplayName.prefix(1).uppercased() + kindDisplayName.dropFirst()
         let name = colored ? logger.colorize(result.declaration.name, .lightBlue) : result.declaration.name
 
         switch result.annotation {
@@ -105,11 +103,9 @@ extension OutputFormatter {
             let modulesJoined = modules.sorted().joined(separator: ", ")
             description += "Redundant public accessibility for \(kindDisplayName) '\(name)' (not used outside of \(modulesJoined))"
         case .redundantOpenAccessibility:
-            let capitalizedKind = kindDisplayName.prefix(1).uppercased() + kindDisplayName.dropFirst()
             let verb = result.declaration.kind == .class ? "subclassed" : "overridden"
             description += "\(capitalizedKind) '\(name)' is open but never \(verb) outside its module"
         case .missingFinal:
-            let capitalizedKind = kindDisplayName.prefix(1).uppercased() + kindDisplayName.dropFirst()
             description += "\(capitalizedKind) '\(name)' could be final"
         case let .redundantAccessLevel(redundancy):
             description += "Redundant \(redundancy.accessibility.rawValue) access level for \(kindDisplayName) '\(name)' "
@@ -207,6 +203,38 @@ extension OutputFormatter {
     }
 }
 
+extension ScanResult.Annotation {
+    /// The name of the result kind: the hint, check name or rule id of the machine-readable formats.
+    var name: String {
+        switch self {
+        case .unused:
+            "unused"
+        case .assignOnlyProperty:
+            "assignOnlyProperty"
+        case .unassignedOptionalProperty:
+            "unassignedOptionalProperty"
+        case .redundantProtocol:
+            "redundantProtocol"
+        case .redundantPublicAccessibility:
+            "redundantPublicAccessibility"
+        case .redundantOpenAccessibility:
+            "redundantOpenAccessibility"
+        case .missingFinal:
+            "missingFinal"
+        case .redundantAccessLevel:
+            "redundantAccessLevel"
+        case .emptyExtension:
+            "emptyExtension"
+        case .superfluousIgnoreCommand:
+            "superfluousIgnoreCommand"
+        case let .unusedAssetCatalogSymbol(symbol):
+            symbol.kind.annotationName
+        case .missingMetalFunction:
+            "missingMetalFunction"
+        }
+    }
+}
+
 public extension OutputFormat {
     var requiresRelativePaths: Bool {
         formatter.requiresRelativePaths
@@ -232,6 +260,8 @@ public extension OutputFormat {
             GitLabCodeQualityFormatter.self
         case .sarif:
             SarifFormatter.self
+        case .agent:
+            AgentFormatter.self
         }
     }
 }

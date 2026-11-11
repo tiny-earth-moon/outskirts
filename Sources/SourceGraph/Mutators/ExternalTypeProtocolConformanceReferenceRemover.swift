@@ -2,10 +2,10 @@ import Configuration
 import Foundation
 import Shared
 
-final class ExternalTypeProtocolConformanceReferenceRemover: SourceGraphMutator {
+final class ExternalTypeProtocolConformanceReferenceRemover: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

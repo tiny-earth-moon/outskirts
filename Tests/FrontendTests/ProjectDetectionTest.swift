@@ -4,6 +4,7 @@ import Foundation
 import Logger
 import Shared
 import SystemPackage
+import TestShared
 import XCTest
 
 final class ProjectDetectionTest: XCTestCase {
@@ -13,8 +14,7 @@ final class ProjectDetectionTest: XCTestCase {
     override func setUpWithError() throws {
         try super.setUpWithError()
         originalDirectory = FileManager.default.currentDirectoryPath
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent("periphery-project-detection-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        directory = try makeTemporaryDirectory("periphery-project-detection")
         XCTAssertTrue(FileManager.default.changeCurrentDirectoryPath(directory.path))
     }
 

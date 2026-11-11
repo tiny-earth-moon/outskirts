@@ -20,16 +20,10 @@ disabled_rules:
   - vertical_whitespace_between_cases
 
   # Length/size rules
-  - cyclomatic_complexity
   - closure_body_length
-  - function_body_length
-  - type_body_length
-  - file_length
   - line_length
   - identifier_name
   - type_name
-  - large_tuple
-  - function_parameter_count
 
   # Other
   - discouraged_optional_collection
@@ -37,3 +31,11 @@ disabled_rules:
   - balanced_xctest_lifecycle
   - todo
   - for_where
+
+# Size thresholds are a ratchet set to the current worst case: lower them, never raise them.
+file_length: {warning: 721, error: 721}
+type_body_length: {warning: 548, error: 548}
+function_body_length: {warning: 106, error: 106}
+cyclomatic_complexity: {warning: 41, error: 41}
+function_parameter_count: {warning: 8, error: 8}
+large_tuple: {warning: 6, error: 6}

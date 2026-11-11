@@ -7,12 +7,12 @@ import Shared
 /// `withMutation(keyPath:)`). The compiler indexes these accessors as implicit declarations, which are always
 /// retained, so every tracked property would look used and never read or written by explicit code. This mutator drops
 /// the references held by the macro-generated accessors, so that only references from explicit code count.
-final class ObservationMacroReferenceEliminator: SourceGraphMutator {
+final class ObservationMacroReferenceEliminator: GraphOnlyMutator {
     private static let trackedMacroName = "ObservationTracked()"
 
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

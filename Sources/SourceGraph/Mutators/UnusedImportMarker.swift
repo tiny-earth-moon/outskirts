@@ -2,7 +2,7 @@ import Configuration
 import Foundation
 import Shared
 
-/// Marks unused import statements (experimental).
+/// Marks unused import statements.
 ///
 /// A module import is unused when the source file contains no references to it, and no other
 /// imported modules either export it, or extend declarations declared by it.

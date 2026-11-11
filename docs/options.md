@@ -18,7 +18,7 @@ This page is generated from [`outskirts.schema.json`](https://github.com/tiny-ea
 
 Guided setup: detects the project type, asks a few questions, then prints and runs the full scan command. Run it at the project root.
 
-See [Configuration: Command line and file](configuration.md#command-line-and-file).
+See [Configuration: Command line and file](configuration.md#command-line-and-file), [Fixing unused String Catalog keys: Options](fix.md#options), [Fixing unused String Catalog keys: Exit status](fix.md#exit-status).
 
 ### `--project-root`
 
@@ -40,6 +40,14 @@ Explains why a declaration is reported, used or retained, before the results. Ac
 
 See [Troubleshooting: Why a declaration is reported or kept](troubleshooting.md#why-a-declaration-is-reported-or-kept).
 
+### `--max-results`
+
+Since 3.23.0.
+
+With `--format agent`, prints at most this many results, a file entirely unused counting all its results; the report then ends with the number of results left out. Scan again after acting on them for the next batch. Default: every result.
+
+See [Output formats: agent](output-formats.md#agent).
+
 ## Project and build
 
 ### `--project`
@@ -48,13 +56,15 @@ Path to the .xcodeproj or .xcworkspace.
 
 Key `project` · string · default none.
 
+See [Fixing unused String Catalog keys: What it does](fix.md#what-it-does).
+
 ### `--schemes`
 
 Schemes to build; every target they build is scanned.
 
 Key `schemes` · list of strings · default empty.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Troubleshooting: A declaration used only by a target that was not built](troubleshooting.md#a-declaration-used-only-by-a-target-that-was-not-built).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Fixing unused String Catalog keys: What it does](fix.md#what-it-does), [Fixing unused String Catalog keys: Partial scans](fix.md#partial-scans), [Troubleshooting: A declaration used only by a target that was not built](troubleshooting.md#a-declaration-used-only-by-a-target-that-was-not-built).
 
 ### `-- <args>`
 
@@ -62,7 +72,7 @@ Arguments passed to the underlying build tool (swift build or xcodebuild).
 
 Key `build_arguments` · list of strings · default empty.
 
-See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x).
+See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x), [Configuration: Build arguments](configuration.md#build-arguments).
 
 ### `xcode_list_arguments`
 
@@ -70,7 +80,7 @@ Extra arguments for the 'xcodebuild -list' call that lists schemes (guided setup
 
 Key `xcode_list_arguments` · configuration file only · list of strings · default empty.
 
-See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x), [Configuration: Command line and file](configuration.md#command-line-and-file).
+See [Migrating from Periphery: What changed since Periphery 3.x](migrating-from-periphery.md#what-changed-since-periphery-3x), [Configuration: Command line and file](configuration.md#command-line-and-file), [Configuration: Build arguments](configuration.md#build-arguments).
 
 ### `--clean-build`
 
@@ -86,7 +96,7 @@ Skip the project build step.
 
 Key `skip_build` · flag, `--no-skip-build` to switch off · default `false`.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Continuous integration: GitHub Actions](ci.md#github-actions).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Build arguments](configuration.md#build-arguments), [Continuous integration: Reusing the build](ci.md#reusing-the-build).
 
 ### `--skip-schemes-validation`
 
@@ -152,7 +162,7 @@ Targets to exclude from indexing.
 
 Key `exclude_targets` · list of strings · default empty.
 
-See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation).
+See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation), [Fixing unused String Catalog keys: Partial scans](fix.md#partial-scans).
 
 ### `--exclude-tests`
 
@@ -160,7 +170,7 @@ Exclude test targets from indexing.
 
 Key `exclude_tests` · flag, `--no-exclude-tests` to switch off · default `false`.
 
-See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files).
+See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Fixing unused String Catalog keys: Partial scans](fix.md#partial-scans).
 
 ### `--index-exclude`
 
@@ -332,7 +342,7 @@ Turn off the analysis of unused String Catalog (xcstrings) keys.
 
 Key `disable_unused_localized_string_analysis` · flag, `--no-disable-unused-localized-string-analysis` to switch off · default `false`.
 
-See [Analysis: Unused localized strings](analysis.md#unused-localized-strings).
+See [Analysis: Unused localized strings](analysis.md#unused-localized-strings), [Fixing unused String Catalog keys: Options](fix.md#options).
 
 ### `--localized-string-catalog-exclude`
 
@@ -340,7 +350,7 @@ String Catalog globs left out of the localized strings analysis.
 
 Key `localized_string_catalog_exclude` · list of strings · default `**/InfoPlist.xcstrings`, `**/AppShortcuts.xcstrings`.
 
-See [Analysis: Excluding catalogues](analysis.md#excluding-catalogues), [Excluding files: String Catalogs](excluding-files.md#string-catalogs), [Analysis: Literal matching](analysis.md#literal-matching).
+See [Analysis: Excluding catalogues](analysis.md#excluding-catalogues), [Excluding files: String Catalogs](excluding-files.md#string-catalogs), [Analysis: Literal matching](analysis.md#literal-matching), [Fixing unused String Catalog keys: Baselines, exclusions and comments](fix.md#baselines-exclusions-and-comments).
 
 ### `--localized-string-key-patterns`
 
@@ -348,7 +358,7 @@ Key patterns (globs, or regular expressions between slashes) of keys used dynami
 
 Key `localized_string_key_patterns` · list of strings · default empty.
 
-See [Analysis: Key patterns](analysis.md#key-patterns), [Analysis: Keys built at runtime](analysis.md#keys-built-at-runtime), [Analysis: Literal matching](analysis.md#literal-matching).
+See [Analysis: Key patterns](analysis.md#key-patterns), [Analysis: Keys built at runtime](analysis.md#keys-built-at-runtime), [Analysis: Literal matching](analysis.md#literal-matching), [Fixing unused String Catalog keys: Keys built at runtime](fix.md#keys-built-at-runtime).
 
 ### `--localized-string-key-literal-match`
 
@@ -364,7 +374,7 @@ Retain every key that a localized string key built at runtime without a literal 
 
 Key `retain_runtime_localized_keys` · flag, `--no-retain-runtime-localized-keys` to switch off · default `false`.
 
-See [Analysis: Keys built at runtime](analysis.md#keys-built-at-runtime).
+See [Analysis: Keys built at runtime](analysis.md#keys-built-at-runtime), [Fixing unused String Catalog keys: Keys built at runtime](fix.md#keys-built-at-runtime).
 
 ## Retention
 
@@ -544,7 +554,7 @@ See [Framework conventions and retention: Retaining by attribute](framework-conv
 
 Output format of the results.
 
-Key `format` · one of `xcode`, `csv`, `json`, `checkstyle`, `codeclimate`, `github-actions`, `github-markdown`, `gitlab-codequality`, `sarif` · default `xcode`.
+Key `format` · one of `xcode`, `csv`, `json`, `checkstyle`, `codeclimate`, `github-actions`, `github-markdown`, `gitlab-codequality`, `sarif`, `agent` · default `xcode`.
 
 See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Results and messages](getting-started.md#results-and-messages), [Configuration: Command line and file](configuration.md#command-line-and-file), [Output formats](output-formats.md).
 
@@ -570,7 +580,7 @@ Also write the formatted results to a file.
 
 Key `write_results` · string · default none.
 
-See [Getting started: Results and messages](getting-started.md#results-and-messages), [Getting started: Exit status](getting-started.md#exit-status), [Configuration: Paths](configuration.md#paths), [Output formats: Writing to a file](output-formats.md#writing-to-a-file).
+See [Getting started: Results and messages](getting-started.md#results-and-messages), [Getting started: Exit status](getting-started.md#exit-status), [Configuration: Paths](configuration.md#paths), [Fixing unused String Catalog keys: Options](fix.md#options).
 
 ### `--skip-stdout-results`
 
@@ -610,7 +620,7 @@ Exit with status 1 if any result is reported.
 
 Key `strict` · flag, `--no-strict` to switch off · default `false`.
 
-See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Exit status](getting-started.md#exit-status), [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Continuous integration: Quiet reports](ci.md#quiet-reports).
+See [Getting started: How a scan works](getting-started.md#how-a-scan-works), [Getting started: Exit status](getting-started.md#exit-status), [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Continuous integration: GitHub Actions](ci.md#github-actions).
 
 ### `--disable-update-check`
 
@@ -644,7 +654,7 @@ Rewrite the baseline file keeping only the entries that still match a result; re
 
 Key `prune_baseline` · flag, `--no-prune-baseline` to switch off · default `false`.
 
-See [Baselines: Options](baselines.md#options), [Baselines: File format](baselines.md#file-format), [Baselines: Baseline ratchet](baselines.md#baseline-ratchet), [Continuous integration: Baseline ratchet](ci.md#baseline-ratchet).
+See [Baselines: Options](baselines.md#options), [Baselines: File format](baselines.md#file-format), [Baselines: Baseline ratchet](baselines.md#baseline-ratchet), [Fixing unused String Catalog keys: Options](fix.md#options).
 
 ### `--strict-baseline`
 
@@ -653,6 +663,30 @@ Exit with status 1 if the baseline holds entries that no longer match; requires 
 Key `strict_baseline` · flag, `--no-strict-baseline` to switch off · default `false`.
 
 See [Getting started: Exit status](getting-started.md#exit-status), [Baselines: Options](baselines.md#options), [Baselines: Baseline ratchet](baselines.md#baseline-ratchet), [Roadmap: Published](roadmap.md#published).
+
+## The fix command
+
+`outskirts fix` takes every option of `scan`, plus the options below, and removes the unused String Catalog keys the scan reports. See [Fixing unused String Catalog keys](fix.md).
+
+### `--apply`
+
+Write the changes, to every catalog or to none, instead of printing a unified diff. Since 3.23.0.
+
+### `--include`
+
+Only fix the String Catalogs that match the glob; repeat to give several. Since 3.23.0.
+
+### `--allow-dirty`
+
+Also fix catalogs that have uncommitted changes, or that are not in a git repository. Since 3.23.0.
+
+### `--allow-partial-scan`
+
+Fix after a scan that leaves code out: an Xcode project (only the listed schemes are built, in the Debug configuration), `index_exclude`, `exclude_tests` or `exclude_targets`. A key used only by the code left out is removed. Since 3.23.0.
+
+### `--allow-runtime-keys`
+
+Apply although localized string keys built at runtime without a literal prefix may look up the removed keys. Since 3.23.0.
 
 ## Other commands
 

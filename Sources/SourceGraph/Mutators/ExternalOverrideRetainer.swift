@@ -6,10 +6,10 @@ import Shared
 ///
 /// It's not possible to determine if a declaration that overrides an external declaration is used,
 /// as the external implementation may call the overridden declaration.
-final class ExternalOverrideRetainer: SourceGraphMutator {
+final class ExternalOverrideRetainer: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

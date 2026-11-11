@@ -6,10 +6,10 @@ import Shared
 /// explicitly implements a get, set, willSet or didSet. Accessors are distinct declarations and hold
 /// references, rather than the property declaration itself. References are not built for implicit
 /// property accessors as they do not hold references.
-final class ComplexPropertyAccessorReferenceBuilder: SourceGraphMutator {
+final class ComplexPropertyAccessorReferenceBuilder: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

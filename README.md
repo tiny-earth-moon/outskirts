@@ -15,9 +15,9 @@ outskirts explores your Xcode project or Swift package, builds a map of what ref
 
 > [!NOTE]
 >
-> outskirts is the new name, since 3.16.0 (2026-11), of the community-maintained successor of [peripheryapp/periphery](https://github.com/peripheryapp/periphery), archived in August 2026. Nothing breaks: the `periphery` command, `.periphery.yml` and `// periphery:ignore` keep working, see [Migrating from Periphery](#migrating-from-periphery).
+> outskirts is the new name, since 3.16.0 (2026-11), of the community-maintained fork of [peripheryapp/periphery](https://github.com/peripheryapp/periphery), archived in August 2026. Nothing breaks: the `periphery` command, `.periphery.yml` and `// periphery:ignore` keep working, see [Migrating from Periphery](#migrating-from-periphery).
 >
-> Periphery was created by [Ian Leitch](https://github.com/ileitch), whom we thank for years of excellent work and for keeping the project open source. The original author now develops [Periphery Pro](https://periphery.pro), a separate closed-source product. This fork takes nothing from it and is not affiliated with, nor endorsed by, the original author or Periphery Pro; the `periphery` name is kept for compatibility, not as a claim on the Periphery brand. Because outskirts installs a `periphery` alias, its Homebrew formula conflicts on purpose with the Periphery formulae: install one or the other.
+> Periphery was created by [Ian Leitch](https://github.com/ileitch), whom we thank for years of excellent work and for keeping the project open source. This fork is not affiliated with, nor endorsed by, the original author; the `periphery` name is kept for compatibility, not as a claim on the Periphery brand. Because outskirts installs a `periphery` alias, its Homebrew formula conflicts on purpose with the Periphery formulae: install one or the other.
 
 ## Installation
 
@@ -156,7 +156,7 @@ The complete documentation lives at [outskirts.dev/docs](https://outskirts.dev/d
 <!-- docs:begin nav -->
 
 - **Start**: [Getting started](https://outskirts.dev/docs/getting-started/), [Migrating from Periphery](https://outskirts.dev/docs/migrating-from-periphery/), [Configuration](https://outskirts.dev/docs/configuration/)
-- **Explore**: [Analysis](https://outskirts.dev/docs/analysis/), [Framework conventions and retention](https://outskirts.dev/docs/framework-conventions/), [Comment commands](https://outskirts.dev/docs/comment-commands/), [Excluding files](https://outskirts.dev/docs/excluding-files/), [Baselines](https://outskirts.dev/docs/baselines/)
+- **Explore**: [Analysis](https://outskirts.dev/docs/analysis/), [Framework conventions and retention](https://outskirts.dev/docs/framework-conventions/), [Comment commands](https://outskirts.dev/docs/comment-commands/), [Excluding files](https://outskirts.dev/docs/excluding-files/), [Baselines](https://outskirts.dev/docs/baselines/), [Fixing unused String Catalog keys](https://outskirts.dev/docs/fix/)
 - **Integrate**: [Output formats](https://outskirts.dev/docs/output-formats/), [Continuous integration](https://outskirts.dev/docs/ci/), [Xcode integration](https://outskirts.dev/docs/xcode-integration/)
 - **Reference**: [Options](https://outskirts.dev/docs/options/), [Troubleshooting](https://outskirts.dev/docs/troubleshooting/), [FAQ](https://outskirts.dev/docs/faq/)
 - **Project**: [Changelog](https://outskirts.dev/docs/changelog/), [Roadmap](https://outskirts.dev/docs/roadmap/), [Credits](https://outskirts.dev/docs/credits/)

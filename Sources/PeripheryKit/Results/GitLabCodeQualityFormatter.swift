@@ -16,46 +16,10 @@ final class GitLabCodeQualityFormatter: OutputFormatter {
     }
 
     func format(_ results: [ScanResult], colored: Bool) throws -> String? {
-        var jsonObject: [Any] = []
-
-        for result in results {
-            let violationFileLocation = declarationLocation(from: result.declaration)
-
-            let description = describe(result, colored: colored)
-                .map(\.1)
-                .joined(separator: ", ")
-
-            let checkName = describe(result.annotation)
-
-            let fingerprint = result
-                .declaration
-                .usrs
-                .sorted()
-                .joined(separator: ".")
-
-            let begin = violationFileLocation.line
-            let lines: [AnyHashable: Any] = [
-                "begin": begin,
-            ]
-
-            let path = outputPath(violationFileLocation)
-                .url
-                .relativePath
-
-            let location: [AnyHashable: Any] = [
-                "path": path,
-                "lines": lines,
-            ]
-
-            let object: [AnyHashable: Any] = [
-                "description": description,
-                "check_name": checkName,
-                "fingerprint": fingerprint,
-                "location": location,
-                "severity": "info",
-            ]
-
-            jsonObject.append(object)
+        let jsonObject = results.map { result in
+            var object = codeQualityIssue(result, colored: colored)
+            object["severity"] = "info"
+            return object
         }
 
         return try serializeJSON(jsonObject)

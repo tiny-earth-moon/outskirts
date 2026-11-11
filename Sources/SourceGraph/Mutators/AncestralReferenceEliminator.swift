@@ -2,10 +2,10 @@ import Configuration
 import Foundation
 import Shared
 
-final class AncestralReferenceEliminator: SourceGraphMutator {
+final class AncestralReferenceEliminator: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 
@@ -31,8 +31,6 @@ final class AncestralReferenceEliminator: SourceGraphMutator {
             if stack.contains(reference.usr) {
                 graph.remove(reference, discardedBy: Self.self, detail: "self-reference, written inside the declaration it refers to")
             }
-
-            eliminateAncestralReferences(in: reference.references, stack: stack)
         }
     }
 }

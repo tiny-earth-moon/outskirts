@@ -83,7 +83,7 @@ public final class SourceGraph {
     private var syntheticUsrLocations: [String: [Location]] = [:]
 
     private let configuration: Configuration
-    private let logger: Logger
+    let logger: Logger
 
     public init(configuration: Configuration, logger: Logger) {
         self.configuration = configuration
@@ -331,7 +331,6 @@ public final class SourceGraph {
 
     func remove(_ reference: Reference) {
         _ = allReferences.remove(reference)
-        allReferences.subtract(reference.descendentReferences)
         allReferencesByUsr[reference.usr]?.remove(reference)
 
         if let parent = reference.parent {
@@ -376,10 +375,6 @@ public final class SourceGraph {
 
     public func addMetalRuntimeLibrarySites(_ sites: Set<MetalRuntimeLibrarySite>) {
         metalRuntimeLibrarySites.formUnion(sites)
-    }
-
-    public func logMetalRuntimeLibrary(_ site: MetalRuntimeLibrarySite) {
-        logger.debug("Metal library created at run time at \(site.location.file.path.string):\(site.location.line) (\(site.call)): literals naming unknown Metal functions are not reported")
     }
 
     public func addDeclaredMetalFunctionNames(_ names: Set<String>, isComplete: Bool) {
@@ -604,11 +599,7 @@ public final class SourceGraph {
     func extendedDeclaration(forExtension extensionDeclaration: Declaration) throws -> Declaration? {
         guard let extendedReference = try extendedDeclarationReference(forExtension: extensionDeclaration) else { return nil }
 
-        if let extendedDeclaration = declaration(withUsr: extendedReference.usr) {
-            return extendedDeclaration
-        }
-
-        return nil
+        return declaration(withUsr: extendedReference.usr)
     }
 
     func allSuperDeclarationsInOverrideChain(from decl: Declaration) -> Set<Declaration> {
@@ -626,7 +617,7 @@ public final class SourceGraph {
         return Set([overridenDecl]).union(allSuperDeclarationsInOverrideChain(from: overridenDecl))
     }
 
-    func baseDeclaration(fromOverride decl: Declaration) -> (Declaration, Bool) {
+    func baseDeclaration(fromOverride decl: Declaration) -> (declaration: Declaration, isResolved: Bool) {
         guard decl.isOverride else { return (decl, true) }
 
         let baseDecl = references(to: decl)
@@ -658,32 +649,24 @@ public final class SourceGraph {
     }
 
     func isCodable(_ decl: Declaration) -> Bool {
-        let codableTypes = ["Codable", "Decodable", "Encodable"] + configuration.externalEncodableProtocols + configuration.externalCodableProtocols
-
-        return inheritedTypeReferences(of: decl).contains {
-            [.protocol, .typealias].contains($0.declarationKind) && codableTypes.contains($0.name)
-        }
+        conforms(decl, to: ["Codable", "Decodable", "Encodable"] + configuration.externalEncodableProtocols + configuration.externalCodableProtocols)
     }
 
     func isEncodable(_ decl: Declaration) -> Bool {
-        let encodableTypes = ["Encodable"] + configuration.externalEncodableProtocols + configuration.externalCodableProtocols
-
-        return inheritedTypeReferences(of: decl).contains {
-            [.protocol, .typealias].contains($0.declarationKind) && encodableTypes.contains($0.name)
-        }
+        conforms(decl, to: ["Encodable"] + configuration.externalEncodableProtocols + configuration.externalCodableProtocols)
     }
 
     func isEquatable(_ decl: Declaration) -> Bool {
-        let equatableTypes = ["Equatable", "Hashable"]
-
-        return inheritedTypeReferences(of: decl).contains {
-            [.protocol, .typealias].contains($0.declarationKind) && equatableTypes.contains($0.name)
-        }
+        conforms(decl, to: ["Equatable", "Hashable"])
     }
 
     func isHashable(_ decl: Declaration) -> Bool {
+        conforms(decl, to: ["Hashable"])
+    }
+
+    private func conforms(_ decl: Declaration, to typeNames: [String]) -> Bool {
         inheritedTypeReferences(of: decl).contains {
-            [.protocol, .typealias].contains($0.declarationKind) && $0.name == "Hashable"
+            [.protocol, .typealias].contains($0.declarationKind) && typeNames.contains($0.name)
         }
     }
 }

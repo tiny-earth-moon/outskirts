@@ -12,6 +12,7 @@ Issues carry a priority label, from `P1` (first) to `P3`.
 
 Recent releases, newest first:
 
+- **3.23.0** (2026-11-11): `outskirts fix` removes unused String Catalog keys, dry run by default; `--format agent` for coding agents.
 - **3.22.0** (2026-11-10): `scan --explain`; build provenance attestations for the bottles and the archive; file patterns follow the volume's case sensitivity.
 - **3.21.4** (2026-11-10): `Void` properties initialized for their side effect retained; unreadable index units reported; safer output, baseline, shell and cache handling.
 - **3.21.3** (2026-11-10): Metal functions looked up through SwiftUI `ShaderLibrary` retained; redundant public no longer reports declarations used by `@inlinable` accessors.
@@ -20,46 +21,42 @@ Recent releases, newest first:
 - **3.21.0** (2026-11-06): `retain_public` per module; warning (and `--strict-index`) when the index is older than the sources; `--version`, grouped help and shell completions; `appendInterpolation` workaround limited to Swift < 6.4.
 - **3.20.0** (2026-11-05): prebuilt archive and bottles for macOS 15, 26 and 27; assign-only analysis without type annotations; platform `#if` retention limited to uncompiled clauses.
 - **3.19.1** (2026-11-05): stale index units no longer cause random false positives when an index store is reused; the Swift package is named outskirts.
-- **3.19.0** (2026-11-05): bounded build cache, orphaned folders evicted and `cache_max_size_gb` ([#310](https://github.com/tiny-earth-moon/outskirts/issues/310)); types of `where Self ==` protocol extensions reported when unused ([#223](https://github.com/tiny-earth-moon/outskirts/issues/223)).
-- **3.18.1** (2026-11-04): documentation site at outskirts.dev/docs; job pool data race fixed and Swift 6 language mode ([#181](https://github.com/tiny-earth-moon/outskirts/issues/181)); blocking strict self-scan in CI ([#220](https://github.com/tiny-earth-moon/outskirts/issues/220)).
-- **3.18.0** (2026-11-04): JSON Schema of the configuration file and `outskirts config check` ([#228](https://github.com/tiny-earth-moon/outskirts/issues/228)); `--changed-since` and `--changed-lines` for pull request checks ([#231](https://github.com/tiny-earth-moon/outskirts/issues/231)); `--quiet` prints nothing when there is no result ([#296](https://github.com/tiny-earth-moon/outskirts/issues/296)).
+- **3.19.0** (2026-11-05): bounded build cache, orphaned folders evicted and `cache_max_size_gb`; types of `where Self ==` protocol extensions reported when unused.
+- **3.18.1** (2026-11-04): documentation site at outskirts.dev/docs; job pool data race fixed and Swift 6 language mode; blocking strict self-scan in CI.
+- **3.18.0** (2026-11-04): JSON Schema of the configuration file and `outskirts config check`; `--changed-since` and `--changed-lines` for pull request checks; `--quiet` prints nothing when there is no result ([#296](https://github.com/tiny-earth-moon/outskirts/issues/296)).
 - **3.17.0** (2026-11-04): Metal functions analysis (`--detect-unused-metal-functions`); the build cache is keyed by the build arguments.
-- **3.16.0** (2026-11-03): the project is renamed outskirts, with `periphery` kept as an alias; Linux is built and tested in CI ([#219](https://github.com/tiny-earth-moon/outskirts/issues/219)).
-- **3.15.0** (2026-11-03): `--relative-to`, baselines that only shrink (`--prune-baseline`, `--strict-baseline`) ([#215](https://github.com/tiny-earth-moon/outskirts/issues/215)), and the `sarif` format for GitHub code scanning ([#213](https://github.com/tiny-earth-moon/outskirts/issues/213)).
+- **3.16.0** (2026-11-03): the project is renamed outskirts, with `periphery` kept as an alias; Linux is built and tested in CI.
+- **3.15.0** (2026-11-03): `--relative-to`, baselines that only shrink (`--prune-baseline`, `--strict-baseline`), and the `sarif` format for GitHub code scanning.
 - **3.14.0** (2026-11-02): unused generic parameters of types are opt-in (`--report-unused-type-parameters`).
-- **3.13.0** (2026-11-01): Bazel mode removed ([#165](https://github.com/tiny-earth-moon/outskirts/issues/165)).
+- **3.13.0** (2026-11-01): Bazel mode removed.
 
-## In progress
+## Compatibility
 
-- Documentation site with one source for the README and outskirts.dev, generated options reference and changelog.
-- Fix the `JobPool` error data race and adopt the Swift 6 language mode target by target ([#181](https://github.com/tiny-earth-moon/outskirts/issues/181)).
-- Regenerate the Linux self-scan baseline and make the step blocking ([#281](https://github.com/tiny-earth-moon/outskirts/issues/281)); detect system modules on Linux ([#280](https://github.com/tiny-earth-moon/outskirts/issues/280)).
+- 3.x releases only add: every new behaviour is opt-in, and defaults change in 4.0 only.
+- The Periphery 3.8 command line, configuration keys, comment commands, output formats and exit codes keep working throughout 3.x.
+- A deprecated option warns for at least one minor release before it is removed, and removal waits for a major release.
+- 4.0 ships with a migration command for the configuration and baselines. After it, 3.x gets toolchain and crash fixes for at least three months, longer if usage calls for it.
 
 ## Next
 
-Analysis and retention:
+In order, each one opt-in:
 
-- Assign-only analysis of properties without an explicit type annotation ([#214](https://github.com/tiny-earth-moon/outskirts/issues/214)).
-- Platform `#if` retention limited to the clauses the indexed build did not compile ([#218](https://github.com/tiny-earth-moon/outskirts/issues/218)).
-- Opt-in analysis of enum cases only matched in patterns and never constructed ([#224](https://github.com/tiny-earth-moon/outskirts/issues/224)).
-- A type in a `where Self ==` protocol extension is retained even when its members are unused ([#223](https://github.com/tiny-earth-moon/outskirts/issues/223)).
-- Gate the `appendInterpolation` workaround on the toolchains that need it ([#222](https://github.com/tiny-earth-moon/outskirts/issues/222)).
-
-Tooling and distribution:
-
-- A strict self-scan in CI ([#220](https://github.com/tiny-earth-moon/outskirts/issues/220)).
-- Prebuilt binaries beyond macOS 27 ([#229](https://github.com/tiny-earth-moon/outskirts/issues/229)).
+- **Act on results**: `fix` covers unused String Catalog keys since 3.23.0; unused imports and redundant `public` follow once every variant is scanned.
+- **Faster scans in CI**: reuse the index of a build that just ran, with a freshness check.
+- **Every variant**: scan the union of platform and configuration variants as an opt-in, the prerequisite for removing unused imports and declarations with `fix`.
+- Opt-in analysis of enum cases only matched in patterns and never constructed.
+- Prebuilt binaries beyond macOS 27.
 
 ## Toward 4.0
 
-The 4.0 theme ([#241](https://github.com/tiny-earth-moon/outskirts/issues/241)): what ships on any platform or configuration is used; everything else is reported with a stable id and can be removed safely. These changes are breaking and ship together:
+The 4.0 theme: what ships on any platform or configuration is used; everything else is reported with a stable id and can be removed safely. These changes are breaking and ship together:
 
-- Scan the union of all platform and configuration variants instead of name-based retention ([#233](https://github.com/tiny-earth-moon/outskirts/issues/233)).
-- Configuration v2: schema, strict validation and per-module overrides ([#238](https://github.com/tiny-earth-moon/outskirts/issues/238)).
-- Output v2: stable rule-aware ids, relative paths and baseline v2 ([#239](https://github.com/tiny-earth-moon/outskirts/issues/239)).
-- Distinct, documented exit codes for findings and failures ([#232](https://github.com/tiny-earth-moon/outskirts/issues/232)).
-- Cleanup: drop the hidden `--no-color` flag and the Bazel shims, and a quieter `--index-store-path` mode ([#240](https://github.com/tiny-earth-moon/outskirts/issues/240)).
-- A support policy for Xcode, Swift and Linux, enforced by CI ([#235](https://github.com/tiny-earth-moon/outskirts/issues/235)).
-- A `fix` command: syntax-only fixes with a dry-run diff by default ([#237](https://github.com/tiny-earth-moon/outskirts/issues/237)), then removal of unused declarations once every variant is scanned ([#236](https://github.com/tiny-earth-moon/outskirts/issues/236)).
+- Scanning every variant becomes the default and replaces name-based retention.
+- Configuration v2: schema, strict validation and per-module overrides.
+- Output v2: stable rule-aware ids, relative paths and baseline v2.
+- Distinct, documented exit codes for findings and failures.
+- Cleanup: drop the hidden `--no-color` flag and the Bazel shims, and a quieter `--index-store-path` mode.
+- A support policy for Xcode, Swift and Linux, enforced by CI.
+- `fix` removes unused declarations once every variant is scanned.
 
 Ideas and requests are welcome as [issues](https://github.com/tiny-earth-moon/outskirts/issues).

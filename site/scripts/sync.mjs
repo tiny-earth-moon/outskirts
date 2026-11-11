@@ -30,6 +30,16 @@ const COMMAND_LINE_ONLY = [
   ["--project-root", "Root directory of the project, from which relative paths are resolved. Default: the current directory."],
   ["--config", "Configuration file. A relative path is resolved from `--project-root`. Default: `.outskirts.yml`, else `.periphery.yml`, in the project root."],
   ["--explain", "Explains why a declaration is reported, used or retained, before the results. Accepts a name (`draw()`, `draw` or `Beta.draw()`), a USR or a `file:line` location; repeat the option to explain several declarations, e.g. `--explain 'draw()' --explain Sources/Kit/Shape.swift:12`.", "3.22.0"],
+  ["--max-results", "With `--format agent`, prints at most this many results, a file entirely unused counting all its results; the report then ends with the number of results left out. Scan again after acting on them for the next batch. Default: every result.", "3.23.0"],
+];
+
+/** Options of `fix`, with the help of `outskirts help fix`; they have no key in the configuration file. */
+const FIX_OPTIONS = [
+  ["--apply", "Write the changes, to every catalog or to none, instead of printing a unified diff. Since 3.23.0."],
+  ["--include", "Only fix the String Catalogs that match the glob; repeat to give several. Since 3.23.0."],
+  ["--allow-dirty", "Also fix catalogs that have uncommitted changes, or that are not in a git repository. Since 3.23.0."],
+  ["--allow-partial-scan", "Fix after a scan that leaves code out: an Xcode project (only the listed schemes are built, in the Debug configuration), `index_exclude`, `exclude_tests` or `exclude_targets`. A key used only by the code left out is removed. Since 3.23.0."],
+  ["--allow-runtime-keys", "Apply although localized string keys built at runtime without a literal prefix may look up the removed keys. Since 3.23.0."],
 ];
 
 /**
@@ -109,6 +119,11 @@ function optionsReference() {
     for (const key of list) lines.push(...option(key, schema.properties[key], references));
   }
   lines.push(
+    "## The fix command",
+    "",
+    "`outskirts fix` takes every option of `scan`, plus the options below, and removes the unused String Catalog keys the scan reports. See [Fixing unused String Catalog keys](fix.md).",
+    "",
+    ...FIX_OPTIONS.flatMap(([flag, description]) => [`### \`${flag}\``, "", description, ""]),
     "## Other commands",
     "",
     "`outskirts check-update`, `outskirts clear-cache`, `outskirts config check`, `outskirts config schema` and `outskirts version`: see [Commands](getting-started.md#commands).",

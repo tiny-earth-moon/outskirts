@@ -4,10 +4,10 @@ import Shared
 
 /// Retains Swift Testing declarations.
 /// https://developer.apple.com/xcode/swift-testing/
-final class SwiftTestingRetainer: SourceGraphMutator {
+final class SwiftTestingRetainer: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

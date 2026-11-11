@@ -206,7 +206,7 @@ outskirts scan --generic-project-config config.json
 
 ### Bazel
 
-The Bazel mode (`--bazel` and every `--bazel-*` option) was removed in 3.13.0 ([#165](https://github.com/tiny-earth-moon/outskirts/issues/165)). The `periphery` module on the Bazel Central Registry belongs to the archived upstream project and is frozen at 3.8.0, this fork is distributed through its Homebrew tap only, and the Bazel build files and CI jobs had to be updated with every change. [agoodkind/periphery](https://github.com/agoodkind/periphery) maintains a Bazel mode. With outskirts, a Bazel project can still be scanned from the index stores its build produces, through the configuration file described in [Other build systems](#other-build-systems).
+The Bazel mode (`--bazel` and every `--bazel-*` option) was removed in 3.13.0. The `periphery` module on the Bazel Central Registry belongs to the archived upstream project and is frozen at 3.8.0, this fork is distributed through its Homebrew tap only, and the Bazel build files and CI jobs had to be updated with every change. [agoodkind/periphery](https://github.com/agoodkind/periphery) maintains a Bazel mode. With outskirts, a Bazel project can still be scanned from the index stores its build produces, through the configuration file described in [Other build systems](#other-build-systems).
 
 ## Platforms
 
@@ -219,6 +219,7 @@ Linux is built and tested in CI on Ubuntu, in the official Swift container. Mini
 | Command | Meaning |
 |---------|---------|
 | `outskirts scan` | Scan the project, see the [options](options.md). |
+| `outskirts fix` | Remove the unused String Catalog keys, see [Fixing unused String Catalog keys](fix.md). |
 | `outskirts check-update` | Check whether a newer version is available. |
 | `outskirts clear-cache` | Clear the build cache of outskirts. |
 | `outskirts config check` | Check the configuration file without scanning, exit status 1 on any problem. |

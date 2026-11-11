@@ -47,8 +47,9 @@ public struct IndexPipeline {
         }
 
         if !plan.plistPaths.isEmpty {
-            try InfoPlistIndexer(
-                infoPlistFiles: plan.plistPaths,
+            try ResourceIndexer(
+                files: plan.plistPaths,
+                strategy: InfoPlistIndexing(configuration: configuration),
                 graph: graph,
                 logger: logger,
                 configuration: configuration
@@ -56,8 +57,9 @@ public struct IndexPipeline {
         }
 
         if !plan.xibPaths.isEmpty {
-            try XibIndexer(
-                xibFiles: plan.xibPaths,
+            try ResourceIndexer(
+                files: plan.xibPaths,
+                strategy: XibIndexing(configuration: configuration),
                 graph: graph,
                 logger: logger,
                 configuration: configuration
@@ -65,8 +67,9 @@ public struct IndexPipeline {
         }
 
         if !plan.xcDataModelPaths.isEmpty {
-            try XCDataModelIndexer(
+            try ResourceIndexer(
                 files: plan.xcDataModelPaths,
+                strategy: XCDataModelIndexing(),
                 graph: graph,
                 logger: logger,
                 configuration: configuration
@@ -74,8 +77,9 @@ public struct IndexPipeline {
         }
 
         if !plan.xcMappingModelPaths.isEmpty {
-            try XCMappingModelIndexer(
+            try ResourceIndexer(
                 files: plan.xcMappingModelPaths,
+                strategy: XCMappingModelIndexing(),
                 graph: graph,
                 logger: logger,
                 configuration: configuration

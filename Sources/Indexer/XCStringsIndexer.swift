@@ -5,7 +5,7 @@ import Shared
 import SourceGraph
 import SystemPackage
 
-final class XCStringsIndexer: Indexer {
+final class XCStringsIndexer {
     enum XCStringsError: Error, CustomStringConvertible {
         case failedToParse(path: FilePath, underlyingError: Error)
 
@@ -35,13 +35,12 @@ final class XCStringsIndexer: Indexer {
         self.graph = graph
         self.logger = logger.contextualized(with: "xcstrings")
         self.configuration = configuration
-        super.init(configuration: configuration)
     }
 
     func perform() throws {
         warnAboutUnprefixedRuntimeKeys()
 
-        let (indexedFiles, excludedFiles) = filterIndexExcluded(from: files)
+        let (indexedFiles, excludedFiles) = configuration.filterIndexExcluded(from: files)
         excludedFiles.forEach { self.logger.debug("Excluding \($0.string)") }
 
         let catalogMatchers = configuration.localizedStringCatalogExcludeMatchers

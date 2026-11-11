@@ -9,13 +9,23 @@ import Foundation
 import SystemPackage
 
 public extension FilePath {
-    static func glob(_ pattern: String) -> Set<FilePath> {
+    /// - Parameter onUnreadableDirectory: Called for each directory whose contents cannot be listed while expanding
+    ///   a globstar; its files are missing from the result. Callers pass `Logger.warnUnreadableDirectory`.
+    static func glob(
+        _ pattern: String,
+        onUnreadableDirectory: @escaping (FilePath, any Error) -> Void
+    ) -> Set<FilePath> {
         let absolutePattern = FilePath(pattern).isRelative ? "\(FilePath.current.string)/\(pattern)" : pattern
 
         return Glob(
             pattern: absolutePattern,
-            excludedDirectories: [".build", "node_modules", ".gems", "gems", ".swiftpm"]
+            excludedDirectories: [".build", "node_modules", ".gems", "gems", ".swiftpm"],
+            onUnreadableDirectory: onUnreadableDirectory
         ).paths.mapSet { FilePath($0).lexicallyNormalized() }
+    }
+
+    static func unreadableDirectoryMessage(_ path: FilePath, _ error: any Error) -> String {
+        "Cannot list directory '\(path.string)', its files are skipped: \(error.localizedDescription)"
     }
 }
 
@@ -26,15 +36,18 @@ public extension FilePath {
 ///    - When the pattern ends with a trailing slash, only directories are matched.
 private final class Glob {
     private let excludedDirectories: [String]
+    private let onUnreadableDirectory: (FilePath, any Error) -> Void
     private var isDirectoryCache: [String: Bool] = [:]
 
     fileprivate var paths: Set<String> = []
 
     init(
         pattern: String,
-        excludedDirectories: [String]
+        excludedDirectories: [String],
+        onUnreadableDirectory: @escaping (FilePath, any Error) -> Void
     ) {
         self.excludedDirectories = excludedDirectories
+        self.onUnreadableDirectory = onUnreadableDirectory
 
         let hasTrailingGlobstarSlash = pattern.hasSuffix("**/")
         let includeFiles = !hasTrailingGlobstarSlash
@@ -117,7 +130,15 @@ private final class Glob {
 
         let visited = visited.union([identity])
 
-        let subURLs = try? FileManager.default.contentsOfDirectory(atPath: url.path).flatMap { subPath -> [URL] in
+        let subPaths: [String]
+        do {
+            subPaths = try FileManager.default.contentsOfDirectory(atPath: url.path)
+        } catch {
+            onUnreadableDirectory(FilePath(url.path), error)
+            subPaths = []
+        }
+
+        let subURLs = subPaths.flatMap { subPath -> [URL] in
             if excludedDirectories.contains(subPath) {
                 return []
             }
@@ -131,7 +152,7 @@ private final class Glob {
             return exploreDirectories(url: subPathURL, visited: visited)
         }
 
-        return [url] + (subURLs ?? [])
+        return [url] + subURLs
     }
 
     private struct DirectoryIdentity: Hashable {
@@ -171,11 +192,8 @@ private final class Glob {
         #endif
         for i in 0 ..< matches {
             if let path = String(validatingCString: gt.gl_pathv[i]!) {
-                if !includeFiles {
-                    let isDirectory = isDirectory(path: path)
-                    if !includeFiles, !isDirectory {
-                        continue
-                    }
+                if !includeFiles, !isDirectory(path: path) {
+                    continue
                 }
 
                 paths.insert(path)

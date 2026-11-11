@@ -1,0 +1,6 @@
+::warning file=Sources/Fixture/Fixture.swift,line=1,col=8,title=unused::Unused struct 'UnusedFixtureType'
+::warning file=Sources/Fixture/Fixture.swift,line=3,col=10,title=redundantProtocol::Redundant protocol 'RedundantMarker' (never used as an existential type)
+::warning file=Sources/Fixture/Fixture.swift,line=9,col=22,title=redundantProtocol::Redundant protocol conformance 'RedundantMarker'
+::warning file=Sources/Fixture/Fixture.swift,line=5,col=15,title=redundantPublicAccessibility::Redundant public accessibility for struct 'Helper' (not used outside of Fixture)
+::warning file=Sources/Fixture/Fixture.swift,line=6,col=12,title=redundantPublicAccessibility::Redundant public accessibility for initializer 'init()' (not used outside of Fixture)
+::warning file=Sources/Fixture/Fixture.swift,line=14,col=23,title=unused::Unused parameter 'unusedParameter'

@@ -8,7 +8,7 @@ import SystemPackage
 /// Declares the functions of the `.metal` files under the project root that the host looks up by name, so that
 /// the ones no Swift string literal names are reported. The functions of conditionally compiled blocks are known,
 /// but never reported.
-final class MetalFunctionIndexer: Indexer {
+final class MetalFunctionIndexer {
     enum MetalFunctionError: Error, CustomStringConvertible {
         case failedToRead(path: FilePath, underlyingError: Error)
 
@@ -35,11 +35,10 @@ final class MetalFunctionIndexer: Indexer {
         self.graph = graph
         self.logger = logger.contextualized(with: "metal")
         self.configuration = configuration
-        super.init(configuration: configuration)
     }
 
     func perform() throws {
-        let (files, excludedFiles) = filterIndexExcluded(from: Self.metalFiles(under: root))
+        let (files, excludedFiles) = configuration.filterIndexExcluded(from: Self.metalFiles(under: root))
         excludedFiles.sorted { $0.string < $1.string }.forEach { self.logger.debug("Excluding \($0.string)") }
 
         var declarations: Set<Declaration> = []

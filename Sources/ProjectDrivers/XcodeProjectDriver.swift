@@ -119,26 +119,29 @@
             }
         }
 
+        /// Refreshes the build cache entry in use and evicts the unused ones; a configured index store bypasses the cache.
+        private func evictUnusedBuildCaches() throws {
+            guard configuration.indexStorePath.isEmpty else { return }
+
+            let evicted = try xcodebuild.refreshCache(
+                project: project,
+                schemes: Array(schemes),
+                buildArguments: configuration.buildArguments,
+                maxAgeDays: configuration.cacheMaxAgeDays,
+                maxSizeGB: configuration.cacheMaxSizeGB
+            )
+            for entry in evicted {
+                let size = ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .file)
+                logger.info("Evicted unused build cache \(entry.name) (\(size))")
+            }
+        }
+
         public func plan(logger: ContextualLogger) throws -> IndexPlan {
-            let indexStorePaths: Set<FilePath> = if !configuration.indexStorePath.isEmpty {
-                Set(configuration.indexStorePath)
-            } else {
-                try [xcodebuild.indexStorePath(project: project, schemes: Array(schemes), buildArguments: configuration.buildArguments, skipBuild: configuration.skipBuild)]
+            let indexStorePaths = try resolveIndexStorePaths(configured: configuration.indexStorePath) {
+                try xcodebuild.indexStorePath(project: project, schemes: Array(schemes), buildArguments: configuration.buildArguments, skipBuild: configuration.skipBuild)
             }
 
-            if configuration.indexStorePath.isEmpty {
-                let evicted = try xcodebuild.refreshCache(
-                    project: project,
-                    schemes: Array(schemes),
-                    buildArguments: configuration.buildArguments,
-                    maxAgeDays: configuration.cacheMaxAgeDays,
-                    maxSizeGB: configuration.cacheMaxSizeGB
-                )
-                for entry in evicted {
-                    let size = ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .file)
-                    self.logger.info("Evicted unused build cache \(entry.name) (\(size))")
-                }
-            }
+            try evictUnusedBuildCaches()
 
             let targets = project.targets
             try targets.forEach { try $0.identifyFiles() }

@@ -1,0 +1,23 @@
+{
+  "source": "Sources/SyntaxAnalysis/CommentCommand.swift, Tests/PeripheryTests/Syntax/CommentCommandTest.swift and README.md 'Comment Commands' at tag 3.8.0",
+  "commands": [
+    {"comment": "// periphery:ignore", "parsed": "ignore"},
+    {"comment": "/// periphery:ignore", "parsed": "ignore"},
+    {"comment": "/* periphery:ignore */", "parsed": "ignore"},
+    {"comment": "/** periphery:ignore */", "parsed": "ignore"},
+    {"comment": "//   periphery:ignore", "parsed": "ignore"},
+    {"comment": "// periphery:ignore:all", "parsed": "ignore:all"},
+    {"comment": "// periphery:ignore:parameters foo", "parsed": "ignore:parameters foo"},
+    {"comment": "// periphery:ignore:parameters unusedOne,unusedTwo", "parsed": "ignore:parameters unusedOne,unusedTwo"},
+    {"comment": "// periphery:ignore - explanation of why this is necessary", "parsed": "ignore"},
+    {"comment": "// periphery:ignore:all - ignore entire file", "parsed": "ignore:all"},
+    {"comment": "// periphery:ignore:parameters foo - param is unused intentionally", "parsed": "ignore:parameters foo"},
+    {"comment": "// periphery:override kind=\"MyCustomThing\" location=\"/path/to/file.swift:42:1\"", "parsed": "override kind=\"MyCustomThing\" location=\"/path/to/file.swift:42:1\""},
+    {"comment": "/// periphery:override location=\"/absolute/path/file.swift:56:78\"", "parsed": "override location=\"/absolute/path/file.swift:56:78\""},
+    {"comment": "// periphery:override location=\"/path/to/file.swift\"", "parsed": "override location=\"/path/to/file.swift:1:1\""},
+    {"comment": "// some text periphery:ignore", "parsed": null},
+    {"comment": "/// Docs about periphery:ignore", "parsed": null},
+    {"comment": "// `periphery:ignore` is used to ignore", "parsed": null},
+    {"comment": "/* text periphery:ignore */", "parsed": null}
+  ]
+}

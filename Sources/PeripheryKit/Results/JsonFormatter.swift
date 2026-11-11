@@ -26,7 +26,7 @@ final class JsonFormatter: OutputFormatter {
                 "attributes": result.declaration.attributes.sorted().map(\.description),
                 "accessibility": result.declaration.accessibility.value.rawValue,
                 "ids": result.declaration.usrs.sorted(),
-                "hints": [describe(result.annotation)],
+                "hints": [result.annotation.name],
                 "location": locationDescription(location),
             ]
 
@@ -39,24 +39,19 @@ final class JsonFormatter: OutputFormatter {
 
             jsonObject.append(object)
 
-            switch result.annotation {
-            case let .redundantProtocol(references, inherited):
-                for ref in sortedReferences(references) {
-                    let object: [AnyHashable: Any] = [
-                        "kind": ref.declarationKind.rawValue,
-                        "modules": ref.location.file.modules.sorted(),
-                        "name": ref.name,
-                        "modifiers": [String](),
-                        "attributes": [String](),
-                        "accessibility": "",
-                        "ids": [ref.usr],
-                        "hints": [redundantConformanceHint(with: inherited)],
-                        "location": locationDescription(ref.location),
-                    ]
-                    jsonObject.append(object)
-                }
-            default:
-                break
+            for (ref, hint) in redundantConformances(of: result) {
+                let object: [AnyHashable: Any] = [
+                    "kind": ref.declarationKind.rawValue,
+                    "modules": ref.location.file.modules.sorted(),
+                    "name": ref.name,
+                    "modifiers": [String](),
+                    "attributes": [String](),
+                    "accessibility": "",
+                    "ids": [ref.usr],
+                    "hints": [hint],
+                    "location": locationDescription(ref.location),
+                ]
+                jsonObject.append(object)
             }
         }
 

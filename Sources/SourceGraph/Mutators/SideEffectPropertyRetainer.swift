@@ -6,13 +6,13 @@ import Shared
 /// run it when its instance is initialized. The initializer is either a call, or a read of a static or global `Void`
 /// property, which runs that property's lazy initializer. Static, global and `lazy` properties are initialized on
 /// their first read, so an unread one never runs its initializer and stays reported.
-final class SideEffectPropertyRetainer: SourceGraphMutator {
+final class SideEffectPropertyRetainer: GraphOnlyMutator {
     private static let voidTypes: Set<String> = ["Void", "()", "Swift.Void"]
     private static let lazilyInitializedKinds: Set<Declaration.Kind> = [.varStatic, .varClass, .varGlobal]
 
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

@@ -4,33 +4,33 @@ import SourceGraph
 import SwiftSyntax
 
 public final class DeclarationSyntaxVisitor: PeripherySyntaxVisitor {
-    public typealias Result = (
-        location: Location,
-        accessibility: Accessibility?,
-        modifiers: [String],
-        attributes: Set<DeclarationAttribute>,
-        commentCommands: [CommentCommand],
-        variableType: String?,
-        variableTypeLocations: Set<Location>,
-        parameterTypeLocations: Set<Location>,
-        returnTypeLocations: Set<Location>,
-        throwTypeLocations: Set<Location>,
-        inheritedTypeLocations: Set<Location>,
-        genericParameterLocations: Set<Location>,
-        genericConformanceRequirementLocations: Set<Location>,
-        variableInitFunctionCallLocations: Set<Location>,
-        functionCallMetatypeArgumentLocations: Set<Location>,
-        typeInitializerLocations: Set<Location>,
-        variableInitExprLocations: Set<Location>,
-        hasGenericFunctionReturnedMetatypeParameters: Bool,
-        isOptionalType: Bool,
-        hasNonNilInitialValue: Bool,
-        isInitializedByCall: Bool,
-        isInitializedByReference: Bool,
-        isActor: Bool,
-        isConstant: Bool,
-        hasBody: Bool
-    )
+    public struct Result {
+        public let location: Location
+        public let accessibility: Accessibility?
+        public let modifiers: [String]
+        public let attributes: Set<DeclarationAttribute>
+        public let commentCommands: [CommentCommand]
+        public let variableType: String?
+        public let variableTypeLocations: Set<Location>
+        public let parameterTypeLocations: Set<Location>
+        public let returnTypeLocations: Set<Location>
+        public let throwTypeLocations: Set<Location>
+        public let inheritedTypeLocations: Set<Location>
+        public let genericParameterLocations: Set<Location>
+        public let genericConformanceRequirementLocations: Set<Location>
+        public let variableInitFunctionCallLocations: Set<Location>
+        public let functionCallMetatypeArgumentLocations: Set<Location>
+        public let typeInitializerLocations: Set<Location>
+        public let variableInitExprLocations: Set<Location>
+        public let hasGenericFunctionReturnedMetatypeParameters: Bool
+        public let isOptionalType: Bool
+        public let hasNonNilInitialValue: Bool
+        public let isInitializedByCall: Bool
+        public let isInitializedByReference: Bool
+        public let isActor: Bool
+        public let isConstant: Bool
+        public let hasBody: Bool
+    }
 
     private let sourceLocationBuilder: SourceLocationBuilder
     private let typeSyntaxInspector: TypeSyntaxInspector
@@ -391,7 +391,7 @@ public final class DeclarationSyntaxVisitor: PeripherySyntaxVisitor {
         let allParameterClauseLocations = parameterClauseLocations.union(enumCaseParameterClauseLocations)
             .union(closureParameterClauseLocations)
 
-        results.append((
+        results.append(Result(
             location: location,
             accessibility: accessibility,
             modifiers: modifierNames,

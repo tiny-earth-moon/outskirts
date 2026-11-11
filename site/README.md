@@ -6,4 +6,4 @@ outskirts.dev, served by a Cloudflare Worker with Static Assets only (no script)
 - `npm run sync` regenerates `../docs/options.md` from `../outskirts.schema.json` and the README extracts between `<!-- docs:begin page#anchor -->` and `<!-- docs:end -->`.
 - `npm run check` builds, then checks the generated Markdown, the HTML metadata, links and anchors, code line length, the navigation, the sitemap and the colors of `style.css`.
 - `npm run deploy` runs `wrangler deploy`, whose build step runs `npm run build`; add `-- --dry-run` to preview.
-- No route or custom domain is configured here: the domain is attached by the owner.
+- No route or custom domain is configured here.

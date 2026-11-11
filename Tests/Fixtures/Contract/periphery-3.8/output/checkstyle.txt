@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<checkstyle version="4.3">
+	<file name="Sources/Fixture/Fixture.swift">
+		<error line="1" column="8" severity="warning" message="Unused struct &apos;UnusedFixtureType&apos;"/>
+		<error line="3" column="10" severity="warning" message="Redundant protocol &apos;RedundantMarker&apos; (never used as an existential type)"/>
+		<error line="9" column="22" severity="warning" message="Redundant protocol conformance &apos;RedundantMarker&apos;"/>
+		<error line="5" column="15" severity="warning" message="Redundant public accessibility for struct &apos;Helper&apos; (not used outside of Fixture)"/>
+		<error line="6" column="12" severity="warning" message="Redundant public accessibility for initializer &apos;init()&apos; (not used outside of Fixture)"/>
+		<error line="14" column="23" severity="warning" message="Unused parameter &apos;unusedParameter&apos;"/>
+	</file>
+</checkstyle>

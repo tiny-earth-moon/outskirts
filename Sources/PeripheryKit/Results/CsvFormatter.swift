@@ -26,27 +26,22 @@ final class CsvFormatter: OutputFormatter {
                 accessibility: result.declaration.accessibility.value.rawValue,
                 usrs: result.declaration.usrs,
                 location: declarationLocation(from: result.declaration),
-                hint: describe(result.annotation)
+                hint: result.annotation.name
             )
             lines.append(line)
 
-            switch result.annotation {
-            case let .redundantProtocol(references, inherited):
-                for ref in sortedReferences(references) {
-                    let line = format(
-                        kind: ref.declarationKind.rawValue,
-                        name: ref.name,
-                        modifiers: [],
-                        attributes: [],
-                        accessibility: nil,
-                        usrs: [ref.usr],
-                        location: ref.location,
-                        hint: redundantConformanceHint(with: inherited)
-                    )
-                    lines.append(line)
-                }
-            default:
-                break
+            for (ref, hint) in redundantConformances(of: result) {
+                let line = format(
+                    kind: ref.declarationKind.rawValue,
+                    name: ref.name,
+                    modifiers: [],
+                    attributes: [],
+                    accessibility: nil,
+                    usrs: [ref.usr],
+                    location: ref.location,
+                    hint: hint
+                )
+                lines.append(line)
             }
         }
 

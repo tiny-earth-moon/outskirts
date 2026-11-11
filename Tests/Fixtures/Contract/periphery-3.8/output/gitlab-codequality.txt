@@ -1,0 +1,62 @@
+[
+  {
+    "location" : {
+      "lines" : {
+        "begin" : 1
+      },
+      "path" : "Sources/Fixture/Fixture.swift"
+    },
+    "severity" : "info",
+    "description" : "Unused struct 'UnusedFixtureType'",
+    "fingerprint" : "s:7Fixture06UnusedA4TypeV",
+    "check_name" : "unused"
+  },
+  {
+    "check_name" : "redundantProtocol",
+    "severity" : "info",
+    "description" : "Redundant protocol 'RedundantMarker' (never used as an existential type), Redundant protocol conformance 'RedundantMarker'",
+    "fingerprint" : "s:7Fixture15RedundantMarkerP",
+    "location" : {
+      "path" : "Sources/Fixture/Fixture.swift",
+      "lines" : {
+        "begin" : 3
+      }
+    }
+  },
+  {
+    "description" : "Redundant public accessibility for struct 'Helper' (not used outside of Fixture)",
+    "check_name" : "redundantPublicAccessibility",
+    "fingerprint" : "s:7Fixture6HelperV",
+    "location" : {
+      "lines" : {
+        "begin" : 5
+      },
+      "path" : "Sources/Fixture/Fixture.swift"
+    },
+    "severity" : "info"
+  },
+  {
+    "severity" : "info",
+    "check_name" : "redundantPublicAccessibility",
+    "location" : {
+      "path" : "Sources/Fixture/Fixture.swift",
+      "lines" : {
+        "begin" : 6
+      }
+    },
+    "description" : "Redundant public accessibility for initializer 'init()' (not used outside of Fixture)",
+    "fingerprint" : "s:7Fixture6HelperVACycfc"
+  },
+  {
+    "check_name" : "unused",
+    "fingerprint" : "param-unusedParameter-run(_:)-s:7Fixture5EntryV3runyySiF",
+    "location" : {
+      "path" : "Sources/Fixture/Fixture.swift",
+      "lines" : {
+        "begin" : 14
+      }
+    },
+    "severity" : "info",
+    "description" : "Unused parameter 'unusedParameter'"
+  }
+]

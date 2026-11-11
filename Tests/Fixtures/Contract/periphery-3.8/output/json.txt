@@ -1,0 +1,125 @@
+[
+  {
+    "location" : "Sources/Fixture/Fixture.swift:1:8",
+    "modifiers" : [
+
+    ],
+    "attributes" : [
+
+    ],
+    "hints" : [
+      "unused"
+    ],
+    "kind" : "struct",
+    "modules" : [
+      "Fixture"
+    ],
+    "accessibility" : "internal",
+    "name" : "UnusedFixtureType",
+    "ids" : [
+      "s:7Fixture06UnusedA4TypeV"
+    ]
+  },
+  {
+    "modifiers" : [
+
+    ],
+    "kind" : "protocol",
+    "modules" : [
+      "Fixture"
+    ],
+    "name" : "RedundantMarker",
+    "ids" : [
+      "s:7Fixture15RedundantMarkerP"
+    ],
+    "attributes" : [
+
+    ],
+    "hints" : [
+      "redundantProtocol"
+    ],
+    "location" : "Sources/Fixture/Fixture.swift:3:10",
+    "accessibility" : "internal"
+  },
+  {
+    "attributes" : [
+
+    ],
+    "location" : "Sources/Fixture/Fixture.swift:9:22",
+    "hints" : [
+      "redundantConformance"
+    ],
+    "name" : "RedundantMarker",
+    "accessibility" : "",
+    "ids" : [
+      "s:7Fixture15RedundantMarkerP"
+    ],
+    "modifiers" : [
+
+    ],
+    "kind" : "protocol"
+  },
+  {
+    "kind" : "struct",
+    "hints" : [
+      "redundantPublicAccessibility"
+    ],
+    "name" : "Helper",
+    "modules" : [
+      "Fixture"
+    ],
+    "accessibility" : "public",
+    "ids" : [
+      "s:7Fixture6HelperV"
+    ],
+    "location" : "Sources/Fixture/Fixture.swift:5:15",
+    "modifiers" : [
+      "public"
+    ],
+    "attributes" : [
+
+    ]
+  },
+  {
+    "hints" : [
+      "redundantPublicAccessibility"
+    ],
+    "ids" : [
+      "s:7Fixture6HelperVACycfc"
+    ],
+    "attributes" : [
+
+    ],
+    "accessibility" : "public",
+    "location" : "Sources/Fixture/Fixture.swift:6:12",
+    "name" : "init()",
+    "modifiers" : [
+      "public"
+    ],
+    "kind" : "function.constructor",
+    "modules" : [
+      "Fixture"
+    ]
+  },
+  {
+    "modules" : [
+      "Fixture"
+    ],
+    "modifiers" : [
+
+    ],
+    "location" : "Sources/Fixture/Fixture.swift:14:23",
+    "accessibility" : "internal",
+    "hints" : [
+      "unused"
+    ],
+    "attributes" : [
+
+    ],
+    "name" : "unusedParameter",
+    "kind" : "var.parameter",
+    "ids" : [
+      "param-unusedParameter-run(_:)-s:7Fixture5EntryV3runyySiF"
+    ]
+  }
+]

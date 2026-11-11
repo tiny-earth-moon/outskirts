@@ -90,7 +90,7 @@ public final class XcodeTarget {
                 .flatMap { $0.membershipExceptions ?? [] }
             let excludedPaths = exceptions.mapSet { groupPath.appending($0).lexicallyNormalized() }
 
-            return FilePath.glob(groupPath.appending("**/*").string).filter { path in
+            return FilePath.glob(groupPath.appending("**/*").string, onUnreadableDirectory: logger.warnUnreadableDirectory).filter { path in
                 !excludedPaths.contains { path == $0 || path.starts(with: $0) }
             }
         }

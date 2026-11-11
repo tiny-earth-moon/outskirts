@@ -2,10 +2,10 @@ import Configuration
 import Foundation
 import Shared
 
-final class AccessibilityCascader: SourceGraphMutator {
+final class AccessibilityCascader: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

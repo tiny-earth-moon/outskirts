@@ -13,12 +13,12 @@ public final class XcodeProjectSetupGuide: SetupGuideHelpers, SetupGuide {
 
     public convenience init?(configuration: Configuration, shell: Shell, logger: Logger) {
         let workspacePaths = FilePath
-            .glob("**/*.xcworkspace")
+            .glob("**/*.xcworkspace", onUnreadableDirectory: logger.warnUnreadableDirectory)
             .filter {
                 // Swift Package Manager generates a xcworkspace inside the xcodeproj that isn't useful.
                 !$0.string.contains(".xcodeproj/")
             }
-        let projectPaths = FilePath.glob("**/*.xcodeproj")
+        let projectPaths = FilePath.glob("**/*.xcodeproj", onUnreadableDirectory: logger.warnUnreadableDirectory)
 
         if workspacePaths.isEmpty, projectPaths.isEmpty {
             return nil

@@ -2,12 +2,14 @@ import Configuration
 import Foundation
 import Shared
 
-final class EntryPointAttributeRetainer: SourceGraphMutator {
-    private static let entryPointAttributes: Set<String> = ["main", "UIApplicationMain", "NSApplicationMain"]
+final class EntryPointAttributeRetainer: GraphOnlyMutator {
+    /// In the order the detail names the first one a declaration carries.
+    private static let orderedEntryPointAttributes = ["main", "UIApplicationMain", "NSApplicationMain"]
+    private static let entryPointAttributes = Set(orderedEntryPointAttributes)
 
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 
@@ -73,7 +75,7 @@ final class EntryPointAttributeRetainer: SourceGraphMutator {
     }
 
     private static func entryPointDetail(of declaration: Declaration) -> String {
-        let attribute = ["main", "UIApplicationMain", "NSApplicationMain"].first { declaration.hasAttribute(named: $0) }
+        let attribute = orderedEntryPointAttributes.first { declaration.hasAttribute(named: $0) }
         return "@\(attribute ?? "main") entry point"
     }
 

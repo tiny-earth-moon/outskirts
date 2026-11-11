@@ -1,7 +1,6 @@
 import Extensions
 import FilenameMatcher
 import Foundation
-import Logger
 import Shared
 import SystemPackage
 import Yams
@@ -260,9 +259,11 @@ public final class Configuration {
         return try Yams.dump(object: config)
     }
 
+    static let maximumConfigurationFileSize = 1024 * 1024
+
     public func save(to path: FilePath = defaultConfigurationFile) throws {
-        let data = try (Self.schemaComment + "\n" + asYaml()).data(using: .utf8)
-        FileManager.default.createFile(atPath: path.string, contents: data)
+        let data = try Data((Self.schemaComment + "\n" + asYaml()).utf8)
+        try data.write(to: URL(fileURLWithPath: path.string))
     }
 
     /// Loads the configuration file. A value that is not valid for its setting, and a key that is not a setting, are
@@ -270,7 +271,13 @@ public final class Configuration {
     public func load(from path: FilePath?, warn: (String) -> Void) throws {
         guard let path = try configurationPath(withUserProvided: path) else { return }
 
-        let encodedYAML = try String(contentsOf: path.url, encoding: .utf8)
+        let data = try Data(contentsOf: path.url)
+        guard data.count <= Self.maximumConfigurationFileSize else {
+            throw PeripheryError.usageError("\(path.string): the configuration file is \(data.count) bytes, larger than the \(Self.maximumConfigurationFileSize) bytes limit")
+        }
+        guard let encodedYAML = String(data: data, encoding: .utf8) else {
+            throw PeripheryError.usageError("\(path.string): the configuration file is not valid UTF-8")
+        }
 
         // An empty document is an empty configuration.
         guard let document = try Yams.load(yaml: encodedYAML) else { return }
@@ -327,11 +334,12 @@ public final class Configuration {
         retainPublic || retainPublicModules.contains(where: modules.contains)
     }
 
-    public func buildFilenameMatchers() {
-        indexExcludeMatchers = buildFilenameMatchers(with: indexExclude)
-        retainFilesMatchers = buildFilenameMatchers(with: retainFiles)
-        reportIncludeMatchers = buildFilenameMatchers(with: reportInclude)
-        localizedStringCatalogExcludeMatchers = buildFilenameMatchers(with: localizedStringCatalogExclude)
+    /// - Parameter debug: Receives the reason file patterns fall back to the platform's case sensitivity.
+    public func buildFilenameMatchers(debug: (String) -> Void = { _ in }) {
+        indexExcludeMatchers = buildFilenameMatchers(with: indexExclude, debug: debug)
+        retainFilesMatchers = buildFilenameMatchers(with: retainFiles, debug: debug)
+        reportIncludeMatchers = buildFilenameMatchers(with: reportInclude, debug: debug)
+        localizedStringCatalogExcludeMatchers = buildFilenameMatchers(with: localizedStringCatalogExclude, debug: debug)
     }
 
     public var indexExcludeMatchers: [FilenameMatcher] = []
@@ -372,71 +380,14 @@ public final class Configuration {
         return indexExcludeMatchers.anyMatch(filename: path.string)
     }
 
-    // MARK: - Private
-
-    /// Keys of the Bazel mode, removed in 3.13.0, which are rejected instead of being reported as invalid keys.
-    /// The setting key that a misspelt key most likely stands for, if any is close enough.
-    private func closestSettingKey(to key: String) -> String? {
-        let normalized = key.lowercased().replacingOccurrences(of: "-", with: "_")
-        let candidates = settings.map(\.key).sorted()
-
-        if let exact = candidates.first(where: { $0 == normalized }) {
-            return exact
-        }
-
-        let maxDistance = min(3, max(1, key.count / 4))
-        let ranked = candidates.map { (key: $0, distance: Self.editDistance(normalized, $0)) }
-
-        return ranked.filter { $0.distance <= maxDistance }.min { $0.distance < $1.distance }?.key
-    }
-
-    /// The Levenshtein distance between two strings.
-    private static func editDistance(_ lhs: String, _ rhs: String) -> Int {
-        let lhs = Array(lhs)
-        let rhs = Array(rhs)
-        var previous = Array(0 ... rhs.count)
-
-        for (i, l) in lhs.enumerated() {
-            var current = [i + 1]
-
-            for (j, r) in rhs.enumerated() {
-                current.append(min(previous[j + 1] + 1, current[j] + 1, previous[j] + (l == r ? 0 : 1)))
-            }
-
-            previous = current
-        }
-
-        return previous[rhs.count]
-    }
-
-    private static func isRemovedBazelKey(_ key: String) -> Bool {
-        key == "bazel" || key.hasPrefix("bazel_")
-    }
-
-    lazy var settings: [any AbstractSetting] = [
-        $project, $schemes, $excludeTargets, $excludeTests, $indexExclude, $reportExclude, $reportInclude, $outputFormat,
-        $retainPublic, $retainPublicModules, $noRetainSPI, $retainFiles, $retainAssignOnlyProperties, $retainAssignOnlyPropertyTypes, $enableUnassignedOptionalAnalysis, $retainObjcAccessible,
-        $retainJsAccessible, $retainObjcAnnotated, $retainUnusedProtocolFuncParams, $retainUnusedParametersWithoutDefault, $retainSwiftUIPreviews, $disableRedundantPublicAnalysis, $enableRedundantPublicMembers, $enableOpenFinalAnalysis, $enableEmptyExtensionAnalysis, $enableRedundantAccessLevelAnalysis, $reportUnusedTypeParameters,
-        $disablePlatformConditionalRetention, $disableUnusedImportAnalysis, $enableUnusedSystemImports, $disableUnusedLocalizedStringAnalysis, $localizedStringCatalogExclude, $localizedStringKeyPatterns, $localizedStringKeyLiteralMatch, $retainRuntimeLocalizedKeys, $superfluousIgnoreComments, $retainUnusedImportedModules,
-        $externalEncodableProtocols, $externalCodableProtocols, $externalTestCaseClasses, $verbose, $quiet, $color,
-        $disableUpdateCheck, $strict, $indexStorePath,
-        $skipBuild, $skipSchemesValidation, $cleanBuild, $strictIndex, $cacheMaxAgeDays, $cacheMaxSizeGB, $buildArguments, $xcodeListArguments, $relativeResults, $relativeResultsBase, $changedSince, $changedLines,
-        $jsonPackageManifestPath, $retainCodableProperties, $retainEncodableProperties, $retainEquatableProperties,
-        $retainHashableProperties, $baseline, $writeBaseline, $pruneBaseline, $strictBaseline,
-        $writeResults, $skipStdoutResults, $genericProjectConfig,
-        $retainSynthesizedUses, $retainAttributes, $detectUnusedAssetCatalogColors, $detectUnusedAssetCatalogImages,
-        $detectUnusedMetalFunctions,
-    ]
-
-    public func buildFilenameMatchers(with patterns: [String]) -> [FilenameMatcher] {
+    public func buildFilenameMatchers(with patterns: [String], debug: (String) -> Void = { _ in }) -> [FilenameMatcher] {
         let pwd = FilePath.current.string
         let caseSensitive: Bool
         do {
             caseSensitive = try Self.volumeIsCaseSensitive(at: pwd)
         } catch {
             caseSensitive = Self.platformDefaultCaseSensitivity
-            Logger(quiet: quiet, verbose: verbose, colorMode: .never, messagesToStderr: true)
-                .debug("Cannot read the case sensitivity of the volume at \(pwd) (\(error)); file patterns match \(caseSensitive ? "case-sensitively" : "case-insensitively").")
+            debug("Cannot read the case sensitivity of the volume at \(pwd) (\(error)); file patterns match \(caseSensitive ? "case-sensitively" : "case-insensitively").")
         }
         return patterns.map { FilenameMatcher(relativePattern: $0, to: pwd, caseSensitive: caseSensitive) }
     }
@@ -485,6 +436,62 @@ public final class Configuration {
 
         return Self.configurationFileNames.map { FilePath($0) }.first { $0.exists }
     }
+
+    // MARK: - Private
+
+    /// The setting key that a misspelt key most likely stands for, if any is close enough.
+    private func closestSettingKey(to key: String) -> String? {
+        let normalized = key.lowercased().replacingOccurrences(of: "-", with: "_")
+        let candidates = settings.map(\.key).sorted()
+
+        if let exact = candidates.first(where: { $0 == normalized }) {
+            return exact
+        }
+
+        let maxDistance = min(3, max(1, key.count / 4))
+        let ranked = candidates.map { (key: $0, distance: Self.editDistance(normalized, $0)) }
+
+        return ranked.filter { $0.distance <= maxDistance }.min { $0.distance < $1.distance }?.key
+    }
+
+    /// The Levenshtein distance between two strings.
+    private static func editDistance(_ lhs: String, _ rhs: String) -> Int {
+        let lhs = Array(lhs)
+        let rhs = Array(rhs)
+        var previous = Array(0 ... rhs.count)
+
+        for (i, l) in lhs.enumerated() {
+            var current = [i + 1]
+
+            for (j, r) in rhs.enumerated() {
+                current.append(min(previous[j + 1] + 1, current[j] + 1, previous[j] + (l == r ? 0 : 1)))
+            }
+
+            previous = current
+        }
+
+        return previous[rhs.count]
+    }
+
+    /// Keys of the Bazel mode, removed in 3.13.0, which are rejected instead of being reported as invalid keys.
+    private static func isRemovedBazelKey(_ key: String) -> Bool {
+        key == "bazel" || key.hasPrefix("bazel_")
+    }
+
+    lazy var settings: [any AbstractSetting] = [
+        $project, $schemes, $excludeTargets, $excludeTests, $indexExclude, $reportExclude, $reportInclude, $outputFormat,
+        $retainPublic, $retainPublicModules, $noRetainSPI, $retainFiles, $retainAssignOnlyProperties, $retainAssignOnlyPropertyTypes, $enableUnassignedOptionalAnalysis, $retainObjcAccessible,
+        $retainJsAccessible, $retainObjcAnnotated, $retainUnusedProtocolFuncParams, $retainUnusedParametersWithoutDefault, $retainSwiftUIPreviews, $disableRedundantPublicAnalysis, $enableRedundantPublicMembers, $enableOpenFinalAnalysis, $enableEmptyExtensionAnalysis, $enableRedundantAccessLevelAnalysis, $reportUnusedTypeParameters,
+        $disablePlatformConditionalRetention, $disableUnusedImportAnalysis, $enableUnusedSystemImports, $disableUnusedLocalizedStringAnalysis, $localizedStringCatalogExclude, $localizedStringKeyPatterns, $localizedStringKeyLiteralMatch, $retainRuntimeLocalizedKeys, $superfluousIgnoreComments, $retainUnusedImportedModules,
+        $externalEncodableProtocols, $externalCodableProtocols, $externalTestCaseClasses, $verbose, $quiet, $color,
+        $disableUpdateCheck, $strict, $indexStorePath,
+        $skipBuild, $skipSchemesValidation, $cleanBuild, $strictIndex, $cacheMaxAgeDays, $cacheMaxSizeGB, $buildArguments, $xcodeListArguments, $relativeResults, $relativeResultsBase, $changedSince, $changedLines,
+        $jsonPackageManifestPath, $retainCodableProperties, $retainEncodableProperties, $retainEquatableProperties,
+        $retainHashableProperties, $baseline, $writeBaseline, $pruneBaseline, $strictBaseline,
+        $writeResults, $skipStdoutResults, $genericProjectConfig,
+        $retainSynthesizedUses, $retainAttributes, $detectUnusedAssetCatalogColors, $detectUnusedAssetCatalogImages,
+        $detectUnusedMetalFunctions,
+    ]
 }
 
 // MARK: - Yaml Encoding

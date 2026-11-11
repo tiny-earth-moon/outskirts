@@ -8,10 +8,10 @@ import Shared
 /// (e.g., `S.foo -> P.foo`). We invert these so protocol requirements reference their implementations
 /// (`P.foo -> S.foo`). This ensures that when code calls a method on a protocol type, the conforming
 /// implementations are transitively marked as used.
-final class ProtocolConformanceReferenceBuilder: SourceGraphMutator {
+final class ProtocolConformanceReferenceBuilder: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

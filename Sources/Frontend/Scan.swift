@@ -22,6 +22,9 @@ final class Scan {
 
     struct Output {
         let results: [ScanResult]
+        /// The call sites of the localized string keys built at runtime without a literal prefix, which may look up
+        /// any key.
+        let unprefixedRuntimeLocalizedStringKeyLocations: Set<Location>
     }
 
     func perform(project: Project) throws -> Output {
@@ -46,7 +49,7 @@ final class Scan {
         try index(driver)
         try analyze()
         explain()
-        return Output(results: buildResults())
+        return Output(results: buildResults(), unprefixedRuntimeLocalizedStringKeyLocations: graph.unprefixedRuntimeLocalizedStringKeyLocations)
     }
 
     // MARK: - Private

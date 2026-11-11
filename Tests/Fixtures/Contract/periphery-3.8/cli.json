@@ -1,0 +1,531 @@
+{
+  "source": "periphery 3.8.0 --experimental-dump-help (machine-specific defaults removed)",
+  "commands": [
+    {
+      "name": "scan",
+      "arguments": [
+        {
+          "kind": "positional",
+          "names": [],
+          "valueName": "build-arguments",
+          "repeating": true,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--setup"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--project-root"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--config"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--project"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--schemes"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--format"
+          ],
+          "repeating": false,
+          "parsing": "default",
+          "values": [
+            "xcode",
+            "csv",
+            "json",
+            "checkstyle",
+            "codeclimate",
+            "github-actions",
+            "github-markdown",
+            "gitlab-codequality"
+          ]
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--exclude-tests"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--exclude-targets"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--index-exclude"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--report-exclude"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--report-include"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--retain-files"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--index-store-path"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--retain-public"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--no-retain-spi"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--disable-redundant-public-analysis"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--disable-unused-import-analysis"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--superfluous-ignore-comments"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--no-superfluous-ignore-comments"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--retain-unused-imported-modules"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--retain-assign-only-properties"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--retain-assign-only-property-types"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--external-encodable-protocols"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--external-codable-protocols"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--external-test-case-classes"
+          ],
+          "repeating": true,
+          "parsing": "upToNextOption"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--retain-objc-accessible"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--retain-objc-annotated"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--retain-unused-protocol-func-params"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--retain-swift-ui-previews"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--retain-codable-properties"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--retain-encodable-properties"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--retain-equatable-properties"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--retain-hashable-properties"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--clean-build"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--skip-build"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--skip-schemes-validation"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--relative-results"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--strict"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--disable-update-check"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--verbose"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--quiet"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--color"
+          ],
+          "repeating": false,
+          "parsing": "default",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--no-color"
+          ],
+          "repeating": false,
+          "parsing": "default",
+          "hidden": true
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--json-package-manifest-path"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--baseline"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--write-baseline"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--write-results"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--generic-project-config"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--bazel"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--bazel-filter"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--bazel-query"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "option",
+          "names": [
+            "--bazel-index-store"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "--bazel-check-visibility"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "-h",
+            "--help"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        }
+      ]
+    },
+    {
+      "name": "check-update",
+      "arguments": [
+        {
+          "kind": "flag",
+          "names": [
+            "-h",
+            "--help"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        }
+      ]
+    },
+    {
+      "name": "clear-cache",
+      "arguments": [
+        {
+          "kind": "flag",
+          "names": [
+            "-h",
+            "--help"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        }
+      ]
+    },
+    {
+      "name": "version",
+      "arguments": [
+        {
+          "kind": "flag",
+          "names": [
+            "-h",
+            "--help"
+          ],
+          "repeating": false,
+          "parsing": "default"
+        }
+      ]
+    },
+    {
+      "name": "help",
+      "arguments": [
+        {
+          "kind": "positional",
+          "names": [],
+          "valueName": "subcommands",
+          "repeating": true,
+          "parsing": "default"
+        },
+        {
+          "kind": "flag",
+          "names": [
+            "-h",
+            "--help",
+            "-help"
+          ],
+          "repeating": false,
+          "parsing": "default",
+          "hidden": true
+        }
+      ]
+    }
+  ]
+}

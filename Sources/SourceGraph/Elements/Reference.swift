@@ -35,7 +35,6 @@ public final class Reference {
     public let declarationKind: Declaration.Kind
     public let name: String
     public var parent: Declaration?
-    public var references: Set<Reference> = []
     public let usr: String
     public var role: Role = .unknown
 
@@ -54,10 +53,6 @@ public final class Reference {
         self.usr = usr
         self.location = location
         hashValueCache = [usr.hashValue, location.hashValue, kind.hashValue].hashValue
-    }
-
-    var descendentReferences: Set<Reference> {
-        references.flatMapSet { $0.descendentReferences }.union(references)
     }
 }
 

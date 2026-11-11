@@ -88,4 +88,55 @@ final class XcodebuildIndexStoreTest: XCTestCase {
             }
         }
     }
+
+    func testSkipBuildFallback_reportsAnUnreadableDerivedDataRoot() throws {
+        let unreadableRoot = root.appending("not-a-directory")
+        try Data().write(to: URL(fileURLWithPath: unreadableRoot.string))
+        let logger = Logger(quiet: false, verbose: false, colorMode: .never)
+        let xcodebuild = Xcodebuild(shell: ShellMock(output: "Xcode 0.0"), logger: logger, cacheDirectory: TestCacheDirectory.path)
+        var thrown: Error?
+
+        let stderr = try captureStandardError {
+            XCTAssertThrowsError(
+                try xcodebuild.indexStorePath(project: project, schemes: [], skipBuild: true, xcodeDerivedDataRoot: unreadableRoot)
+            ) { thrown = $0 }
+        }
+
+        guard case PeripheryError.indexStoreNotFoundAfterSkippedBuild = try XCTUnwrap(thrown) else {
+            return XCTFail("Unexpected error: \(String(describing: thrown))")
+        }
+
+        XCTAssertTrue(stderr.contains("Cannot read Xcode's DerivedData folder \(unreadableRoot.string)"), stderr)
+    }
+
+    func testSkipBuildFallback_missingDerivedDataRootIsNotReported() throws {
+        let logger = Logger(quiet: false, verbose: false, colorMode: .never)
+        let xcodebuild = Xcodebuild(shell: ShellMock(output: "Xcode 0.0"), logger: logger, cacheDirectory: TestCacheDirectory.path)
+
+        let stderr = try captureStandardError {
+            XCTAssertThrowsError(
+                try xcodebuild.indexStorePath(project: project, schemes: [], skipBuild: true, xcodeDerivedDataRoot: root.appending("missing"))
+            )
+        }
+
+        XCTAssertFalse(stderr.contains("Cannot read"), stderr)
+    }
+
+    private func captureStandardError(_ body: () throws -> Void) throws -> String {
+        let pipe = Pipe()
+        let original = dup(STDERR_FILENO)
+        fflush(stderr)
+        dup2(pipe.fileHandleForWriting.fileDescriptor, STDERR_FILENO)
+
+        defer {
+            dup2(original, STDERR_FILENO)
+            close(original)
+        }
+
+        try body()
+        fflush(stderr)
+        dup2(original, STDERR_FILENO)
+        pipe.fileHandleForWriting.closeFile()
+        return try XCTUnwrap(String(bytes: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8))
+    }
 }

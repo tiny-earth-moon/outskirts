@@ -2,7 +2,7 @@ import Configuration
 import Foundation
 import Shared
 
-final class UsedDeclarationMarker: SourceGraphMutator {
+final class UsedDeclarationMarker: GraphOnlyMutator {
     private static let previewableProtocolUsrs: Set<String> = [
         "s:7SwiftUI4ViewP",
         "s:7SwiftUI6WidgetP",
@@ -18,7 +18,7 @@ final class UsedDeclarationMarker: SourceGraphMutator {
 
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

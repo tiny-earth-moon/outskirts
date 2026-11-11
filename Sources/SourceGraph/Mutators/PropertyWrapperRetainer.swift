@@ -2,13 +2,13 @@ import Configuration
 import Foundation
 import Shared
 
-final class PropertyWrapperRetainer: SourceGraphMutator {
+final class PropertyWrapperRetainer: GraphOnlyMutator {
     private let graph: SourceGraph
     private let specialProperties = ["wrappedValue", "projectedValue"]
     private let enclosingInstanceSubscriptName = "subscript(_enclosingInstance:wrapped:storage:)"
     private let parameterWrapperInitializerPrefixes = ["init(wrappedValue:", "init(projectedValue:"]
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

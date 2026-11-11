@@ -6,7 +6,7 @@ description: Answers to common questions about outskirts: the relation to Periph
 
 ## Is outskirts the same tool as Periphery?
 
-outskirts is Periphery 3.x under a new name, maintained by the community since the original repository was archived in August 2026. It keeps the `periphery` command, the `.periphery.yml` file and the `// periphery:ignore` comments working, see [Migrating from Periphery](migrating-from-periphery.md). It is not affiliated with Periphery Pro.
+outskirts is Periphery 3.x under a new name, maintained by the community since the original repository was archived in August 2026. It keeps the `periphery` command, the `.periphery.yml` file and the `// periphery:ignore` comments working, see [Migrating from Periphery](migrating-from-periphery.md). It is not affiliated with, or endorsed by, the original author.
 
 ## Is it free?
 

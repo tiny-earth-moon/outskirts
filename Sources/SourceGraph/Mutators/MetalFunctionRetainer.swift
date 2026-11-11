@@ -36,7 +36,7 @@ final class MetalFunctionRetainer: SourceGraphMutator {
 
         // A library compiled or loaded at run time may declare any function.
         if let site = graph.metalRuntimeLibrarySites.min() {
-            graph.logMetalRuntimeLibrary(site)
+            logRuntimeLibrary(site)
             return
         }
 
@@ -47,5 +47,9 @@ final class MetalFunctionRetainer: SourceGraphMutator {
 
             graph.markMissingMetalFunction(named: name, at: reference.location)
         }
+    }
+
+    private func logRuntimeLibrary(_ site: MetalRuntimeLibrarySite) {
+        graph.logger.debug("Metal library created at run time at \(site.location.file.path.string):\(site.location.line) (\(site.call)): literals naming unknown Metal functions are not reported")
     }
 }

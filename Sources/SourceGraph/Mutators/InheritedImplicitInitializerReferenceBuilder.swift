@@ -8,10 +8,10 @@ import Shared
 /// from the superclass initializer to the subclass implicit initializer, but not the inverse. This mutator
 /// adds the inverse reference so that when the implicit initializer is used, the superclass initializer
 /// is also marked as used.
-final class InheritedImplicitInitializerReferenceBuilder: SourceGraphMutator {
+final class InheritedImplicitInitializerReferenceBuilder: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

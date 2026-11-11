@@ -33,7 +33,7 @@ final class GitHubActionsFormatter: OutputFormatter {
         let path = outputPath(location)
         let lineNum = String(location.line)
         let column = location.column
-        let title = describe(result.annotation)
+        let title = result.annotation.name
 
         return "::warning file=\(escapeProperty(path.string)),line=\(lineNum),col=\(column),title=\(escapeProperty(title))::"
     }

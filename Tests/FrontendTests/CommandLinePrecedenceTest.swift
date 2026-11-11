@@ -55,8 +55,7 @@ final class CommandLinePrecedenceTest: XCTestCase {
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent("periphery-precedence-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        directory = try makeTemporaryDirectory("periphery-precedence")
     }
 
     override func tearDownWithError() throws {
@@ -139,15 +138,19 @@ final class CommandLinePrecedenceTest: XCTestCase {
     }
 
     func testEveryBooleanOptionHasAnInversionThatOverridesTheFile() throws {
-        for (key, keyPath) in Self.booleanSettings {
-            let flag = key.replacingOccurrences(of: "_", with: "-")
+        let flags = Self.booleanSettings.map { "--" + $0.key.replacingOccurrences(of: "_", with: "-") }
+        let inversions = flags.map { "--no-" + $0.dropFirst(2) }
 
-            for fileValue in [true, false] {
-                let file = "\(key): \(fileValue)\n"
+        for fileValue in [true, false] {
+            let file = Self.booleanSettings.map { "\($0.key): \(fileValue)\n" }.joined()
+            let fromFile = try merge([], file: file)
+            let enabled = try merge(flags, file: file)
+            let disabled = try merge(inversions, file: file)
 
-                XCTAssertEqual(try merge([], file: file)[keyPath: keyPath], fileValue, "\(key) from the file")
-                XCTAssertTrue(try merge(["--\(flag)"], file: file)[keyPath: keyPath], "--\(flag) over \(file)")
-                XCTAssertFalse(try merge(["--no-\(flag)"], file: file)[keyPath: keyPath], "--no-\(flag) over \(file)")
+            for ((key, keyPath), flag) in zip(Self.booleanSettings, flags) {
+                XCTAssertEqual(fromFile[keyPath: keyPath], fileValue, "\(key) from the file")
+                XCTAssertTrue(enabled[keyPath: keyPath], "\(flag) over \(key): \(fileValue)")
+                XCTAssertFalse(disabled[keyPath: keyPath], "--no-\(flag.dropFirst(2)) over \(key): \(fileValue)")
             }
         }
     }

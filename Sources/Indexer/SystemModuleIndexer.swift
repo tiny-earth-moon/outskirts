@@ -1,4 +1,4 @@
-import IndexStore
+@preconcurrency import IndexStore
 import Logger
 import Shared
 import SourceGraph

@@ -4,10 +4,10 @@ import Shared
 
 /// Folds all references and declarations that exist within an extension into the
 /// class/struct that is being extended and removes the extension declaration.
-final class ExtensionReferenceBuilder: SourceGraphMutator {
+final class ExtensionReferenceBuilder: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

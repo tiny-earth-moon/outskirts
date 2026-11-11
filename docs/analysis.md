@@ -668,6 +668,8 @@ Text("welcome.title")
 Text("welcome.subtitle")
 ```
 
+[`outskirts fix`](fix.md) removes the unused keys from the catalogues for you, see [Fixing unused String Catalog keys](fix.md).
+
 ### How a key is found
 
 A key is considered used when a static string literal with the same value is:

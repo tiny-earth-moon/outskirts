@@ -9,10 +9,10 @@ import Shared
 /// 2. Creating references from conforming types to protocol extensions when they use default implementations
 /// 3. Constrained protocol extensions (e.g., `extension ProtocolA where Self: ProtocolB`) where the extension
 ///    provides default implementations that satisfy requirements of the constraining protocol
-final class ProtocolExtensionReferenceBuilder: SourceGraphMutator {
+final class ProtocolExtensionReferenceBuilder: GraphOnlyMutator {
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

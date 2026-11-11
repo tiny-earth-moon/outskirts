@@ -1,6 +1,6 @@
 # Contributing
 
-outskirts (formerly Periphery; `periphery` stays an alias) keeps the Periphery 3.x line building and working with current Xcode/Swift toolchains. There is no functional roadmap: bug reports (with a minimal project) and pull requests are welcome, feature requests should come as a PR.
+outskirts (formerly Periphery; `periphery` stays an alias) keeps the Periphery 3.x line building and working with current Xcode/Swift toolchains. The [roadmap](docs/roadmap.md) lists what is planned; bug reports (with a minimal project) and pull requests are welcome, feature requests should come as a PR.
 
 ## Build
 
@@ -48,7 +48,7 @@ Conventional Commits with a scope, in English: `fix(indexer): ...`, `build: ...`
 ## Pull requests
 
 - One issue, one pull request. The PR body contains `Closes #N` so that the issue closes on merge.
-- Never edit `CHANGELOG.md` in a pull request: the release commit fills it.
+- Do not edit `CHANGELOG.md` in a pull request: it is updated at release time.
 - CI (`.github/workflows/test.yml`) must be green before merging: build, strict self-scan with `.outskirts.yml`, tests, swiftformat and swiftlint on macOS, the Linux jobs, the release scripts and the site (`npm run check`).
 - External contributions keep their original author, with a `Co-authored-by` trailer when changes are made on top.
 

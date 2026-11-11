@@ -3,7 +3,7 @@ import Foundation
 import Shared
 
 /// Retains static methods used by the Result Builder language feature.
-final class ResultBuilderRetainer: SourceGraphMutator {
+final class ResultBuilderRetainer: GraphOnlyMutator {
     private let graph: SourceGraph
     /// Names the compiler calls implicitly (SE-0289, SE-0348). buildBlock may have any arity.
     private let resultBuilderMethods = Set<String>([
@@ -18,7 +18,7 @@ final class ResultBuilderRetainer: SourceGraphMutator {
         "buildPartialBlock(accumulated:next:)",
     ])
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

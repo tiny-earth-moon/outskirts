@@ -4,7 +4,7 @@ import Shared
 
 /// Retains the declarations that exist for callers the index cannot see: C code, the linker, the runtime or a
 /// section reader.
-final class LinkageAttributeRetainer: SourceGraphMutator {
+final class LinkageAttributeRetainer: GraphOnlyMutator {
     /// Attributes that export a function to C or C++, or define the symbol it is linked under.
     private static let exportingFunctionAttributes: Set<String> = ["c", "_cdecl", "_expose"]
     /// Attributes that keep a function or a variable in the binary, or place it in a named section.
@@ -12,20 +12,22 @@ final class LinkageAttributeRetainer: SourceGraphMutator {
     /// Attributes of a declaration implemented on behalf of an imported C or Objective-C declaration.
     private static let implementationAttributes: Set<String> = ["implementation", "_objcImplementation"]
 
+    private static let retentionDetail = "linkage attribute (@_cdecl, @_silgen_name, @_used or @_section)"
+
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 
     func mutate() {
         for decl in graph.allDeclarations where !decl.attributes.isEmpty {
             if isImplementation(decl) {
-                graph.markRetained(decl, reason: RetentionReason(Self.self, "linkage attribute (@_cdecl, @_silgen_name, @_used or @_section)"))
-                graph.markRetained(decl.descendentDeclarations, reason: RetentionReason(Self.self, "linkage attribute (@_cdecl, @_silgen_name, @_used or @_section)"))
+                graph.markRetained(decl, reason: RetentionReason(Self.self, Self.retentionDetail))
+                graph.markRetained(decl.descendentDeclarations, reason: RetentionReason(Self.self, Self.retentionDetail))
             } else if isLinkageVisible(decl) {
-                graph.markRetained(decl, reason: RetentionReason(Self.self, "linkage attribute (@_cdecl, @_silgen_name, @_used or @_section)"))
-                graph.markRetained(decl.unusedParameters, reason: RetentionReason(Self.self, "linkage attribute (@_cdecl, @_silgen_name, @_used or @_section)"))
+                graph.markRetained(decl, reason: RetentionReason(Self.self, Self.retentionDetail))
+                graph.markRetained(decl.unusedParameters, reason: RetentionReason(Self.self, Self.retentionDetail))
             }
         }
     }

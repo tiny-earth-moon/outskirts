@@ -49,7 +49,11 @@ public final class XcodeProject: XcodeProjectlike {
 
         self.path = path
         self.xcodebuild = xcodebuild
-        name = self.path.lastComponent?.stem ?? ""
+        guard let name = self.path.lastComponent?.stem else {
+            throw PeripheryError.pathDoesNotExist(path: path.string)
+        }
+
+        self.name = name
         sourceRoot = self.path.removingLastComponent()
 
         do {

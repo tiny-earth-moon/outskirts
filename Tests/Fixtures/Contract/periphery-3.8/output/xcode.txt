@@ -1,0 +1,6 @@
+Sources/Fixture/Fixture.swift:1:8: warning: Unused struct 'UnusedFixtureType'
+Sources/Fixture/Fixture.swift:3:10: warning: Redundant protocol 'RedundantMarker' (never used as an existential type)
+Sources/Fixture/Fixture.swift:9:22: warning: Redundant protocol conformance 'RedundantMarker'
+Sources/Fixture/Fixture.swift:5:15: warning: Redundant public accessibility for struct 'Helper' (not used outside of Fixture)
+Sources/Fixture/Fixture.swift:6:12: warning: Redundant public accessibility for initializer 'init()' (not used outside of Fixture)
+Sources/Fixture/Fixture.swift:14:23: warning: Unused parameter 'unusedParameter'

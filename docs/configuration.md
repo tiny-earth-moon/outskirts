@@ -51,6 +51,15 @@ The command line takes precedence over the configuration file, which takes prece
 - A list given on the command line replaces the list of the file; the default `index_exclude` patterns are always kept.
 - `--setup`, `--project-root` and `--config` are command line only, and `xcode_list_arguments` is configuration file only.
 
+## Build arguments
+
+`build_arguments` (or the arguments after `--`) and `xcode_list_arguments` are appended to the `xcodebuild` command, which keeps the last occurrence of an option. outskirts builds an Xcode project into its own cache folder and reads the index store from there, so the scan stops with an error naming the argument when one of them would move the build elsewhere:
+
+- the options `-derivedDataPath`, `-archivePath`, `-exportPath`, `-resultBundlePath`, `-resultStreamPath`, `-testProductsPath`, `-clonedSourcePackagesDirPath`, `-packageCachePath`, `-localizationPath`, and the user defaults `-IDECustomDerivedDataLocation`, `-IDECustomBuildProductsPath`, `-IDECustomIntermediatesPath`, `-IDECustomBuildLocationType` and `-IDEBuildLocationStyle`, in any case, with one or two dashes, followed by their value or by `=value`;
+- the build settings `SYMROOT`, `OBJROOT`, `DSTROOT`, `BUILD_DIR`, `BUILD_ROOT`, `CONFIGURATION_BUILD_DIR`, `CONFIGURATION_TEMP_DIR`, `TARGET_BUILD_DIR`, `TARGET_TEMP_DIR`, `PROJECT_TEMP_DIR`, `PROJECT_TEMP_ROOT`, `SHARED_PRECOMPS_DIR`, `MODULE_CACHE_DIR` and `INDEX_DATA_STORE_DIR`, given as `KEY=value`, including a conditional `KEY[sdk=…]=value`.
+
+Every other argument is passed unchanged. To build somewhere else, build the project yourself and scan its index store with `--skip-build --index-store-path <path>`, as in [Continuous integration: Reusing the build](ci.md#reusing-the-build). With Swift Package Manager, `--scratch-path` and the other location options of `swift build` remain accepted: outskirts reads the index store from where they place it.
+
 ## Validation
 
 Values are checked when the file is loaded:

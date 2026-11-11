@@ -1,3 +1,10 @@
 disabled_rules:
   - implicitly_unwrapped_optional
   - force_try
+# Size thresholds are a ratchet set to the current worst case in Tests: lower them, never raise them.
+file_length: {warning: 3299, error: 3299}
+type_body_length: {warning: 2791, error: 2791}
+function_body_length: {warning: 91, error: 91}
+cyclomatic_complexity: {warning: 15, error: 15}
+function_parameter_count: {warning: 6, error: 6}
+large_tuple: {warning: 3, error: 3}

@@ -2,11 +2,11 @@ import Configuration
 import Shared
 
 /// Retains the generated conformance that checks SwiftProtobuf API compatibility.
-final class ProtobufAPIVersionCheckRetainer: SourceGraphMutator {
+final class ProtobufAPIVersionCheckRetainer: GraphOnlyMutator {
     private let graph: SourceGraph
     private let protocolUsr = "s:13SwiftProtobuf0B15APIVersionCheckP"
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 

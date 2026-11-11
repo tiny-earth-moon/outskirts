@@ -1,0 +1,12 @@
+{
+  "source": "periphery 3.8.0 run on package/ and package-no-results/ (built with 'swift build --build-system native', scanned with --skip-build --index-store-path)",
+  "scan": {
+    "noResults": 0,
+    "resultsWithoutStrict": 0,
+    "resultsWithStrict": 1,
+    "unknownOption": 64,
+    "invalidOptionValue": 64,
+    "missingConfigurationFile": 1
+  },
+  "unknownSubcommand": 64
+}

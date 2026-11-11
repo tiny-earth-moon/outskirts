@@ -209,6 +209,9 @@ struct ResultsOptions: ParsableArguments {
 
     @Option(help: "Explain why a declaration is reported, used or retained. Accepts a name (e.g. 'draw()' or 'Beta.draw()'), a USR or a 'file:line' location; repeat the option to explain several")
     var explain: [String] = []
+
+    @Option(help: "With '--format agent', the maximum number of results to print; the report then ends with the number of results left out (default: every result)")
+    var maxResults: Int?
 }
 
 struct BaselineOptions: ParsableArguments {

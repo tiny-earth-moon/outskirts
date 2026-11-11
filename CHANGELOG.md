@@ -12,6 +12,24 @@
 
 - None.
 
+## 3.23.0 (2026-11-11)
+
+##### Breaking
+
+- None.
+
+##### Enhancements
+
+- `outskirts fix` removes the String Catalog keys that `scan` reports as unused, after the same baseline, report filters and comment commands. It prints a unified diff by default and writes nothing; `--apply` writes every catalog atomically, or none. Only the reported keys are removed and every other byte of a catalog is kept; a catalog whose result does not decode to the original minus exactly those keys is skipped. Catalogs with uncommitted changes, outside git, or modified after the scan started are skipped unless `--allow-dirty` is given. A partial scan is refused unless `--allow-partial-scan` is given, and `--apply` is refused while keys are built at runtime without a literal prefix unless `--allow-runtime-keys` is given. `--include <glob>` limits the catalogs. See [Fix](docs/fix.md).
+- `--format agent` prints a compact plain-text report for coding agents, grouped by action, with entirely unused files first; `--max-results` caps the number of results it shows.
+
+##### Bug Fixes
+
+- `build_arguments` and `xcode_list_arguments` can no longer move the build out of the outskirts build cache: arguments that set the DerivedData or build product location are refused.
+- A configuration file larger than 1 MiB or not UTF-8 is refused before parsing. The update check times out, refuses a response over 64 KiB and only prints a plain version tag.
+- A failure to write the configuration file with `--setup` is reported instead of ignored.
+- A directory that a glob pattern cannot list, and an unreadable DerivedData folder, are reported as warnings instead of being skipped silently.
+
 ## 3.22.0 (2026-11-10)
 
 ##### Breaking
@@ -77,7 +95,7 @@
 - No longer reported as unused: the projected-value initializer of an implicit property wrapper, the enclosing instance subscript of a property wrapper, enum cases used through a generic `allCases`, AppKit and UIKit preview helpers, a `main()` provided by a protocol extension, and actions sent to the First Responder in Interface Builder.
 - An ignore comment that silences a redundant protocol conformance is no longer reported as superfluous.
 - Redundant public accessibility gives the same results from one scan to the next: a public protocol and its public refinement were sometimes reported, sometimes not.
-- Unused system imports are reported on Linux (#280).
+- Unused system imports are reported on Linux.
 - Xcode projects: a missing Info.plist or XIB of a configuration that is not built is skipped with a warning instead of failing the scan, and `--skip-build` no longer picks the DerivedData of another workspace.
 
 ## 3.21.1 (2026-11-09)
@@ -103,13 +121,13 @@
 
 ##### Enhancements
 
-- `retain_public` can be limited to some modules: `retain_public_modules: [Lib]` (or `retain_public: [Lib]`, `--retain-public-modules Lib`) keeps the public API of the listed modules and reports unused public code everywhere else, for packages that mix a library with an app, a tool or a demo. A warning names any listed module that is not part of the scan (#217).
-- A scan warns once when source files are newer than their index data, with the number of files and a few examples per index store; results are unchanged. `--strict-index` (`strict_index: true`) turns that warning into a failure for CI. The troubleshooting guide now explains how to scan several platforms or configurations together (#230).
-- `outskirts --version`; `outskirts help scan` groups its options into sections; `--project-root` no longer shows the machine's current directory as its default; path options complete files and directories, and the Homebrew formula installs bash, zsh and fish completions (#226).
+- `retain_public` can be limited to some modules: `retain_public_modules: [Lib]` (or `retain_public: [Lib]`, `--retain-public-modules Lib`) keeps the public API of the listed modules and reports unused public code everywhere else, for packages that mix a library with an app, a tool or a demo. A warning names any listed module that is not part of the scan.
+- A scan warns once when source files are newer than their index data, with the number of files and a few examples per index store; results are unchanged. `--strict-index` (`strict_index: true`) turns that warning into a failure for CI. The troubleshooting guide now explains how to scan several platforms or configurations together.
+- `outskirts --version`; `outskirts help scan` groups its options into sections; `--project-root` no longer shows the machine's current directory as its default; path options complete files and directories, and the Homebrew formula installs bash, zsh and fish completions.
 
 ##### Bug Fixes
 
-- From Swift 6.4, where the compiler records the reference, every `appendInterpolation` overload is no longer retained by default: an unused overload is reported like any other function. Older toolchains keep the workaround (#222).
+- From Swift 6.4, where the compiler records the reference, every `appendInterpolation` overload is no longer retained by default: an unused overload is reported like any other function. Older toolchains keep the workaround.
 
 ## 3.20.0 (2026-11-05)
 
@@ -119,13 +137,13 @@
 
 ##### Enhancements
 
-- Each release ships a prebuilt `outskirts-<version>-macos-arm64.tar.gz` archive with its SHA-256, and Homebrew bottles for macOS 15, 26 and 27 (#229, #315).
-- Assign-only property analysis covers properties without a type annotation: their type is recovered from the index, so `var count = 0` assigned and never read is reported like `var count: Int = 0`. Known limit: a retained type configured by a typealias name does not match an inferred property whose type is the underlying type (#214, #319).
-- Names written in a platform `#if` are retained only from the clauses the scanned build did not compile, for conditions combining `os()`, `arch()` and `targetEnvironment()`; names in compiled clauses are resolved from the index. Other conditions (`canImport`, custom flags, `swift()`…) keep the whole block retained (#218, #320).
+- Each release ships a prebuilt `outskirts-<version>-macos-arm64.tar.gz` archive with its SHA-256, and Homebrew bottles for macOS 15, 26 and 27 (#315).
+- Assign-only property analysis covers properties without a type annotation: their type is recovered from the index, so `var count = 0` assigned and never read is reported like `var count: Int = 0`. Known limit: a retained type configured by a typealias name does not match an inferred property whose type is the underlying type (#319).
+- Names written in a platform `#if` are retained only from the clauses the scanned build did not compile, for conditions combining `os()`, `arch()` and `targetEnvironment()`; names in compiled clauses are resolved from the index. Other conditions (`canImport`, custom flags, `swift()`…) keep the whole block retained (#320).
 
 ##### Bug Fixes
 
-- In an `@Observable` class, a property read inside the `didSet` or `willSet` of another property is no longer reported as assign-only. The macro places its generated references at the attribute's position, and removing them also removed the observer's read (#214, #322).
+- In an `@Observable` class, a property read inside the `didSet` or `willSet` of another property is no longer reported as assign-only. The macro places its generated references at the attribute's position, and removing them also removed the observer's read (#322).
 
 ##### Upgrade notes
 
@@ -153,11 +171,11 @@
 
 ##### Enhancements
 
-- The build cache is bounded: each `DerivedData-*` folder records the project it was built for, and folders whose project no longer exists are evicted at the end of a scan. New `cache_max_size_gb` (`--cache-max-size-gb`, default 20, 0 disables) evicts the least recently used folders until the cache fits, never the folder of the current scan. Closes #310 (#311).
+- The build cache is bounded: each `DerivedData-*` folder records the project it was built for, and folders whose project no longer exists are evicted at the end of a scan. New `cache_max_size_gb` (`--cache-max-size-gb`, default 20, 0 disables) evicts the least recently used folders until the cache fits, never the folder of the current scan. (#311).
 
 ##### Bug Fixes
 
-- A type named in the where clause of a protocol extension (`extension Style where Self == DeadStyle`) is no longer kept alive by the extension itself: it is retained only when a member of the extension is used, so an unused static lookup type is reported in the same scan as its member. Closes #223 (#312).
+- A type named in the where clause of a protocol extension (`extension Style where Self == DeadStyle`) is no longer kept alive by the extension itself: it is retained only when a member of the extension is used, so an unused static lookup type is reported in the same scan as its member. (#312).
 
 ## 3.18.1 (2026-11-04)
 
@@ -173,8 +191,8 @@
 ##### Bug Fixes
 
 - SARIF rules link to their section of the documentation site (`helpUri`), and the manual Xcode configuration hint points to the configuration page (#304).
-- The concurrent job pool no longer races on its error state; SourceGraph, SyntaxAnalysis, ProjectDrivers, XcodeSupport, PeripheryKit and Frontend build in the Swift 6 language mode, and the signal handler builds in Swift 6 on Linux. Closes #181 (#307).
-- outskirts now scans itself in CI with `--strict`, blocking on any new unused code; the dead code it found is removed and the advisory Linux self-scan is dropped. Closes #220 (#308).
+- The concurrent job pool no longer races on its error state; SourceGraph, SyntaxAnalysis, ProjectDrivers, XcodeSupport, PeripheryKit and Frontend build in the Swift 6 language mode, and the signal handler builds in Swift 6 on Linux. (#307).
+- outskirts now scans itself in CI with `--strict`, blocking on any new unused code; the dead code it found is removed and the advisory Linux self-scan is dropped. (#308).
 
 ## 3.18.0 (2026-11-04)
 
@@ -184,8 +202,8 @@
 
 ##### Enhancements
 
-- A JSON Schema of the configuration file, `outskirts.schema.json` (generated by `outskirts config schema`), with one entry per setting: type, description, default and allowed values. The `examples/*.yml` files and the file written by `scan --setup` start with the `yaml-language-server` comment for editor completion. New `outskirts config check [--config <file>] [--project-root <dir>]` validates a configuration file without scanning: unknown keys (with a suggestion), wrong types, quoted booleans, invalid `report_exclude` entries, `retain_attributes`, baseline and output paths; exits 1 on any problem. Closes #228 and the `config check` part of #227.
-- `--changed-since <ref>` (`changed_since`) keeps only the results whose file changed since the merge base of `<ref>` and `HEAD`, committed, uncommitted or untracked changes included; `--changed-lines` (`changed_lines`) further keeps only the results whose line falls inside a changed hunk. The whole project is still analysed; the filter runs after the baseline. Outside a git work tree or with an unknown ref the scan stops with an explicit error. The README gains a "Pull request checks" paragraph. Closes #231.
+- A JSON Schema of the configuration file, `outskirts.schema.json` (generated by `outskirts config schema`), with one entry per setting: type, description, default and allowed values. The `examples/*.yml` files and the file written by `scan --setup` start with the `yaml-language-server` comment for editor completion. New `outskirts config check [--config <file>] [--project-root <dir>]` validates a configuration file without scanning: unknown keys (with a suggestion), wrong types, quoted booleans, invalid `report_exclude` entries, `retain_attributes`, baseline and output paths; exits 1 on any problem.
+- `--changed-since <ref>` (`changed_since`) keeps only the results whose file changed since the merge base of `<ref>` and `HEAD`, committed, uncommitted or untracked changes included; `--changed-lines` (`changed_lines`) further keeps only the results whose line falls inside a changed hunk. The whole project is still analysed; the filter runs after the baseline. Outside a git work tree or with an unknown ref the scan stops with an explicit error. The README gains a "Pull request checks" paragraph.
 - `--quiet` prints nothing on stdout when a scan reports no result, in every format; together with `--write-results <file>` the report goes to the file only. Exit statuses are unchanged. Closes #296 (requested upstream in [peripheryapp/periphery#933](https://github.com/peripheryapp/periphery/issues/933) and [#1129](https://github.com/peripheryapp/periphery/issues/1129)).
 - README: Baseline section, GitHub Actions and GitLab CI recipes, Framework conventions section, configuration schema and `config check` documentation; CONTRIBUTING: "Adding an option" checklist.
 
@@ -232,7 +250,7 @@
 ##### Enhancements
 
 - The project is now named **outskirts**: it finds what lies at the outskirts of your Swift project, the code nothing reaches. The executable is `outskirts` and `periphery` remains available as an alias; `.outskirts.yml` is read before `.periphery.yml`, and `// outskirts:ignore` is equivalent to `// periphery:ignore`. The repository moved to [tiny-earth-moon/outskirts](https://github.com/tiny-earth-moon/outskirts), where the update check now looks for releases; the SARIF driver is named `outskirts`. See [Migrating from Periphery](README.md#migrating-from-periphery).
-- Linux is now built and tested in CI, in the official Swift 6.4 container and on the minimum toolchain (Swift 6.1); the standard streams are read through a small C shim and the SARIF fingerprints no longer need CryptoKit, so the `sarif` format is available on Linux. [#219](https://github.com/tiny-earth-moon/outskirts/issues/219)
+- Linux is now built and tested in CI, in the official Swift 6.4 container and on the minimum toolchain (Swift 6.1); the standard streams are read through a small C shim and the SARIF fingerprints no longer need CryptoKit, so the `sarif` format is available on Linux.
 
 ##### Bug Fixes
 
@@ -246,9 +264,9 @@
 
 ##### Enhancements
 
-- New `--relative-to <dir>` option (configuration key `relative_results_base`): the base of the paths emitted with `--relative-results`, and of the `github-actions`, `gitlab-codequality`, `codeclimate` and `sarif` outputs. It defaults to the project root, so existing output is unchanged; in a repository that holds several projects, `--relative-to "$GITHUB_WORKSPACE"` or `--relative-to "$CI_PROJECT_DIR"` attaches annotations to files. [#225](https://github.com/tiny-earth-moon/periphery/issues/225)
-- Baselines can now only shrink: entries that no longer match any result are logged (listed with `--verbose`), `--prune-baseline` (`prune_baseline`) rewrites the baseline without them, and `--strict-baseline` (`strict_baseline`) fails the scan when there are any. Baselines are written in a readable, sorted `v2` format that lists the kind, name and file of each entry; `v1` files are still read. [#215](https://github.com/tiny-earth-moon/periphery/issues/215)
-- New `sarif` output format (SARIF 2.1.0) for GitHub Code Scanning and other SARIF consumers, with one rule per result kind, stable fingerprints and the redundant conformances as related locations. [#213](https://github.com/tiny-earth-moon/periphery/issues/213)
+- New `--relative-to <dir>` option (configuration key `relative_results_base`): the base of the paths emitted with `--relative-results`, and of the `github-actions`, `gitlab-codequality`, `codeclimate` and `sarif` outputs. It defaults to the project root, so existing output is unchanged; in a repository that holds several projects, `--relative-to "$GITHUB_WORKSPACE"` or `--relative-to "$CI_PROJECT_DIR"` attaches annotations to files.
+- Baselines can now only shrink: entries that no longer match any result are logged (listed with `--verbose`), `--prune-baseline` (`prune_baseline`) rewrites the baseline without them, and `--strict-baseline` (`strict_baseline`) fails the scan when there are any. Baselines are written in a readable, sorted `v2` format that lists the kind, name and file of each entry; `v1` files are still read.
+- New `sarif` output format (SARIF 2.1.0) for GitHub Code Scanning and other SARIF consumers, with one rule per result kind, stable fingerprints and the redundant conformances as related locations.
 
 ##### Bug Fixes
 
@@ -262,12 +280,12 @@
 
 ##### Enhancements
 
-- The Code Climate output now carries the `type`, `check_name` and `categories` fields required by the Code Climate engine specification. [#221](https://github.com/tiny-earth-moon/periphery/issues/221)
+- The Code Climate output now carries the `type`, `check_name` and `categories` fields required by the Code Climate engine specification.
 
 ##### Bug Fixes
 
-- Fixed a data race on the error propagated by concurrent indexing jobs (`JobPool`) and on the update checker state; the first error is now kept behind a `Mutex`. The mutable statics shared across threads are gone and Logger, Extensions, Shared and Configuration build in the Swift 6 language mode. [#181](https://github.com/tiny-earth-moon/periphery/issues/181)
-- The parser now uses swift-syntax 604, matching the Swift 6.4 toolchain of CI, the Homebrew bottle and current Xcode. [#186](https://github.com/tiny-earth-moon/periphery/issues/186)
+- Fixed a data race on the error propagated by concurrent indexing jobs (`JobPool`) and on the update checker state; the first error is now kept behind a `Mutex`. The mutable statics shared across threads are gone and Logger, Extensions, Shared and Configuration build in the Swift 6 language mode.
+- The parser now uses swift-syntax 604, matching the Swift 6.4 toolchain of CI, the Homebrew bottle and current Xcode.
 
 ## 3.14.0 (2026-11-02)
 
@@ -277,7 +295,7 @@
 
 ##### Enhancements
 
-- Unused generic parameters of structs, classes, enums and actors (phantom types such as `Tagged<UserTag>`) are no longer reported by default; the new `report_unused_type_parameters` option (`--report-unused-type-parameters`) restores these results. [#190](https://github.com/tiny-earth-moon/periphery/issues/190)
+- Unused generic parameters of structs, classes, enums and actors (phantom types such as `Tagged<UserTag>`) are no longer reported by default; the new `report_unused_type_parameters` option (`--report-unused-type-parameters`) restores these results.
 
 ##### Bug Fixes
 
@@ -295,21 +313,21 @@
 
 ##### Bug Fixes
 
-- `isolated` parameters, including `= #isolation`, are no longer reported as unused. [#197](https://github.com/tiny-earth-moon/periphery/issues/197)
-- A property-wrapped parameter used only through its `$` projection is no longer reported as unused. [#207](https://github.com/tiny-earth-moon/periphery/issues/207)
-- Parameters of `@available(*, unavailable)` stubs are no longer reported as unused. [#209](https://github.com/tiny-earth-moon/periphery/issues/209)
-- `_body(configuration:)` and other underscored witnesses of SwiftUI styles such as `TextFieldStyle` are retained. [#194](https://github.com/tiny-earth-moon/periphery/issues/194)
-- Live-preview retention covers WidgetKit `#Preview(as:)` and `PreviewProvider` previews of widgets. [#204](https://github.com/tiny-earth-moon/periphery/issues/204)
-- C-exported and linker-visible declarations (`@c`, `@_cdecl`, `@used`, `@_silgen_name`) are retained. [#177](https://github.com/tiny-earth-moon/periphery/issues/177)
-- `dynamicallyCall` methods of a `@dynamicCallable` type are retained when the type is called. [#196](https://github.com/tiny-earth-moon/periphery/issues/196)
-- Classes named by `valueTransformerName` or `representedClassName` in a Core Data model are retained. [#195](https://github.com/tiny-earth-moon/periphery/issues/195)
-- Optional properties written through a stored key path are no longer reported as unassigned. [#198](https://github.com/tiny-earth-moon/periphery/issues/198)
+- `isolated` parameters, including `= #isolation`, are no longer reported as unused.
+- A property-wrapped parameter used only through its `$` projection is no longer reported as unused.
+- Parameters of `@available(*, unavailable)` stubs are no longer reported as unused.
+- `_body(configuration:)` and other underscored witnesses of SwiftUI styles such as `TextFieldStyle` are retained.
+- Live-preview retention covers WidgetKit `#Preview(as:)` and `PreviewProvider` previews of widgets.
+- C-exported and linker-visible declarations (`@c`, `@_cdecl`, `@used`, `@_silgen_name`) are retained.
+- `dynamicallyCall` methods of a `@dynamicCallable` type are retained when the type is called.
+- Classes named by `valueTransformerName` or `representedClassName` in a Core Data model are retained.
+- Optional properties written through a stored key path are no longer reported as unassigned.
 - References in top-level code of `main.swift` no longer attach to the preceding declaration. [#189](https://github.com/tiny-earth-moon/periphery/issues/189)
-- A type whose extension carries `@main` is retained as the entry point. [#205](https://github.com/tiny-earth-moon/periphery/issues/205)
+- A type whose extension carries `@main` is retained as the entry point.
 - A public protocol whose public extension witnesses a requirement of another public protocol is no longer reported as redundantly public. [#187](https://github.com/tiny-earth-moon/periphery/issues/187)
-- Types used only through inline arrays (`[N of T]`) or pack expansions are no longer reported as redundantly public. [#202](https://github.com/tiny-earth-moon/periphery/issues/202)
-- Results no longer depend on formatting: one-line enum cases, subscripts and typealiases are analysed like multi-line ones. [#188](https://github.com/tiny-earth-moon/periphery/issues/188)
-- Unused and assign-only properties of `@Observable` classes are now reported, as for plain classes; scans of projects using Observation may show new results. [#178](https://github.com/tiny-earth-moon/periphery/issues/178)
+- Types used only through inline arrays (`[N of T]`) or pack expansions are no longer reported as redundantly public.
+- Results no longer depend on formatting: one-line enum cases, subscripts and typealiases are analysed like multi-line ones.
+- Unused and assign-only properties of `@Observable` classes are now reported, as for plain classes; scans of projects using Observation may show new results.
 
 ## 3.13.3 (2026-11-02)
 
@@ -323,16 +341,16 @@
 
 ##### Bug Fixes
 
-- JSON and redundant-conformance output is now deterministic across runs: results, attributes and references are emitted in a stable order. [#174](https://github.com/tiny-earth-moon/periphery/issues/174)
-- Synthetic result ids no longer contain a line, a column or an absolute String Catalog path, so baselines survive line shifts and other checkouts. The ids of unused imports, empty extensions and String Catalog keys, and the matching CodeClimate and GitLab fingerprints, change once; baselines written by earlier versions still match, with a warning to rewrite them with `--write-baseline`. [#182](https://github.com/tiny-earth-moon/periphery/issues/182)
-- A `.periphery.yml` value of the wrong type or an invalid enum value now prints a warning naming the key, instead of being ignored silently. [#175](https://github.com/tiny-earth-moon/periphery/issues/175)
-- A generic project configuration may omit keys, and a malformed one, like a malformed baseline or JSON package manifest, fails with a readable message naming the key at fault. [#185](https://github.com/tiny-earth-moon/periphery/issues/185)
-- A command-line value now overrides `.periphery.yml` even when it equals the default; every boolean option also accepts `--no-<option>`. [#199](https://github.com/tiny-earth-moon/periphery/issues/199)
-- The `github-actions`, `gitlab-codequality` and `codeclimate` formats always use relative paths, and their prerequisites are checked before the scan. [#200](https://github.com/tiny-earth-moon/periphery/issues/200)
-- `--baseline`, `--write-baseline` and `--write-results` paths are validated before the scan starts. [#210](https://github.com/tiny-earth-moon/periphery/issues/210)
-- Ctrl-C (SIGINT) and SIGTERM now exit with a non-zero status (130 and 143). [#183](https://github.com/tiny-earth-moon/periphery/issues/183)
-- Verbose and debug logs go to stderr, so JSON, CSV and other machine-readable output on stdout stays valid. [#184](https://github.com/tiny-earth-moon/periphery/issues/184)
-- Invalid Swift versions, guided-setup answers and project paths fail with a readable error instead of crashing. [#180](https://github.com/tiny-earth-moon/periphery/issues/180)
+- JSON and redundant-conformance output is now deterministic across runs: results, attributes and references are emitted in a stable order.
+- Synthetic result ids no longer contain a line, a column or an absolute String Catalog path, so baselines survive line shifts and other checkouts. The ids of unused imports, empty extensions and String Catalog keys, and the matching CodeClimate and GitLab fingerprints, change once; baselines written by earlier versions still match, with a warning to rewrite them with `--write-baseline`.
+- A `.periphery.yml` value of the wrong type or an invalid enum value now prints a warning naming the key, instead of being ignored silently.
+- A generic project configuration may omit keys, and a malformed one, like a malformed baseline or JSON package manifest, fails with a readable message naming the key at fault.
+- A command-line value now overrides `.periphery.yml` even when it equals the default; every boolean option also accepts `--no-<option>`.
+- The `github-actions`, `gitlab-codequality` and `codeclimate` formats always use relative paths, and their prerequisites are checked before the scan.
+- `--baseline`, `--write-baseline` and `--write-results` paths are validated before the scan starts.
+- Ctrl-C (SIGINT) and SIGTERM now exit with a non-zero status (130 and 143).
+- Verbose and debug logs go to stderr, so JSON, CSV and other machine-readable output on stdout stays valid.
+- Invalid Swift versions, guided-setup answers and project paths fail with a readable error instead of crashing.
 
 ## 3.13.2 (2026-11-02)
 
@@ -346,10 +364,10 @@
 
 ##### Bug Fixes
 
-- The only explicit initializer of a class that a macro such as SwiftData's `@Model` expands is no longer reported unused: implicit, macro-generated initializers no longer count against the sole-initializer rule. [#173](https://github.com/tiny-earth-moon/periphery/issues/173)
-- CSV output: the `Modifiers` and `Attributes` columns are no longer swapped, and fields containing a comma, a double quote or a line break are quoted per RFC 4180. Rows of declarations with attributes change shape; the header is unchanged. Contributed by @badrisatyam1-ctrl. [#176](https://github.com/tiny-earth-moon/periphery/issues/176)
-- GitHub Actions output escapes `%`, carriage returns and line feeds in messages, and `:` and `,` in the `file` and `title` properties, so a name or hint containing them no longer cuts the annotation short. [#176](https://github.com/tiny-earth-moon/periphery/issues/176)
-- GitHub Markdown output escapes `|` and replaces line breaks in table cells, so each result stays on one row. [#176](https://github.com/tiny-earth-moon/periphery/issues/176)
+- The only explicit initializer of a class that a macro such as SwiftData's `@Model` expands is no longer reported unused: implicit, macro-generated initializers no longer count against the sole-initializer rule.
+- CSV output: the `Modifiers` and `Attributes` columns are no longer swapped, and fields containing a comma, a double quote or a line break are quoted per RFC 4180. Rows of declarations with attributes change shape; the header is unchanged. Contributed by @badrisatyam1-ctrl.
+- GitHub Actions output escapes `%`, carriage returns and line feeds in messages, and `:` and `,` in the `file` and `title` properties, so a name or hint containing them no longer cuts the annotation short.
+- GitHub Markdown output escapes `|` and replaces line breaks in table cells, so each result stays on one row.
 
 ## 3.13.1 (2026-11-02)
 
@@ -363,13 +381,13 @@
 
 ##### Bug Fixes
 
-- A long chain of references between declarations no longer crashes the scan with a stack overflow: used declarations are now marked with an explicit worklist instead of recursion. [#172](https://github.com/tiny-earth-moon/periphery/issues/172)
+- A long chain of references between declarations no longer crashes the scan with a stack overflow: used declarations are now marked with an explicit worklist instead of recursion.
 
 ## 3.13.0 (2026-11-01)
 
 ##### Breaking
 
-- Bazel support is removed: the Bazel module and rules, the `--bazel` scan mode and every `--bazel-*` option. Passing one of these options, or a `bazel` or `bazel_*` key in the configuration file, fails with an explicit error; [agoodkind/periphery](https://github.com/agoodkind/periphery) maintains a Bazel mode. [#165](https://github.com/tiny-earth-moon/periphery/issues/165)
+- Bazel support is removed: the Bazel module and rules, the `--bazel` scan mode and every `--bazel-*` option. Passing one of these options, or a `bazel` or `bazel_*` key in the configuration file, fails with an explicit error; [agoodkind/periphery](https://github.com/agoodkind/periphery) maintains a Bazel mode.
 
 ##### Enhancements
 
@@ -442,21 +460,21 @@
 
 ##### Breaking
 
-- Commands are run without a shell: each element of `build_arguments`, `xcode_list_arguments` and of the CLI arguments after `--` is passed as exactly one argument. An element such as `"-destination generic/platform=iOS"` is no longer split by the shell and must be written as two elements. [#143](https://github.com/tiny-earth-moon/periphery/issues/143)
-- The cache directory moves from `~/Library/Caches/com.github.peripheryapp` to `~/Library/Caches/com.github.tiny-earth-moon.periphery`; the cache is rebuilt on the next scan. [#149](https://github.com/tiny-earth-moon/periphery/issues/149)
+- Commands are run without a shell: each element of `build_arguments`, `xcode_list_arguments` and of the CLI arguments after `--` is passed as exactly one argument. An element such as `"-destination generic/platform=iOS"` is no longer split by the shell and must be written as two elements.
+- The cache directory moves from `~/Library/Caches/com.github.peripheryapp` to `~/Library/Caches/com.github.tiny-earth-moon.periphery`; the cache is rebuilt on the next scan.
 
 ##### Enhancements
 
 - New opt-in `enable_open_final_analysis` / `--enable-open-final-analysis`: reports `open` declarations never subclassed or overridden outside their module and non-final classes and members with no subclass or override (`redundantOpenAccessibility`, `missingFinal`). [#72](https://github.com/tiny-earth-moon/periphery/issues/72)
-- Repository hardening: CI token restricted to read, actions pinned by commit, `SECURITY.md`, Dependabot, pinned Docker images; the upstream Bazel Central Registry publishing files are removed. [#141](https://github.com/tiny-earth-moon/periphery/issues/141)
-- The `swift-index-store` and `swift-filename-matcher` dependencies are fetched from forks under this account, at the same revision and tag. [#150](https://github.com/tiny-earth-moon/periphery/issues/150)
+- Repository hardening: CI token restricted to read, actions pinned by commit, `SECURITY.md`, Dependabot, pinned Docker images; the upstream Bazel Central Registry publishing files are removed.
+- The `swift-index-store` and `swift-filename-matcher` dependencies are fetched from forks under this account, at the same revision and tag.
 
 ##### Bug Fixes
 
-- Security: commands no longer run through `/bin/bash -c`; scheme names, paths, build arguments and Bazel queries are passed literally, so a crafted project or configuration can no longer execute code through the shell. The Bazel generated files move from the world-shared `/var/tmp/periphery_bazel` to a per-user directory under the cache. [#143](https://github.com/tiny-earth-moon/periphery/issues/143)
-- Periphery no longer contacts `api.periphery.pro` after a scan (project line count was sent, with a promotional message). [#140](https://github.com/tiny-earth-moon/periphery/issues/140)
-- The update check queries this repository's releases and no longer prints the upstream sponsor message. [#139](https://github.com/tiny-earth-moon/periphery/issues/139)
-- The guided setup error links to this repository's README. [#149](https://github.com/tiny-earth-moon/periphery/issues/149)
+- Security: commands no longer run through `/bin/bash -c`; scheme names, paths, build arguments and Bazel queries are passed literally, so a crafted project or configuration can no longer execute code through the shell. The Bazel generated files move from the world-shared `/var/tmp/periphery_bazel` to a per-user directory under the cache.
+- Periphery no longer contacts `api.periphery.pro` after a scan (project line count was sent, with a promotional message).
+- The update check queries this repository's releases and no longer prints the upstream sponsor message.
+- The guided setup error links to this repository's README.
 
 ## 3.12.11 (2026-11-01)
 
@@ -468,11 +486,11 @@
 
 - New opt-in `enable_unassigned_optional_analysis` / `--enable-unassigned-optional-analysis`: reports stored optional properties that are read but never assigned (always nil). [#76](https://github.com/tiny-earth-moon/periphery/issues/76)
 - New `retain_js_accessible` / `--retain-js-accessible`: retains protocols inheriting from JavaScriptCore's `JSExport`, their members and the conforming members. [#71](https://github.com/tiny-earth-moon/periphery/issues/71)
-- New `retain_runtime_localized_keys` / `--retain-runtime-localized-keys` (default false) to keep every String Catalog key when a runtime lookup has no literal prefix. [#135](https://github.com/tiny-earth-moon/periphery/issues/135)
+- New `retain_runtime_localized_keys` / `--retain-runtime-localized-keys` (default false) to keep every String Catalog key when a runtime lookup has no literal prefix.
 
 ##### Bug Fixes
 
-- 3.12.10 regression: a `String(localized:)` lookup with a non-literal key retained every key of every String Catalog, hiding all unused keys. Such lookups now retain nothing and log one warning per call site; a missing generated string symbols file falls back to literal detection instead of retaining the module's catalogs. [#135](https://github.com/tiny-earth-moon/periphery/issues/135)
+- 3.12.10 regression: a `String(localized:)` lookup with a non-literal key retained every key of every String Catalog, hiding all unused keys. Such lookups now retain nothing and log one warning per call site; a missing generated string symbols file falls back to literal detection instead of retaining the module's catalogs.
 - SwiftPM: hidden directories under a target are no longer picked up by the implicit xib / Core Data model discovery. Imported from agoodkind/periphery (author Alex Goodkind). [#121](https://github.com/tiny-earth-moon/periphery/issues/121)
 
 ## 3.12.10 (2026-11-01)
@@ -630,9 +648,9 @@
 
 ##### Enhancements
 
-- New opt-in `localized_string_key_literal_match` option (`--localized-string-key-literal-match`): any non-interpolated string literal equal to a String Catalog key marks that key as used, whatever its type or position, for code bases that carry keys as `String`. The README documents the collision risk and recommends `LocalizedStringResource`. Closes #66.
-- AppIntents localized literals are now detected: `ParameterSummaryString` (`Summary`, `When`/`otherwise`), `IntentDialog`, `AppShortcutPhrase`, and the `@Parameter`/`@Property` attribute arguments (`title`, `description`, request dialogs). Closes #68.
-- Regression tests pin that escaped characters (`\"`, `\t`, `\\`, `\u{…}`, multi-line and raw literals) in catalogue keys are matched by their decoded value. Closes #64.
+- New opt-in `localized_string_key_literal_match` option (`--localized-string-key-literal-match`): any non-interpolated string literal equal to a String Catalog key marks that key as used, whatever its type or position, for code bases that carry keys as `String`. The README documents the collision risk and recommends `LocalizedStringResource`.
+- AppIntents localized literals are now detected: `ParameterSummaryString` (`Summary`, `When`/`otherwise`), `IntentDialog`, `AppShortcutPhrase`, and the `@Parameter`/`@Property` attribute arguments (`title`, `description`, request dialogs).
+- Regression tests pin that escaped characters (`\"`, `\t`, `\\`, `\u{…}`, multi-line and raw literals) in catalogue keys are matched by their decoded value.
 
 ##### Bug Fixes
 
@@ -646,9 +664,9 @@
 
 ##### Enhancements
 
-- Interpolated string literals in localized positions (`"Hello \(name)"`) are now matched to their String Catalog format keys (`%@`, `%lld`, `%lf`), the catalogue key being the reference. Closes #61.
-- Literals returned from `switch`/`if` expressions, functions, computed properties and closures typed `LocalizedStringKey`/`LocalizedStringResource`/`String.LocalizationValue`, as well as ternaries, labeled struct initializer arguments and typed array/tuple elements, are now retained as key usages. Closes #61.
-- New `localized_string_key_patterns` option (globs or `/regex/`) to declare keys built at runtime (e.g. `quickChat.*`) as used; documented in the README. Closes #61.
+- Interpolated string literals in localized positions (`"Hello \(name)"`) are now matched to their String Catalog format keys (`%@`, `%lld`, `%lf`), the catalogue key being the reference.
+- Literals returned from `switch`/`if` expressions, functions, computed properties and closures typed `LocalizedStringKey`/`LocalizedStringResource`/`String.LocalizationValue`, as well as ternaries, labeled struct initializer arguments and typed array/tuple elements, are now retained as key usages.
+- New `localized_string_key_patterns` option (globs or `/regex/`) to declare keys built at runtime (e.g. `quickChat.*`) as used; documented in the README.
 
 ##### Bug Fixes
 
@@ -662,8 +680,8 @@
 
 ##### Enhancements
 
-- String Catalog key usage is now detected from the type of the receiving parameter (`LocalizedStringKey`, `LocalizedStringResource`, `String.LocalizationValue`, `DisplayRepresentation`, `IntentDescription`), covering `Button`, `Label`, `Toggle`, `Section`, `.navigationTitle`, `Text` and custom initializers, plus annotated declarations (`static let x: LocalizedStringResource = "…"`). Closes #58.
-- New `localized_string_catalog_exclude` option (globs) to skip catalogues from the unused-key analysis; `**/InfoPlist.xcstrings` and `**/AppShortcuts.xcstrings` are excluded by default. Interpolated and dynamic keys are documented as a known limitation in the README. Closes #58.
+- String Catalog key usage is now detected from the type of the receiving parameter (`LocalizedStringKey`, `LocalizedStringResource`, `String.LocalizationValue`, `DisplayRepresentation`, `IntentDescription`), covering `Button`, `Label`, `Toggle`, `Section`, `.navigationTitle`, `Text` and custom initializers, plus annotated declarations (`static let x: LocalizedStringResource = "…"`).
+- New `localized_string_catalog_exclude` option (globs) to skip catalogues from the unused-key analysis; `**/InfoPlist.xcstrings` and `**/AppShortcuts.xcstrings` are excluded by default. Interpolated and dynamic keys are documented as a known limitation in the README.
 
 ##### Bug Fixes
 
@@ -681,7 +699,7 @@
 
 ##### Bug Fixes
 
-- `ExpressibleByArgument` conformances in `ScanCommand` are spelled with their module, which silences the retroactive-conformance warnings under Bazel. Fixes #53.
+- `ExpressibleByArgument` conformances in `ScanCommand` are spelled with their module, which silences the retroactive-conformance warnings under Bazel.
 
 ## 3.8.10 (2026-10-28)
 
@@ -696,7 +714,7 @@
 ##### Bug Fixes
 
 - `#Preview` expansions that preview a used SwiftUI view are now retained together with the code they reference, so helpers used only from a live preview are no longer reported as unused; previews of unused code stay unused. Fixes #15.
-- `public` members inside a non-public extension of a non-public type are now reported as redundant public accessibility; extensions of external types are assumed public. Fixes #45.
+- `public` members inside a non-public extension of a non-public type are now reported as redundant public accessibility; extensions of external types are assumed public.
 
 ## 3.8.9 (2026-10-28)
 
@@ -712,8 +730,7 @@
 
 - With Xcode 27, a SwiftUI `@State` property used only through its projected value (`$foo`) or backing storage (`_foo`) is no longer reported as unused. Fixes #36. Under Xcode 27 only `@State` is a macro (`@Environment`, `@FocusState`, `@Binding`, `@AppStorage` and others remain property wrappers); a property initialized via `_foo = State(wrappedValue:)` is also retained. Known limitation: the fix only applies with Xcode 27 (Swift 6.4); earlier toolchains do not exhibit the problem.
 - Retain every implicit result builder entry point: `buildBlock` of any arity, `buildPartialBlock(first:)` and `buildPartialBlock(accumulated:next:)`.
-  [#30](https://github.com/tiny-earth-moon/periphery/issues/30)
-- The SPM driver now indexes `.xcdatamodeld` Core Data models, declared or implicit, under each target folder, so classes referenced only by a model (e.g. value transformers) are no longer reported as unused. Fixes #33.
+- The SPM driver now indexes `.xcdatamodeld` Core Data models, declared or implicit, under each target folder, so classes referenced only by a model (e.g. value transformers) are no longer reported as unused.
 
 ## 3.8.8 (2026-10-27)
 

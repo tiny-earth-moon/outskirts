@@ -45,6 +45,8 @@ public final class Xcodebuild {
 
     @discardableResult
     public func build(project: XcodeProjectlike, scheme: String, allSchemes: [String], additionalArguments: [String] = []) throws -> String {
+        try Self.validateUserArguments(additionalArguments, setting: "build_arguments")
+
         let xcodebuild = try [
             "xcodebuild",
             "-\(project.type)", project.path.lexicallyNormalized().string,
@@ -111,8 +113,15 @@ public final class Xcodebuild {
     }
 
     private func xcodeDerivedDataFolders(named projectName: String, in root: FilePath) -> [FilePath] {
-        guard !projectName.isEmpty,
-              let names = try? FileManager.default.contentsOfDirectory(atPath: root.string) else { return [] }
+        guard !projectName.isEmpty, root.exists else { return [] }
+
+        let names: [String]
+        do {
+            names = try FileManager.default.contentsOfDirectory(atPath: root.string)
+        } catch {
+            logger.warn("Cannot read Xcode's DerivedData folder \(root.string): \(error.localizedDescription)")
+            return []
+        }
 
         // Xcode names folders `<ProjectName>-<hash>`; require the dash so `Foo` does not match `FooBar-<hash>`.
         return names.filter { $0.hasPrefix(projectName + "-") }.map { root.appending($0) }
@@ -149,8 +158,13 @@ public final class Xcodebuild {
     }
 
     private func modificationDate(_ path: FilePath) -> Date {
-        let attributes = try? FileManager.default.attributesOfItem(atPath: path.string)
-        return attributes?[.modificationDate] as? Date ?? .distantPast
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: path.string)
+            return attributes[.modificationDate] as? Date ?? .distantPast
+        } catch {
+            logger.debug("Cannot read the modification date of \(path.string): \(error.localizedDescription)")
+            return .distantPast
+        }
     }
 
     func schemes(project: XcodeProjectlike, additionalArguments: [String]) throws -> Set<String> {
@@ -162,6 +176,8 @@ public final class Xcodebuild {
     }
 
     func schemes(type: String, path: String, additionalArguments: [String]) throws -> Set<String> {
+        try Self.validateUserArguments(additionalArguments, setting: "xcode_list_arguments")
+
         let xcodebuild = try [
             "xcodebuild",
             "-\(type)", path,

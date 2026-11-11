@@ -8,8 +8,7 @@ final class ConfigCheckCommandTest: XCTestCase {
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent("outskirts-config-check-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        directory = try makeTemporaryDirectory("outskirts-config-check")
     }
 
     override func tearDownWithError() throws {
@@ -78,31 +77,19 @@ final class ConfigCheckCommandTest: XCTestCase {
     }
 
     private func write(_ name: String, _ contents: String) throws {
-        try contents.write(to: directory.appendingPathComponent(name), atomically: true, encoding: .utf8)
+        try writeFile(contents, named: name, in: directory)
     }
 
     private func check(_ arguments: [String]) throws -> Output {
-        let stdoutFile = directory.appendingPathComponent("stdout.txt")
-        let stderrFile = directory.appendingPathComponent("stderr.txt")
-        FileManager.default.createFile(atPath: stdoutFile.path, contents: nil)
-        FileManager.default.createFile(atPath: stderrFile.path, contents: nil)
-        defer {
-            try? FileManager.default.removeItem(at: stdoutFile)
-            try? FileManager.default.removeItem(at: stderrFile)
-        }
-
-        let process = Process()
-        process.executableURL = try locatePeripheryExecutable(near: Self.self)
-        process.arguments = ["config", "check", "--project-root", directory.path] + arguments
-        process.standardOutput = try FileHandle(forWritingTo: stdoutFile)
-        process.standardError = try FileHandle(forWritingTo: stderrFile)
-        try process.run()
-        process.waitUntilExit()
-
+        let output = try runCapturingOutput(
+            locatePeripheryExecutable(near: Self.self),
+            ["config", "check", "--project-root", directory.path] + arguments,
+            outputDirectory: directory
+        )
         return try Output(
-            status: process.terminationStatus,
-            stdout: String(contentsOf: stdoutFile, encoding: .utf8),
-            stderr: String(contentsOf: stderrFile, encoding: .utf8)
+            status: output.status,
+            stdout: XCTUnwrap(String(data: output.stdout, encoding: .utf8)),
+            stderr: XCTUnwrap(String(data: output.stderr, encoding: .utf8))
         )
     }
 }

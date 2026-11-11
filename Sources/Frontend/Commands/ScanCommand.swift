@@ -45,6 +45,10 @@ struct ScanCommand: ParsableCommand {
 
     func validate() throws {
         try removedBazelOptions.rejectUse()
+
+        if let maxResults = resultsOptions.maxResults, maxResults < 1 {
+            throw ValidationError("'--max-results' must be at least 1")
+        }
     }
 
     /// Applies the options given on the command line to a configuration that holds the values of the configuration file.
@@ -125,12 +129,75 @@ struct ScanCommand: ParsableCommand {
         configuration.apply(\.$detectUnusedMetalFunctions, analysisOptions.detectUnusedMetalFunctions)
     }
 
+    /// What a command needs to run the scan: the configuration, validated, and the project to scan.
+    struct PreparedScan {
+        let configuration: Configuration
+        let logger: Logger
+        let shell: ShellImpl
+        let swiftVersion: SwiftVersion
+        let project: Project
+        let baseline: Baseline?
+    }
+
+    /// Loads and validates the configuration, then identifies the project; nothing is built yet.
+    /// - Parameter messagesToStderr: Sends progress and debug messages to stderr whatever the output format.
+    func prepareScan(messagesToStderr: Bool = false) throws -> PreparedScan {
+        let projectRoot = try changeToProjectRoot()
+        let (configuration, configurationWarnings) = try loadConfiguration(projectRoot: projectRoot)
+        let logger = Logger(configuration: configuration, messagesToStderr: messagesToStderr)
+        let baseline = try validate(configuration, logger: logger)
+
+        configurationWarnings.forEach { logger.warn($0) }
+        ScanPreflight.applyOutputFormatRequirements(to: configuration, logger: logger)
+        logger.contextualized(with: "version").debug(PeripheryVersion)
+        let shell = makeShell(logger: logger)
+        let swiftVersion = try SwiftVersion(shell: shell)
+        logger.debug(swiftVersion.fullVersion)
+        try swiftVersion.validateVersion()
+
+        let project = try makeProject(configuration: configuration, shell: shell, logger: logger)
+        return PreparedScan(configuration: configuration, logger: logger, shell: shell, swiftVersion: swiftVersion, project: project, baseline: baseline)
+    }
+
     func run() throws {
+        let prepared = try prepareScan()
+        let configuration = prepared.configuration
+        let logger = prepared.logger
+
+        let updateChecker = UpdateChecker(logger: logger, configuration: configuration)
+        updateChecker.run()
+
+        let scanOutput = try Scan(
+            configuration: configuration,
+            logger: logger,
+            swiftVersion: prepared.swiftVersion
+        ).perform(project: prepared.project)
+
+        let interval = logger.beginInterval("result:output")
+
+        let outputFilter = OutputDeclarationFilter(configuration: configuration, logger: logger)
+        let filteredResults = try outputFilter.filter(scanOutput.results, with: prepared.baseline)
+        try writeBaselines(configuration: configuration, outputFilter: outputFilter, filteredResults: filteredResults, baseline: prepared.baseline, logger: logger)
+
+        let reportedResults = try ChangedSinceFilter(configuration: configuration, shell: prepared.shell, logger: logger).filter(filteredResults)
+        try outputResults(reportedResults, filteredResultCount: filteredResults.count, configuration: configuration, logger: logger)
+
+        logger.endInterval(interval)
+
+        updateChecker.notifyIfAvailable()
+
+        try checkExitStatus(reportedResultCount: reportedResults.count, staleEntryCount: outputFilter.staleBaselineEntries.count, configuration: configuration)
+    }
+
+    private func changeToProjectRoot() throws -> FilePath {
         let projectRoot = projectOptions.projectRoot ?? FilePath(FileManager.default.currentDirectoryPath)
         if !FileManager.default.changeCurrentDirectoryPath(projectRoot.string) {
             throw PeripheryError.changeCurrentDirectoryFailed(projectRoot)
         }
+        return projectRoot
+    }
 
+    private func loadConfiguration(projectRoot: FilePath) throws -> (Configuration, [String]) {
         let configuration = Configuration()
         var configurationWarnings: [String] = []
 
@@ -142,7 +209,10 @@ struct ScanCommand: ParsableCommand {
         configuration.explain = resultsOptions.explain
         configuration.projectRoot = projectRoot
         apply(to: configuration)
+        return (configuration, configurationWarnings)
+    }
 
+    private func validate(_ configuration: Configuration, logger: Logger) throws -> Baseline? {
         if configuration.skipStdoutResults, configuration.writeResults == nil {
             throw PeripheryError.usageError("The '--skip-stdout-results' option requires '--write-results', otherwise the results would not be output anywhere.")
         }
@@ -151,64 +221,49 @@ struct ScanCommand: ParsableCommand {
             throw PeripheryError.usageError("The '--changed-lines' option requires '--changed-since', otherwise there is nothing to compare the lines with.")
         }
 
-        configuration.buildFilenameMatchers()
+        configuration.buildFilenameMatchers(debug: logger.debug)
         _ = try ReportExcludeRule.resolve(configuration)
         _ = try AttributeRetentionRule.resolve(configuration)
-        let baseline = try ScanPreflight.validatePaths(of: configuration)
+        return try ScanPreflight.validatePaths(of: configuration)
+    }
 
-        let logger = Logger(configuration: configuration)
-        configurationWarnings.forEach { logger.warn($0) }
-        ScanPreflight.applyOutputFormatRequirements(to: configuration, logger: logger)
-        logger.contextualized(with: "version").debug(PeripheryVersion)
-        let shell = ShellImpl(logger: logger) {
+    private func makeShell(logger: Logger) -> ShellImpl {
+        ShellImpl(logger: logger) {
             logger.warn(
                 "Termination can result in a corrupt index. Try the '--clean-build' flag if you get erroneous results such as false-positives and incorrect source file locations.",
                 newlinePrefix: true // Print a newline after ^C
             )
         }
-        let swiftVersion = try SwiftVersion(shell: shell)
-        logger.debug(swiftVersion.fullVersion)
-        try swiftVersion.validateVersion()
+    }
 
-        let project: Project = if configuration.guidedSetup {
+    private func makeProject(configuration: Configuration, shell: ShellImpl, logger: Logger) throws -> Project {
+        if configuration.guidedSetup {
             try GuidedSetup(configuration: configuration, shell: shell, logger: logger).perform()
         } else {
             try Project(configuration: configuration, shell: shell, logger: logger)
         }
+    }
 
-        let updateChecker = UpdateChecker(logger: logger, configuration: configuration)
-        updateChecker.run()
-
-        let scanOutput = try Scan(
-            configuration: configuration,
-            logger: logger,
-            swiftVersion: swiftVersion
-        ).perform(project: project)
-
-        let results = scanOutput.results
-        let interval = logger.beginInterval("result:output")
-
-        let outputFilter = OutputDeclarationFilter(configuration: configuration, logger: logger)
-        let filteredResults = try outputFilter.filter(results, with: baseline)
-
-        if configuration.pruneBaseline, let baselinePath = configuration.baseline {
-            try Self.writeBaseline(.pruned(keeping: outputFilter.baselineMatchedResults, projectRoot: configuration.projectRoot), to: baselinePath, configuredIn: baselineOptions.baseline == nil ? configuration.projectRoot : nil)
-            logger.info("Pruned \(outputFilter.staleBaselineEntries.count) stale entries from \(baselinePath.string)")
+    private func writeBaselines(configuration: Configuration, outputFilter: OutputDeclarationFilter, filteredResults: [ScanResult], baseline: Baseline?, logger: Logger) throws {
+        if configuration.pruneBaseline, let baselinePath = OutputPath(configuration.baseline, option: baselineOptions.baseline) {
+            try Self.writeBaseline(.pruned(keeping: outputFilter.baselineMatchedResults, projectRoot: configuration.projectRoot), to: baselinePath.path, configuredIn: baselinePath.configuredIn(configuration.projectRoot))
+            logger.info("Pruned \(outputFilter.staleBaselineEntries.count) stale entries from \(baselinePath.path.string)")
         }
 
-        if let baselinePath = configuration.writeBaseline {
-            try Self.writeBaseline(.written(from: filteredResults, union: baseline, projectRoot: configuration.projectRoot), to: baselinePath, configuredIn: baselineOptions.writeBaseline == nil ? configuration.projectRoot : nil)
+        if let baselinePath = OutputPath(configuration.writeBaseline, option: baselineOptions.writeBaseline) {
+            try Self.writeBaseline(.written(from: filteredResults, union: baseline, projectRoot: configuration.projectRoot), to: baselinePath.path, configuredIn: baselinePath.configuredIn(configuration.projectRoot))
         }
+    }
 
-        let reportedResults = try ChangedSinceFilter(configuration: configuration, shell: shell, logger: logger).filter(filteredResults)
-
+    private func outputResults(_ reportedResults: [ScanResult], filteredResultCount: Int, configuration: Configuration, logger: Logger) throws {
         let outputFormat = configuration.outputFormat
         let formatter = outputFormat.formatter.init(configuration: configuration, logger: logger)
+        (formatter as? AgentFormatter)?.maxResults = resultsOptions.maxResults
         let colored = outputFormat.supportsColoredOutput && logger.isColoredOutputEnabled
 
         let formattedOutput = try formatter.format(reportedResults, colored: colored)
 
-        if let output = formattedOutput, Self.shouldPrintToStdout(configuration: configuration, resultCount: filteredResults.count) {
+        if let output = formattedOutput, Self.shouldPrintToStdout(configuration: configuration, resultCount: filteredResultCount) {
             if outputFormat.supportsAuxiliaryOutput {
                 logger.info("", canQuiet: true)
             }
@@ -216,7 +271,7 @@ struct ScanCommand: ParsableCommand {
             logger.output(output)
         }
 
-        if let resultsPath = configuration.writeResults {
+        if let resultsPath = OutputPath(configuration.writeResults, option: resultsOptions.writeResults) {
             let output: String = if colored {
                 // The formatted output contains ANSI escape codes, so we need to re-format
                 // with coloring disabled.
@@ -226,28 +281,24 @@ struct ScanCommand: ParsableCommand {
             }
 
             // A path from the configuration file is project content, which a link must not lead out of the project.
-            if resultsOptions.writeResults == nil {
-                try OutputFile.writeConfigured(Data(output.utf8), to: resultsPath, projectRoot: configuration.projectRoot)
+            if resultsPath.isFromConfigurationFile {
+                try OutputFile.writeConfigured(Data(output.utf8), to: resultsPath.path, projectRoot: configuration.projectRoot)
             } else {
-                try OutputFile.write(Data(output.utf8), to: resultsPath)
+                try OutputFile.write(Data(output.utf8), to: resultsPath.path)
             }
         }
+    }
 
-        logger.endInterval(interval)
-
-        updateChecker.notifyIfAvailable()
-
-        if !reportedResults.isEmpty, configuration.strict {
-            throw PeripheryError.foundIssues(count: reportedResults.count)
+    private func checkExitStatus(reportedResultCount: Int, staleEntryCount: Int, configuration: Configuration) throws {
+        if reportedResultCount > 0, configuration.strict {
+            throw PeripheryError.foundIssues(count: reportedResultCount)
         }
 
-        if let failure = Self.staleBaselineFailure(configuration: configuration, staleEntryCount: outputFilter.staleBaselineEntries.count) {
+        if let failure = Self.staleBaselineFailure(configuration: configuration, staleEntryCount: staleEntryCount) {
             throw failure
         }
     }
 
-    /// The error that ends the scan with a non-zero status when `--strict-baseline` finds stale entries, which
-    /// `--prune-baseline` has just removed.
     /// With `--quiet`, stdout stays empty when there is nothing to report, and the report goes to
     /// the `--write-results` file only.
     static func shouldPrintToStdout(configuration: Configuration, resultCount: Int) -> Bool {
@@ -260,6 +311,8 @@ struct ScanCommand: ParsableCommand {
         return true
     }
 
+    /// The error that ends the scan with a non-zero status when `--strict-baseline` finds stale entries; none when
+    /// `--prune-baseline` has just removed them.
     static func staleBaselineFailure(configuration: Configuration, staleEntryCount: Int) -> PeripheryError? {
         guard configuration.strictBaseline, !configuration.pruneBaseline, staleEntryCount > 0 else { return nil }
 
@@ -271,6 +324,24 @@ struct ScanCommand: ParsableCommand {
     }
 
     // MARK: - Private
+
+    /// An output path with its origin: the command line, or the configuration file when the option was not passed.
+    private struct OutputPath {
+        let path: FilePath
+        let isFromConfigurationFile: Bool
+
+        init?(_ path: FilePath?, option: FilePath?) {
+            guard let path else { return nil }
+
+            self.path = path
+            isFromConfigurationFile = option == nil
+        }
+
+        /// The project root a path from the configuration file must stay in, nil for a command line path.
+        func configuredIn(_ projectRoot: FilePath) -> FilePath? {
+            isFromConfigurationFile ? projectRoot : nil
+        }
+    }
 
     /// The values of a list option, or nil when the option was not passed: ArgumentParser reports an option that is not passed as an empty list.
     private func given<T>(_ values: [T]) -> [T]? {

@@ -2,7 +2,7 @@ import Configuration
 import Foundation
 import Shared
 
-final class DynamicMemberRetainer: SourceGraphMutator {
+final class DynamicMemberRetainer: GraphOnlyMutator {
     /// The methods a call to a `@dynamicCallable` value is lowered to, which the index records no reference to.
     static let dynamicCallableMethodNames: Set<String> = [
         "dynamicallyCall(withArguments:)", "dynamicallyCall(withKeywordArguments:)",
@@ -10,7 +10,7 @@ final class DynamicMemberRetainer: SourceGraphMutator {
 
     private let graph: SourceGraph
 
-    required init(graph: SourceGraph, configuration _: Configuration, swiftVersion _: SwiftVersion) {
+    init(graph: SourceGraph) {
         self.graph = graph
     }
 
