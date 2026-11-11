@@ -35,8 +35,13 @@ final class SwiftIndexer {
     }
 
     func perform() throws {
-        let jobs = sourceFiles.map { file, units -> Job in
-            Job(
+        let verbose = configuration.verbose
+        let logger = logger
+
+        // A loop, not `map`: the Swift 6.2 compiler crashes on a closure here.
+        var jobs: [Job] = []
+        for (file, units) in sourceFiles {
+            jobs.append(Job(
                 sourceFile: file,
                 units: units,
                 retainAllDeclarations: configuration.retainFilesMatchers.anyMatch(filename: file.path.string),
@@ -44,11 +49,9 @@ final class SwiftIndexer {
                 logger: logger,
                 configuration: configuration,
                 swiftVersion: swiftVersion
-            )
+            ))
         }
 
-        let verbose = configuration.verbose
-        let logger = logger
         let phaseOneInterval = logger.beginInterval("index:swift:phase:one")
 
         try JobPool(jobs: jobs).forEach { job in

@@ -53,6 +53,7 @@ final class FilePathGlobTest: XCTestCase {
     }
 
     func testUnreadableDirectory_isReported() throws {
+        try XCTSkipIf(geteuid() == 0, "Directory permissions do not apply to root")
         let locked = "\(baseDir)/locked"
         try fileManager.createDirectory(atPath: "\(locked)/sub", withIntermediateDirectories: true)
         fileManager.createFile(atPath: "\(locked)/sub/hidden.ext", contents: nil)

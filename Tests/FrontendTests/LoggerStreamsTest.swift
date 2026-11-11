@@ -45,6 +45,7 @@ final class LoggerStreamsTest: XCTestCase {
     }
 
     func testUnreadableGlobDirectory_warnsThroughLoggerAndIsSilentWhenQuiet() throws {
+        try XCTSkipIf(geteuid() == 0, "Directory permissions do not apply to root")
         let root = NSTemporaryDirectory() + "LoggerStreamsTest-\(UUID().uuidString)"
         let locked = root + "/locked"
         try FileManager.default.createDirectory(atPath: locked + "/sub", withIntermediateDirectories: true)
