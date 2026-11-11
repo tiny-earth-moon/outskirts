@@ -46,7 +46,10 @@ enum XCStringsKeyRemover {
             // Xcode writes an empty object as `{`, an empty line, then the indented `}`.
             interior += lineBreak(at: firstGap) + lastGap
         }
-        return Array(bytes[..<layout.interiorStart]) + interior + bytes[layout.interiorEnd...]
+        var result = Array(bytes[..<layout.interiorStart])
+        result += interior
+        result += bytes[layout.interiorEnd...]
+        return result
     }
 
     /// The line break the gap starts with, `\r\n` or `\n`, or nothing.
@@ -61,25 +64,32 @@ enum XCStringsKeyRemover {
     /// keys, compared deeply, so that a scanning error can never reach the disk.
     private static func verify(_ result: [UInt8], isOriginal original: [UInt8], without removed: [String]) throws {
         do {
-            guard let originalCatalog = try JSONSerialization.jsonObject(with: Data(original)) as? NSDictionary,
-                  let resultCatalog = try JSONSerialization.jsonObject(with: Data(result)) as? NSDictionary,
-                  let originalStrings = originalCatalog["strings"] as? NSDictionary,
-                  let resultStrings = resultCatalog["strings"] as? NSDictionary
+            guard let originalCatalog = try JSONSerialization.jsonObject(with: Data(original)) as? [String: Any],
+                  let resultCatalog = try JSONSerialization.jsonObject(with: Data(result)) as? [String: Any],
+                  let originalStrings = originalCatalog["strings"] as? [String: Any],
+                  let resultStrings = resultCatalog["strings"] as? [String: Any]
             else { throw XCStringsKeyRemovalError.verificationFailed }
 
-            let expectedStrings = NSMutableDictionary(dictionary: originalStrings)
-            expectedStrings.removeObjects(forKeys: removed)
-            let expectedCatalog = NSMutableDictionary(dictionary: originalCatalog)
+            var expectedStrings = originalStrings
+            for key in removed {
+                expectedStrings.removeValue(forKey: key)
+            }
+            var expectedCatalog = originalCatalog
             expectedCatalog["strings"] = expectedStrings
             guard expectedStrings.count == originalStrings.count - removed.count,
                   resultStrings.count == expectedStrings.count,
-                  resultCatalog.isEqual(expectedCatalog)
+                  try canonicalJSON(resultCatalog) == canonicalJSON(expectedCatalog)
             else { throw XCStringsKeyRemovalError.verificationFailed }
         } catch let error as XCStringsKeyRemovalError {
             throw error
         } catch {
             throw XCStringsKeyRemovalError.verificationFailed
         }
+    }
+
+    /// The catalog serialized with sorted keys: equal data means deeply equal catalogs, on every platform.
+    private static func canonicalJSON(_ catalog: [String: Any]) throws -> Data {
+        try JSONSerialization.data(withJSONObject: catalog, options: [.sortedKeys])
     }
 }
 
