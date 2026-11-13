@@ -12,6 +12,7 @@ final class SourceFileCollectorTest: XCTestCase {
         let name: String
         let module: String
         let date: Date?
+        var platform: IndexPlatform?
     }
 
     private let edited = Date(timeIntervalSince1970: 1000)
@@ -21,6 +22,7 @@ final class SourceFileCollectorTest: XCTestCase {
             units,
             sourceModificationDate: sourceModificationDate,
             module: \.module,
+            platform: \.platform,
             modificationDate: \.date
         ).map(\.name)
     }
@@ -28,11 +30,32 @@ final class SourceFileCollectorTest: XCTestCase {
     /// A renamed package (or a restored CI cache) leaves the previous build's units next to the new ones.
     func testUnitOlderThanSource_isDroppedWhenItsModuleHasACurrentUnit() {
         let units = [
-            Unit(name: "stale", module: "Frontend", date: edited.addingTimeInterval(-60)),
-            Unit(name: "fresh", module: "Frontend", date: edited.addingTimeInterval(60)),
+            Unit(name: "stale", module: "Frontend", date: edited.addingTimeInterval(-60), platform: .macOS),
+            Unit(name: "fresh", module: "Frontend", date: edited.addingTimeInterval(60), platform: .macOS),
         ]
 
         XCTAssertEqual(current(units, sourceModificationDate: edited), ["fresh"])
+    }
+
+    /// Two stores of a module, one per platform: rebuilding one platform says nothing of the other one.
+    func testUnitOlderThanSource_isKeptWhenOnlyAnotherPlatformHasACurrentUnit() {
+        let units = [
+            Unit(name: "ios", module: "Kit", date: edited.addingTimeInterval(-60), platform: .iOS),
+            Unit(name: "macos", module: "Kit", date: edited.addingTimeInterval(60), platform: .macOS),
+            Unit(name: "unknown", module: "Kit", date: edited.addingTimeInterval(-60)),
+        ]
+
+        XCTAssertEqual(current(units, sourceModificationDate: edited), ["ios", "macos", "unknown"])
+    }
+
+    func testUnitOfUnknownPlatform_isDroppedWhenAnotherUnitOfUnknownPlatformIsCurrent() {
+        let units = [
+            Unit(name: "stale", module: "Kit", date: edited.addingTimeInterval(-60)),
+            Unit(name: "fresh", module: "Kit", date: edited.addingTimeInterval(60)),
+            Unit(name: "ios", module: "Kit", date: edited.addingTimeInterval(-60), platform: .iOS),
+        ]
+
+        XCTAssertEqual(current(units, sourceModificationDate: edited), ["fresh", "ios"])
     }
 
     func testUnitsOfSeveralProducts_areAllKeptWhenCurrent() {
@@ -79,6 +102,7 @@ final class SourceFileCollectorTest: XCTestCase {
             units,
             sourceModificationDate: sourceModificationDate,
             module: \.module,
+            platform: \.platform,
             modificationDate: \.date
         )
 
@@ -109,13 +133,23 @@ final class SourceFileCollectorTest: XCTestCase {
     }
 
     /// The stale unit is dropped in favour of the fresh one, so the results are correct and need no warning.
-    func testStaleUnitBesideAFreshUnitOfItsModule_isNotOutdated() {
+    func testStaleUnitBesideAFreshUnitOfItsModuleAndPlatform_isNotOutdated() {
         let units = [
-            Unit(name: "ios", module: "Kit", date: edited.addingTimeInterval(-60)),
-            Unit(name: "macos", module: "Kit", date: edited.addingTimeInterval(60)),
+            Unit(name: "previous", module: "Kit", date: edited.addingTimeInterval(-60), platform: .iOS),
+            Unit(name: "rebuilt", module: "Kit", date: edited.addingTimeInterval(60), platform: .iOS),
         ]
 
         XCTAssertEqual(outdated(units, sourceModificationDate: edited), [])
+    }
+
+    /// Edited, then only macOS rebuilt: the iOS unit is the only index data of the iOS build, and is outdated.
+    func testStaleUnitBesideAFreshUnitOfAnotherPlatform_isOutdated() {
+        let units = [
+            Unit(name: "ios", module: "Kit", date: edited.addingTimeInterval(-60), platform: .iOS),
+            Unit(name: "macos", module: "Kit", date: edited.addingTimeInterval(60), platform: .macOS),
+        ]
+
+        XCTAssertEqual(outdated(units, sourceModificationDate: edited), ["ios"])
     }
 
     func testUnknownDates_areNotOutdated() {

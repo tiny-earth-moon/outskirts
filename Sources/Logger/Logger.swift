@@ -40,9 +40,16 @@ public struct Logger: Sendable {
     #endif
 
     public var isColoredOutputEnabled: Bool {
+        isColoredOutputEnabled(for: standardOutput)
+    }
+
+    private func isColoredOutputEnabled(for stream: UnsafeMutablePointer<FILE>) -> Bool {
         switch colorMode {
         case .auto:
-            isColorOutputCapable
+            Self.isColorCapable(
+                environment: ProcessInfo.processInfo.environment,
+                isTerminal: isatty(fileno(stream)) != 0
+            )
         case .always:
             true
         case .never:
@@ -66,7 +73,11 @@ public struct Logger: Sendable {
     }
 
     public func colorize(_ text: String, _ color: ANSIColor) -> String {
-        guard isColoredOutputEnabled else { return text }
+        colorize(text, color, for: standardOutput)
+    }
+
+    private func colorize(_ text: String, _ color: ANSIColor, for stream: UnsafeMutablePointer<FILE>) -> String {
+        guard isColoredOutputEnabled(for: stream) else { return text }
 
         return "\(color.rawValue)\(text)\u{001B}[0;0m"
     }
@@ -93,18 +104,20 @@ public struct Logger: Sendable {
         log(text, output: standardOutput)
     }
 
-    public func warn(_ text: String, newlinePrefix: Bool = false) {
-        guard !quiet else { return }
+    /// - Parameter canQuiet: Whether `quiet` silences the warning; a mistake the user must see, such as a misspelt
+    ///   configuration key, passes `false`.
+    public func warn(_ text: String, newlinePrefix: Bool = false, canQuiet: Bool = true) {
+        guard !(quiet && canQuiet) else { return }
 
         if newlinePrefix {
             log("", output: standardError)
         }
-        let text = colorize("warning: ", .boldYellow) + text
+        let text = colorize("warning: ", .boldYellow, for: standardError) + text
         log(text, output: standardError)
     }
 
     public func error(_ text: String) {
-        let text = colorize("error: ", .boldRed) + text
+        let text = colorize("error: ", .boldRed, for: standardError) + text
         log(text, output: standardError)
     }
 
@@ -134,16 +147,19 @@ public struct Logger: Sendable {
         _ = outputQueue.sync { fputs(line + "\n", output) }
     }
 
-    private var isColorOutputCapable: Bool = {
-        guard let term = ProcessInfo.processInfo.environment["TERM"],
+    /// `auto` colors a stream only when it is a terminal, `TERM` is set and not `dumb`, and `NO_COLOR` is unset or
+    /// empty (https://no-color.org).
+    static func isColorCapable(environment: [String: String], isTerminal: Bool) -> Bool {
+        guard isTerminal,
+              let term = environment["TERM"],
               term.lowercased() != "dumb",
-              isatty(fileno(standardOutput)) != 0
+              environment["NO_COLOR", default: ""].isEmpty
         else {
             return false
         }
 
         return true
-    }()
+    }
 }
 
 public struct ContextualLogger: Sendable {

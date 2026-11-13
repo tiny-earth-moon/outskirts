@@ -55,6 +55,20 @@ final class ReportExcludeConfigurationTest: XCTestCase {
         }
     }
 
+    func testUnknownKindInTheCompactFormIsAnErrorNamingIt() throws {
+        for (entry, unknown) in [
+            ("**/x.swift:unused.function,bogus", "bogus"),
+            ("Sources/*.swift:unusd", "unusd"),
+            ("Sources/*.swift:redundantProtocl.class", "redundantProtocl.class"),
+        ] {
+            let configuration = try load("report_exclude:\n  - \"\(entry)\"\n")
+
+            XCTAssertThrowsError(try ReportExcludeRule.resolve(configuration), entry) { error in
+                XCTAssertTrue(error.localizedDescription.contains("unknown result kind '\(unknown)'"), error.localizedDescription)
+            }
+        }
+    }
+
     func testMalformedYamlEntryIsAnError() throws {
         let configuration = try load("""
         report_exclude:

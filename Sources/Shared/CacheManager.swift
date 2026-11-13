@@ -106,7 +106,7 @@ public enum CacheManager {
         try evictStale(
             cacheDirectory: cacheDirectory,
             maxAgeDays: maxAgeDays,
-            maxSizeBytes: Int64(maxSizeGB) << 30,
+            maxSizeBytes: bytes(gigabytes: maxSizeGB),
             keeping: keeping,
             now: now,
             fileManager: fileManager
@@ -114,7 +114,13 @@ public enum CacheManager {
     }
 
     /// Same as the gigabyte variant, with the size limit in bytes. 0 disables the limit.
+    /// Saturates at `Int64.max`, so a huge limit stays a limit instead of wrapping around.
     @discardableResult
+    static func bytes(gigabytes: Int) -> Int64 {
+        let (bytes, overflow) = Int64(gigabytes).multipliedReportingOverflow(by: 1 << 30)
+        return overflow ? Int64.max : bytes
+    }
+
     static func evictStale(
         cacheDirectory: URL,
         maxAgeDays: Int,

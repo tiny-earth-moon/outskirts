@@ -1,12 +1,33 @@
 import Extensions
 import Foundation
-import Logger
+@testable import Logger
 import Shared
 import SystemPackage
 import TestShared
 import XCTest
 
 final class LoggerStreamsTest: XCTestCase {
+    func testAutoColorRequiresATerminalAndHonorsNoColor() {
+        let term = ["TERM": "xterm-256color"]
+
+        XCTAssertTrue(Logger.isColorCapable(environment: term, isTerminal: true))
+        XCTAssertFalse(Logger.isColorCapable(environment: term, isTerminal: false))
+        XCTAssertFalse(Logger.isColorCapable(environment: ["TERM": "dumb"], isTerminal: true))
+        XCTAssertFalse(Logger.isColorCapable(environment: term.merging(["NO_COLOR": "1"]) { $1 }, isTerminal: true))
+        XCTAssertTrue(Logger.isColorCapable(environment: term.merging(["NO_COLOR": ""]) { $1 }, isTerminal: true))
+    }
+
+    func testAutoDoesNotColorWarningsWhenStderrIsNotATerminal() {
+        let logger = Logger(quiet: false, verbose: false, colorMode: .auto)
+
+        let (_, stderr) = capture {
+            logger.warn("warn")
+            logger.error("error")
+        }
+
+        XCTAssertEqual(stderr, "warning: warn\nerror: error\n")
+    }
+
     func testMessagesGoToStdoutByDefault() {
         let logger = Logger(quiet: false, verbose: true, colorMode: .never)
 

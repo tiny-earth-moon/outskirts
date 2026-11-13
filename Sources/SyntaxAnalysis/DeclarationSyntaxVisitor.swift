@@ -250,11 +250,10 @@ public final class DeclarationSyntaxVisitor: PeripherySyntaxVisitor {
     }
 
     func visitVariableTupleBinding(node: VariableDeclSyntax, pattern: TuplePatternSyntax, typeTuple: TupleTypeElementListSyntax?, initializerTuple: LabeledExprListSyntax?, hasOpaqueInitializer: Bool) {
-        let elements = Array(pattern.elements)
-        let types: [TupleTypeElementSyntax?] = typeTuple?.map(\.self) ?? Array(repeating: nil, count: elements.count)
-        let initializers: [LabeledExprSyntax?] = initializerTuple?.map(\.self) ?? Array(repeating: nil, count: elements.count)
+        let types: [TupleTypeElementSyntax?] = typeTuple?.map(\.self) ?? Array(repeating: nil, count: pattern.elements.count)
+        let initializers: [LabeledExprSyntax?] = initializerTuple?.map(\.self) ?? Array(repeating: nil, count: pattern.elements.count)
 
-        for (element, (type, initializer)) in zip(elements, zip(types, initializers)) {
+        for (element, (type, initializer)) in zip(pattern.elements, zip(types, initializers)) {
             if let elementTuplePattern = element.pattern.as(TuplePatternSyntax.self) {
                 let typeTuple = type?.type.as(TupleTypeSyntax.self)?.elements
                 let initializerTuple = initializer?.expression.as(TupleExprSyntax.self)?.elements
@@ -274,6 +273,7 @@ public final class DeclarationSyntaxVisitor: PeripherySyntaxVisitor {
                     variableType: type?.type,
                     variableInitFunctionCallExpr: initializer?.expression.as(FunctionCallExprSyntax.self),
                     hasNonNilInitialValue: hasOpaqueInitializer || hasNonNilInitialValue(initializer?.expression),
+                    isConstant: node.bindingSpecifier.tokenKind == .keyword(.let),
                     at: element.positionAfterSkippingLeadingTrivia
                 )
             }

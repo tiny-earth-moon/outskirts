@@ -21,7 +21,10 @@ final class XcodeFormatter: OutputFormatter {
 
         return results.flatMap { result in
             describe(result, colored: colored).map { location, description in
-                prefix(for: location, colored: colored) + description
+                // A line break in a name or path would forge another diagnostic line; with colors, the project's
+                // text is escaped before it is colored, so the only escape characters left are the formatter's own.
+                (prefix(for: location, colored: colored) + description)
+                    .withVisibleControlCharacters(keeping: { colored && $0 == "\u{1B}" })
             }
         }
         .joined(separator: "\n")
@@ -31,14 +34,15 @@ final class XcodeFormatter: OutputFormatter {
 
     private func prefix(for location: Location, colored: Bool) -> String {
         let path = outputPath(location)
-        var dir = path.removingLastComponent().string
+        let text: (String) -> String = { colored ? $0.withVisibleControlCharacters() : $0 }
+        var dir = text(path.removingLastComponent().string)
 
         if !dir.isEmpty {
             dir += "/"
         }
 
-        let file = colorize(path.lastComponent?.stem ?? "", .bold, colored: colored)
-        let ext = path.extension ?? "swift"
+        let file = colorize(text(path.lastComponent?.stem ?? ""), .bold, colored: colored)
+        let ext = text(path.extension ?? "swift")
         let lineNum = colorize(String(location.line), .bold, colored: colored)
         let column = location.column
         let warning = colorize("warning:", .boldYellow, colored: colored)

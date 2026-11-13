@@ -54,11 +54,45 @@ final class GitHubMarkdownFormatter: OutputFormatter {
         }
     }
 
+    /// Makes a value inert in a table cell: line breaks become spaces, other control characters a visible escape,
+    /// and the characters that open Markdown or HTML markup, a link or an autolink are backslash-escaped. An underscore
+    /// inside a word cannot start emphasis, so `snake_case` names stay as they are.
     private func escapeCell(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "|", with: "\\|")
-            .replacingOccurrences(of: "\r\n", with: " ")
-            .replacingOccurrences(of: "\n", with: " ")
-            .replacingOccurrences(of: "\r", with: " ")
+        let characters = Array(
+            value
+                .replacingOccurrences(of: "\r\n", with: " ")
+                .replacingOccurrences(of: "\n", with: " ")
+                .replacingOccurrences(of: "\r", with: " ")
+                .withVisibleControlCharacters()
+        )
+        var escaped = ""
+
+        for (index, character) in characters.enumerated() {
+            switch character {
+            case "\\", "`", "*", "[", "]", "<", ">", "~", "&", "|", "!", "#":
+                escaped += "\\"
+            case "_":
+                let previous = index > characters.startIndex ? characters[index - 1] : nil
+                let next = index + 1 < characters.endIndex ? characters[index + 1] : nil
+                if previous?.isLetterOrNumber != true || next?.isLetterOrNumber != true {
+                    escaped += "\\"
+                }
+            case ":" where characters[(index + 1)...].starts(with: ["/", "/"]):
+                escaped += "\\"
+            case "." where index >= 3 && String(characters[(index - 3) ..< index]).lowercased() == "www":
+                escaped += "\\"
+            default:
+                break
+            }
+            escaped.append(character)
+        }
+
+        return escaped
+    }
+}
+
+private extension Character {
+    var isLetterOrNumber: Bool {
+        isLetter || isNumber
     }
 }

@@ -1,3 +1,4 @@
+import Extensions
 import Foundation
 import Synchronization
 import SystemPackage
@@ -85,5 +86,22 @@ public enum RealPath {
 
         defer { free(resolved) }
         return String(cString: resolved)
+    }
+
+    /// The path of the file relative to the root when the file lies inside it, compared as written first, then with
+    /// both sides resolved, so that a link or `/tmp` against `/private/tmp` does not take the file out of the root.
+    public static func relativePath(of file: FilePath, within root: FilePath) -> FilePath? {
+        if let relative = lexicallyContained(file, in: root) {
+            return relative
+        }
+
+        return lexicallyContained(FilePath(resolve(file.string)), in: FilePath(resolve(root.string)))
+    }
+
+    private static func lexicallyContained(_ file: FilePath, in root: FilePath) -> FilePath? {
+        let relative = file.relativeTo(root)
+        guard relative.components.first?.string != ".." else { return nil }
+
+        return relative
     }
 }

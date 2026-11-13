@@ -6,15 +6,19 @@ public struct LocalizedStringCallSite: Hashable {
     public struct Argument: Hashable {
         public let label: String?
         public let keys: [String]
+        /// The unlabeled trailing closure, matched to the next parameter of function type whatever its label.
+        public let isTrailingClosure: Bool
 
-        public init(label: String?, keys: [String]) {
+        public init(label: String?, keys: [String], isTrailingClosure: Bool = false) {
             self.label = label
             self.keys = keys
+            self.isTrailingClosure = isTrailingClosure
         }
     }
 
     /// The position of the callee name token (e.g. `Button` in `Button("key")`, `navigationTitle` in
-    /// `.navigationTitle("key")`), where the index store records the reference to the called function.
+    /// `.navigationTitle("key")`), where the index store records the reference to the called function, or of the
+    /// opening bracket of a subscript call (`[` in `table["key"]`), where it records the subscript accessor.
     public let line: Int
     public let column: Int
     public let arguments: [Argument]

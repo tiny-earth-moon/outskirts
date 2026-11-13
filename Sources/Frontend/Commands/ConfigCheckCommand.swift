@@ -56,6 +56,7 @@ struct ConfigCheckCommand: ParsableCommand {
     /// The checks a scan makes on the loaded configuration before building, each stopping the scan with its error.
     private static func errors(in configuration: Configuration) -> [String] {
         let checks: [() throws -> Void] = [
+            { try ScanCommand.validateOptionCombinations(of: configuration) },
             { _ = try ReportExcludeRule.resolve(configuration) },
             { _ = try AttributeRetentionRule.resolve(configuration) },
             { _ = try ScanPreflight.validatePaths(of: configuration) },

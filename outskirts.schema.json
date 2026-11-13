@@ -329,7 +329,7 @@
       "default": false
     },
     "quiet": {
-      "description": "Print only the results.",
+      "description": "Print only the results, and the configuration file warnings on stderr.",
       "type": "boolean",
       "default": false
     },

@@ -1,3 +1,4 @@
+import Shared
 import SystemPackage
 
 /// Identifiers of the results that no USR identifies: an unused import, an empty extension, a String Catalog key, a
@@ -58,7 +59,7 @@ public enum SyntheticUsr {
     // MARK: - Private
 
     private static func relativePath(of file: FilePath, to projectRoot: FilePath) -> String {
-        file.relativeTo(projectRoot).string
+        (RealPath.relativePath(of: file, within: projectRoot) ?? file.relativeTo(projectRoot)).string
     }
 
     private static func legacyPosition(of location: Location, projectRoot: FilePath) -> String {

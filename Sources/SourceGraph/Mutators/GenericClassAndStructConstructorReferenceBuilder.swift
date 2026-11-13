@@ -2,7 +2,7 @@ import Configuration
 import Foundation
 import Shared
 
-/// https://github.com/apple/swift/issues/54532
+/// https://github.com/swiftlang/swift/issues/54532
 /// Constructors on a class/struct with generic type parameters are not referenced despite being used.
 /// We therefore must reference the constructor from the class/struct.
 final class GenericClassAndStructConstructorReferenceBuilder: GraphOnlyMutator {

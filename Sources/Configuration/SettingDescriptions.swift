@@ -48,7 +48,7 @@ extension Configuration {
         "retain_equatable_properties": "Retain properties on Equatable types, including Hashable types.",
         "retain_hashable_properties": "Retain properties on Hashable types.",
         "verbose": "Enable verbose logging.",
-        "quiet": "Print only the results.",
+        "quiet": "Print only the results, and the configuration file warnings on stderr.",
         "color": "Colored output mode.",
         "disable_update_check": "Do not check for a new version.",
         "strict": "Exit with status 1 if any result is reported.",

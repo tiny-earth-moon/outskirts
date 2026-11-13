@@ -268,6 +268,8 @@ public final class Configuration {
     }
 
     static let maximumConfigurationFileSize = 1024 * 1024
+    /// Bounds the values an aliased YAML document expands to, which the file size limit does not.
+    static let maximumConfigurationValueCount = 100_000
 
     public func save(to path: FilePath = defaultConfigurationFile) throws {
         let data = try Data((Self.schemaComment + "\n" + asYaml()).utf8)
@@ -288,7 +290,12 @@ public final class Configuration {
         }
 
         // An empty document is an empty configuration.
-        guard let document = try Yams.load(yaml: encodedYAML) else { return }
+        guard let root = try Yams.compose(yaml: encodedYAML) else { return }
+        guard !Self.exceedsMaximumValueCount(root) else {
+            throw PeripheryError.usageError("\(path.string): the configuration holds more than \(Self.maximumConfigurationValueCount) values once its YAML aliases are expanded")
+        }
+
+        let document = root.any
         guard let yaml = document as? [AnyHashable: Any] else {
             throw PeripheryError.usageError("\(path.string): the configuration must be a mapping of keys to values, got \(SettingValueError.describe(document))")
         }
@@ -299,14 +306,24 @@ public final class Configuration {
             throw PeripheryError.removedBazelOption("'\(key)' in \(path.string)")
         }
 
+        // The modules `retain_public` lists, which `retain_public_modules`, read after it, must not replace.
+        var modulesListedByRetainPublic: [String]?
+
         for (key, value, isString) in entries {
             if isString, key == $retainPublic.key, value is [Any] {
                 if let message = $retainPublicModules.assign(value, reportedKey: key) {
                     warn("\(path.string): \(message)")
+                } else {
+                    modulesListedByRetainPublic = retainPublicModules
                 }
             } else if isString, let setting = settings.first(where: { key == $0.key }) {
                 if let message = setting.assign(value) {
                     warn("\(path.string): \(message)")
+                }
+
+                if key == $retainPublicModules.key, let listed = modulesListedByRetainPublic {
+                    retainPublicModules = listed + retainPublicModules.filter { !listed.contains($0) }
+                    warn("\(path.string): '\($retainPublic.key)' and '\(key)' both list modules, both lists are used; write them under '\(key)' only")
                 }
             } else if isString, let suggestion = closestSettingKey(to: key) {
                 warn("\(path.string): invalid key '\(key)' (did you mean '\(suggestion)'?)")
@@ -463,7 +480,7 @@ public final class Configuration {
     }
 
     /// The Levenshtein distance between two strings.
-    private static func editDistance(_ lhs: String, _ rhs: String) -> Int {
+    public static func editDistance(_ lhs: String, _ rhs: String) -> Int {
         let lhs = Array(lhs)
         let rhs = Array(rhs)
         var previous = Array(0 ... rhs.count)
@@ -479,6 +496,32 @@ public final class Configuration {
         }
 
         return previous[rhs.count]
+    }
+
+    /// Whether the document holds more values than the limit once its aliases are expanded. It counts the values
+    /// without constructing them, and stops past the limit, so nested aliases cannot exhaust the memory.
+    private static func exceedsMaximumValueCount(_ root: Node) -> Bool {
+        var count = 0
+        var pending = [root]
+
+        while let node = pending.popLast() {
+            count += 1
+            guard count <= maximumConfigurationValueCount else { return true }
+
+            switch node {
+            case .scalar, .alias:
+                break
+            case let .mapping(mapping):
+                for (key, value) in mapping {
+                    pending.append(key)
+                    pending.append(value)
+                }
+            case let .sequence(sequence):
+                pending.append(contentsOf: sequence)
+            }
+        }
+
+        return false
     }
 
     /// Keys of the Bazel mode, removed in 3.13.0, which are rejected instead of being reported as invalid keys.

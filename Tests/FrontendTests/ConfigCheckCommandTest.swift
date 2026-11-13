@@ -54,6 +54,15 @@ final class ConfigCheckCommandTest: XCTestCase {
         XCTAssertTrue(output.stderr.contains("error: report_exclude: unknown result kind 'unsed' for 'Sources/**'"), output.stderr)
     }
 
+    func testUnknownKindInTheCompactReportExcludeFormExitsOne() throws {
+        try write(".outskirts.yml", "report_exclude:\n  - \"**/x.swift:unused.function,bogus\"\n")
+
+        let output = try check([])
+
+        XCTAssertEqual(output.status, 1)
+        XCTAssertTrue(output.stderr.contains("error: report_exclude: unknown result kind 'bogus' for '**/x.swift'"), output.stderr)
+    }
+
     func testMissingFileExitsOne() throws {
         let given = try check(["--config", "missing.yml"])
         XCTAssertEqual(given.status, 1)
@@ -78,6 +87,22 @@ final class ConfigCheckCommandTest: XCTestCase {
 
     private func write(_ name: String, _ contents: String) throws {
         try writeFile(contents, named: name, in: directory)
+    }
+
+    func testOptionCombinationsTheScanRejectsExitOne() throws {
+        for (contents, message) in [
+            ("skip_stdout_results: true\n", "requires '--write-results'"),
+            ("changed_lines: true\n", "requires '--changed-since'"),
+            ("cache_max_age_days: -1\n", "'cache_max_age_days' setting must be 0 or more"),
+            ("cache_max_size_gb: -1\n", "'cache_max_size_gb' setting must be 0 or more"),
+        ] {
+            try write(".outskirts.yml", contents)
+
+            let output = try check([])
+
+            XCTAssertEqual(output.status, 1, contents)
+            XCTAssertTrue(output.stderr.contains(message), output.stderr)
+        }
     }
 
     private func check(_ arguments: [String]) throws -> Output {

@@ -110,12 +110,18 @@ extension Setting where Value == Int {
 }
 
 extension Setting where Value == [String] {
-    /// - Parameter requireDefaultValues: Whether the default values are kept next to the ones given.
+    /// - Parameter requireDefaultValues: Whether the default values are kept next to the ones given. They come first,
+    ///   then the given values without duplicates, in a stable order, so giving only the defaults is not a change.
     convenience init(key: String, defaultValue: Value, requireDefaultValues: Bool = false) {
         self.init(
             key: key,
             defaultValue: defaultValue,
-            normalize: { requireDefaultValues ? Array(Set($0).union(defaultValue)) : $0 },
+            normalize: { values in
+                guard requireDefaultValues else { return values }
+
+                var seen = Set<String>()
+                return (defaultValue + values).filter { seen.insert($0).inserted }
+            },
             convert: SettingConverter.stringList
         )
     }

@@ -203,6 +203,7 @@ function renderPage(page) {
 <meta name="twitter:title" content="${escapeAttr(page.title)}">
 <meta name="twitter:description" content="${escapeAttr(page.description)}">
 <meta name="twitter:image" content="${ORIGIN}/social-preview.png">
+${breadcrumbs(page)}
 </head>
 <body class="docs">
 <a class="skip" href="#content">Skip to content</a>
@@ -235,6 +236,21 @@ ${footer}
 </body>
 </html>
 `;
+}
+
+/** Structured data: where the page sits in the site, which search engines show in place of the raw URL. */
+function breadcrumbs(page) {
+  const trail = [
+    { name: "outskirts", url: `${ORIGIN}/` },
+    { name: "Documentation", url: `${ORIGIN}${pageURL("")}` },
+  ];
+  if (page.name !== "") trail.push({ name: page.title, url: `${ORIGIN}${pageURL(page.name)}` });
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: trail.map((item, i) => ({ "@type": "ListItem", position: i + 1, name: item.name, item: item.url })),
+  };
+  return `<script type="application/ld+json">\n${JSON.stringify(data).replace(/</g, "\\u003c")}\n</script>`;
 }
 
 function navList(current) {

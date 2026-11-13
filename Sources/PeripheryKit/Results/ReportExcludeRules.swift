@@ -110,15 +110,24 @@ public struct ReportExcludeRule {
             return (path, kinds)
         }
 
-        // A tail that starts like a kind but is unknown is a typo, not part of a glob.
-        let looksLikeKinds = kinds.allSatisfy { kind in
-            ResultKind.annotationNames.contains { kind == $0 || kind.hasPrefix("\($0).") }
-        }
-
-        if looksLikeKinds {
+        // A tail where any entry starts like a kind is a list of kinds, so its unknown entries are typos, not a glob.
+        if kinds.contains(where: looksLikeKind) {
             try validate(kinds, in: path)
         }
 
         return (string, nil)
+    }
+
+    /// Whether the entry starts with a result annotation, or with a word a few typos away from one.
+    private static func looksLikeKind(_ kind: String) -> Bool {
+        let head = String(kind.prefix { $0 != "." })
+
+        if ResultKind.annotationNames.contains(head) {
+            return true
+        }
+
+        guard !head.isEmpty, head.allSatisfy(\.isLetter) else { return false }
+
+        return ResultKind.annotationNames.contains { Configuration.editDistance(head.lowercased(), $0.lowercased()) <= 2 }
     }
 }

@@ -394,7 +394,7 @@ Properties of structs with a synthesized memberwise initializer are considered a
 Declarations marked `public` that are not referenced from outside their home module have redundant public accessibility: the `public` modifier can be removed. The result is `redundantPublicAccessibility`, with the message `Redundant public accessibility for function 'f' (not used outside of MyModule)`. Removing it has a couple of benefits:
 
 - It reduces the public surface area of your modules.
-- In [Whole Module Compilation](https://github.com/apple/swift/blob/main/docs/OptimizationTips.rst#whole-module-optimizations-wmo) mode, Swift can infer `final` by [automatically discovering](https://github.com/apple/swift/blob/main/docs/OptimizationTips.rst#advice-if-wmo-is-enabled-use-internal-when-a-declaration-does-not-need-to-be-accessed-outside-of-module) all potentially overriding declarations. `final` classes are [better optimized](https://github.com/apple/swift/blob/main/docs/OptimizationTips.rst#advice-use-final-when-you-know-the-declaration-does-not-need-to-be-overridden) by the compiler.
+- In [Whole Module Compilation](https://github.com/swiftlang/swift/blob/main/docs/OptimizationTips.rst#whole-module-optimizations-wmo) mode, Swift can infer `final` by [automatically discovering](https://github.com/swiftlang/swift/blob/main/docs/OptimizationTips.rst#advice-if-wmo-is-enabled-use-internal-when-a-declaration-does-not-need-to-be-accessed-outside-of-module) all potentially overriding declarations. `final` classes are [better optimized](https://github.com/swiftlang/swift/blob/main/docs/OptimizationTips.rst#advice-use-final-when-you-know-the-declaration-does-not-need-to-be-overridden) by the compiler.
 
 Before:
 
@@ -710,7 +710,7 @@ Keys built at runtime (e.g. `String(localized: String.LocalizationValue("quickCh
 ```yaml
 localized_string_key_patterns:
   - "quickChat.*"
-  - "/^tier\.(gold|silver|bronze)\.label$/"
+  - '/^tier\.(gold|silver|bronze)\.label$/'
 ```
 
 ### Literal matching

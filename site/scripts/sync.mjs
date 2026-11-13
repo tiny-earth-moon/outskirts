@@ -101,7 +101,7 @@ function optionsReference() {
     "",
     "Every option of the `scan` command, with its key in the configuration file, its type and its default. Run `outskirts help scan` for the help of your version, and see [Configuration](configuration.md) for how the command line and the file combine.",
     "",
-    "- Every option that takes no value, except `--setup` and `--skip-stdout-results`, also has a `--no-` form, e.g. `--no-strict`.",
+    "- Every option that takes no value, except `--setup`, also has a `--no-` form, e.g. `--no-strict`.",
     "- Options that take a list accept several values after one flag, e.g. `--exclude-targets A B`; in the file, a single value is read as a list of one.",
     "- Relative paths are resolved from `--project-root`.",
     "",
@@ -151,7 +151,7 @@ function describeType(property, flag) {
     return `${describeType({ type: "boolean" }, flag)}, or in the file a list of strings`;
   }
   const type = Array.isArray(property.type) ? "list" : property.type ?? "list";
-  if (type === "boolean") return flag && !["--setup", "--skip-stdout-results"].includes(flag) ? `flag, \`--no-${flag.slice(2)}\` to switch off` : "flag";
+  if (type === "boolean") return flag && !["--setup"].includes(flag) ? `flag, \`--no-${flag.slice(2)}\` to switch off` : "flag";
   if (type === "list" || type === "array") return "list of strings";
   return type;
 }

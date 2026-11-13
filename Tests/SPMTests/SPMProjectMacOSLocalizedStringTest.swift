@@ -28,6 +28,40 @@
             assertReferenced(.localizedString("mac_variadic_key"))
         }
 
+        func testRetainsKeysPassedToLocalizedTypeInitializers() {
+            assertReferenced(.localizedString("mac_dot_init_key"))
+            assertReferenced(.localizedString("mac_memberwise_init_key"))
+            assertReferenced(.localizedString("mac_value_init_key"))
+            assertReferenced(.localizedString("mac_localized_value_init_key"))
+            assertReferenced(.localizedString("mac_string_init_key"))
+            assertReferenced(.localizedString("mac_resource_init_key"))
+            assertNotReferenced(.localizedString("mac_plain_init_key"))
+        }
+
+        func testRetainsKeysReturnedFromTrailingClosures() {
+            assertReferenced(.localizedString("mac_trailing_closure_key"))
+            assertReferenced(.localizedString("mac_forward_scan_key"))
+            assertNotReferenced(.localizedString("mac_trailing_closure_string_key"))
+            assertNotReferenced(.localizedString("mac_closure_argument_string_key"))
+        }
+
+        func testRetainsCoalescedCastAndEnumCaseKeys() {
+            assertReferenced(.localizedString("mac_coalesce_key"))
+            assertReferenced(.localizedString("mac_cast_key"))
+            assertReferenced(.localizedString("mac_case_default_key"))
+            assertNotReferenced(.localizedString("mac_coalesce_string_key"))
+        }
+
+        func testRetainsKeysPassedToLocalizedSubscripts() {
+            assertReferenced(.localizedString("mac_subscript_key"))
+            assertReferenced(.localizedString("mac_labeled_subscript_key"))
+            assertReferenced(.localizedString("mac_static_subscript_key"))
+            assertReferenced(.localizedString("mac_chained_subscript_key"))
+            assertReferenced(.localizedString("mac_self_subscript_key"))
+            assertNotReferenced(.localizedString("mac_plain_subscript_key"))
+            assertNotReferenced(.localizedString("mac_dictionary_subscript_key"))
+        }
+
         func testRetainsKeysFromLocalizedDeclarationTypes() {
             assertReferenced(.localizedString("mac_annotated_property_key"))
             assertReferenced(.localizedString("mac_returned_resource_key"))

@@ -50,6 +50,11 @@ final class CommandLinePrecedenceTest: XCTestCase {
         ("retain_synthesized_uses", \.retainSynthesizedUses),
         ("detect_unused_asset_catalog_colors", \.detectUnusedAssetCatalogColors),
         ("detect_unused_asset_catalog_images", \.detectUnusedAssetCatalogImages),
+        ("detect_unused_metal_functions", \.detectUnusedMetalFunctions),
+        ("skip_stdout_results", \.skipStdoutResults),
+        ("changed_lines", \.changedLines),
+        ("prune_baseline", \.pruneBaseline),
+        ("strict_baseline", \.strictBaseline),
     ]
 
     private var directory: URL!

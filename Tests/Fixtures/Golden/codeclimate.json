@@ -5,10 +5,11 @@
     ],
     "check_name" : "unused",
     "description" : "Unused class 'Widget'",
-    "fingerprint" : "s:3Lib6WidgetC",
+    "fingerprint" : "063c2693e0ad329d5a02c7fc2d4eb36d0b7433ba3e6c2e840c2ae0bffffcd989",
     "location" : {
       "lines" : {
-        "begin" : 3
+        "begin" : 3,
+        "end" : 3
       },
       "path" : "Project/Sources/Lib/Widget.swift"
     },
@@ -21,10 +22,11 @@
     ],
     "check_name" : "redundantProtocol",
     "description" : "Redundant protocol 'Marker' (never used as an existential type), Redundant protocol conformance 'Marker' (replace with 'Base'), Redundant protocol conformance 'Marker' (replace with 'Base'), Redundant protocol conformance 'Marker' (replace with 'Base'), Redundant protocol conformance 'Marker' (replace with 'Base'), Redundant protocol conformance 'Marker' (replace with 'Base'), Redundant protocol conformance 'Marker' (replace with 'Base'), Redundant protocol conformance 'Marker' (replace with 'Base'), Redundant protocol conformance 'Marker' (replace with 'Base')",
-    "fingerprint" : "s:4Demo6MarkerP",
+    "fingerprint" : "faa24b26a09dd2f6093102cfdde41a4feb896971c7fcd72dda5445456fb57d5d",
     "location" : {
       "lines" : {
-        "begin" : 1
+        "begin" : 1,
+        "end" : 1
       },
       "path" : "Project/Sources/Demo/Marker.swift"
     },
@@ -37,10 +39,11 @@
     ],
     "check_name" : "redundantPublicAccessibility",
     "description" : "Redundant public accessibility for function 'helper()' (not used outside of Alpha, Zeta)",
-    "fingerprint" : "s:3Lib6helperyyF",
+    "fingerprint" : "378ec8505118088a398c7f85f67792d870f9e5ac9b25669c1f2b466fbd96631c",
     "location" : {
       "lines" : {
-        "begin" : 5
+        "begin" : 5,
+        "end" : 5
       },
       "path" : "Project/Sources/Lib/Helper.swift"
     },
@@ -53,10 +56,11 @@
     ],
     "check_name" : "unusedAssetCatalogColor",
     "description" : "Unused asset catalog color 'AccentColor' (Project/App/Assets.xcassets/AccentColor.colorset)",
-    "fingerprint" : "s:accent",
+    "fingerprint" : "51d95641399e12a553d6a3a0385c925a1c55aa14abb38980228afb9fb5a3ad7e",
     "location" : {
       "lines" : {
-        "begin" : 3
+        "begin" : 3,
+        "end" : 3
       },
       "path" : "DerivedSources/GeneratedAssetSymbols.swift"
     },

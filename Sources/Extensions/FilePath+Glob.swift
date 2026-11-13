@@ -117,8 +117,21 @@ private final class Glob {
     private func resolve(base: URL?, remainder: String) -> String {
         guard let base else { return remainder }
 
-        let joined = remainder.isEmpty ? base : base.appendingPathComponent(remainder)
-        return FilePath(joined.path).lexicallyNormalized().string
+        let literalBase = Self.escapingGlobMetacharacters(in: FilePath(base.path).lexicallyNormalized().string)
+        guard !remainder.isEmpty else { return literalBase }
+
+        return literalBase.hasSuffix("/") ? "\(literalBase)\(remainder)" : "\(literalBase)/\(remainder)"
+    }
+
+    /// `base` is a concrete directory, so its glob(3) metacharacters (including braces, see `GLOB_BRACE`) are
+    /// escaped and a directory such as `App [beta]` matches itself.
+    private static func escapingGlobMetacharacters(in path: String) -> String {
+        path.reduce(into: "") { result, character in
+            if "\\*?[]{}".contains(character) {
+                result.append("\\")
+            }
+            result.append(character)
+        }
     }
 
     /// Lists `url` and its subdirectories. Symbolic links are followed, but a directory already on the current

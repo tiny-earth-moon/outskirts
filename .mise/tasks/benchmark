@@ -1,9 +1,0 @@
-#!/bin/bash
-
-set -eo pipefail
-
-mise r build --arch arm64
-cmd='./.build/release/outskirts scan --quiet --skip-build'
-
-echo $cmd
-hyperfine --warmup 3 "${cmd}"

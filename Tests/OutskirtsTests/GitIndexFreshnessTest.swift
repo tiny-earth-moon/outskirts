@@ -255,12 +255,29 @@ final class GitIndexFreshnessTest: XCTestCase {
 
     // MARK: - Duplicate units and warning
 
-    /// Git cannot tell which unit was written from the revision, so the newest unit of a module still wins.
+    /// Git cannot tell which unit was written from the revision, so the newest unit of a module and platform still wins.
     func testDuplicateUnitsOfAModule_newestStillWinsWithARevision() {
         let units = [built.addingTimeInterval(-600), built.addingTimeInterval(60)]
-        let kept = SourceFileCollector.currentUnits(units, sourceModificationDate: built, module: { _ in "Kit" }, modificationDate: { $0 })
+        let kept = SourceFileCollector.currentUnits(units, sourceModificationDate: built, module: { _ in "Kit" }, platform: { _ in .macOS }, modificationDate: { $0 })
 
         XCTAssertEqual(kept, [built.addingTimeInterval(60)])
+        XCTAssertEqual(SourceFileCollector.outdatedUnits(kept, sourceModificationDate: built, changedSinceRevision: false, modificationDate: { $0 }), [])
+    }
+
+    /// Only macOS rebuilt since the edit: the iOS unit is kept, and outdated when git reports the file changed.
+    func testStaleUnitOfAnotherPlatform_isKeptAndOutdatedWhenChangedSinceTheRevision() {
+        let ios = built.addingTimeInterval(-600)
+        let macOS = built.addingTimeInterval(60)
+        let kept = SourceFileCollector.currentUnits(
+            [ios, macOS],
+            sourceModificationDate: built,
+            module: { _ in "Kit" },
+            platform: { $0 == ios ? .iOS : .macOS },
+            modificationDate: { $0 }
+        )
+
+        XCTAssertEqual(kept, [ios, macOS])
+        XCTAssertEqual(SourceFileCollector.outdatedUnits(kept, sourceModificationDate: built, changedSinceRevision: true, modificationDate: { $0 }), [ios, macOS])
         XCTAssertEqual(SourceFileCollector.outdatedUnits(kept, sourceModificationDate: built, changedSinceRevision: false, modificationDate: { $0 }), [])
     }
 

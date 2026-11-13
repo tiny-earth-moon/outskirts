@@ -6,7 +6,7 @@ description: Every option of outskirts scan, with its configuration key, type an
 
 Every option of the `scan` command, with its key in the configuration file, its type and its default. Run `outskirts help scan` for the help of your version, and see [Configuration](configuration.md) for how the command line and the file combine.
 
-- Every option that takes no value, except `--setup` and `--skip-stdout-results`, also has a `--no-` form, e.g. `--no-strict`.
+- Every option that takes no value, except `--setup`, also has a `--no-` form, e.g. `--no-strict`.
 - Options that take a list accept several values after one flag, e.g. `--exclude-targets A B`; in the file, a single value is read as a list of one.
 - Relative paths are resolved from `--project-root`.
 
@@ -128,7 +128,7 @@ Fail the scan when a source file is newer than its index data, instead of warnin
 
 Key `strict_index` · flag, `--no-strict-index` to switch off · default `false`.
 
-See [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Troubleshooting: Index data older than its source](troubleshooting.md#index-data-older-than-its-source), [Troubleshooting: Index data restored from another checkout](troubleshooting.md#index-data-restored-from-another-checkout), [Roadmap: Published](roadmap.md#published).
+See [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Troubleshooting: Index data older than its source](troubleshooting.md#index-data-older-than-its-source), [Troubleshooting: Index data restored from another checkout](troubleshooting.md#index-data-restored-from-another-checkout), [Troubleshooting: Scanning several platforms or configurations](troubleshooting.md#scanning-several-platforms-or-configurations).
 
 ### `--strict-index-coverage`
 
@@ -614,13 +614,13 @@ See [Getting started: Results and messages](getting-started.md#results-and-messa
 
 Do not print the results to stdout; requires write_results.
 
-Key `skip_stdout_results` · flag · default `false`.
+Key `skip_stdout_results` · flag, `--no-skip-stdout-results` to switch off · default `false`.
 
 See [Getting started: Results and messages](getting-started.md#results-and-messages), [Getting started: Exit status](getting-started.md#exit-status), [Output formats: Writing to a file](output-formats.md#writing-to-a-file).
 
 ### `--quiet`
 
-Print only the results.
+Print only the results, and the configuration file warnings on stderr.
 
 Key `quiet` · flag, `--no-quiet` to switch off · default `false`.
 

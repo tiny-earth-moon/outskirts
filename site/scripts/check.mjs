@@ -2,7 +2,8 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { MAX_CODE_LINE, ORIGIN, PUBLIC_DIR } from "./lib/docs.mjs";
+import { MAX_CODE_LINE, ORIGIN, PUBLIC_DIR, REPO_DIR } from "./lib/docs.mjs";
+import { checkMarkdownSources } from "./lib/markdown-check.mjs";
 
 const root = PUBLIC_DIR;
 const errors = [];
@@ -49,6 +50,8 @@ for (const page of docsPages) {
 checkStylesheet();
 checkSitemap();
 checkSecurityTxt();
+checkSoftwareVersion();
+errors.push(...checkMarkdownSources());
 
 if (errors.length) {
   console.error(errors.join("\n"));
@@ -100,6 +103,14 @@ function checkLinks(page, source) {
 }
 
 /** Colors live only in the custom properties of :root, so that light and dark stay consistent. */
+// The structured data of the home page names the released version, written by hand.
+function checkSoftwareVersion() {
+  const version = readFileSync(join(REPO_DIR, "Sources/Shared/Version.swift"), "utf8").match(/"(\d+\.\d+\.\d+)"/)?.[1];
+  const declared = html.get("index.html")?.match(/"softwareVersion":"([^"]*)"/)?.[1];
+  if (!version) errors.push("Sources/Shared/Version.swift has no version");
+  else if (declared !== version) errors.push(`index.html: softwareVersion is ${declared ?? "missing"}, the version is ${version}`);
+}
+
 function checkStylesheet() {
   const css = readFileSync(join(root, "style.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {

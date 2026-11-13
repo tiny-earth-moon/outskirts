@@ -2171,7 +2171,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
-    /// https://github.com/apple/swift/issues/64686
+    /// https://github.com/swiftlang/swift/issues/64686
     /// https://github.com/peripheryapp/periphery/issues/264
     func testSelfReferencedConstructor() {
         analyze(retainPublic: true) {
@@ -2187,7 +2187,7 @@ final class RetentionTest: FixtureSourceGraphTestCase {
         }
     }
 
-    /// https://github.com/apple/swift/issues/56541
+    /// https://github.com/swiftlang/swift/issues/56541
     func testStaticMemberUsedAsSubscriptKey() {
         analyze(retainPublic: true) {
             assertReferenced(.enum("FixtureEnum128")) {

@@ -8,13 +8,16 @@ import SwiftSyntax
 /// - `usedStringKeys` holds keys that are known to be used from syntax alone:
 ///   - `NSLocalizedString("key", ...)`, `String(localized: "key", ...)`, `LocalizedStringKey("key")`,
 ///     `LocalizedStringResource("key", ...)`, `Text("key")`, `Bundle.localizedString(forKey: "key", ...)` and
-///     `Bundle.localizedAttributedString(forKey: "key", ...)`.
+///     `Bundle.localizedAttributedString(forKey: "key", ...)`, including the explicit `.init` and `stringLiteral:`
+///     forms of the initializers (e.g. `LocalizedStringKey.init("key")`,
+///     `String.LocalizationValue(stringLiteral: "key")`).
 ///   - AppIntents `@Parameter(title:)` / `@Property(title:)` attribute arguments.
 ///   - Literals assigned to, returned from, or used as the default value of a declaration whose type is a
 ///     localized type (e.g. `let title: LocalizedStringResource = "key"`).
 ///   - Literals passed to a call whose callee cannot be located syntactically (conservatively retained).
-/// - `callSites` holds the remaining calls that receive string literals. Whether those literals are keys depends on
-///   the type of the receiving parameter, which is resolved from the index store by the indexer.
+/// - `callSites` holds the remaining calls, subscript calls included, that receive string literals. Whether those
+///   literals are keys depends on the type of the receiving parameter, which is resolved from the index store by the
+///   indexer.
 /// - `unresolvedKeys` holds the lookups whose key is built from a runtime value, with the literal prefix of the key
 ///   when there is one.
 public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
@@ -49,14 +52,79 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
         self.sourceLocationBuilder = sourceLocationBuilder
     }
 
+    /// Whether values of the type are created from a localization key. For a function type, only its return type
+    /// counts: a closure taking a `LocalizedStringKey` and returning a `String` does not return a key.
     public static func isLocalizedType(_ typeName: String) -> Bool {
-        localizedTypeNames.contains { typeName.contains($0) }
+        let valueType = valueTypeName(of: typeName)
+        return localizedTypeNames.contains { valueType.contains($0) }
+    }
+
+    /// The return type of a function type, looking through attributes and an optional function type, e.g.
+    /// `Swift.String` for `@escaping (SwiftUI.LocalizedStringKey) -> Swift.String`; any other type unchanged.
+    static func valueTypeName(of typeName: String) -> String {
+        var type = typeName.trimmingCharacters(in: .whitespaces)
+
+        while type.hasPrefix("@"), let space = type.firstIndex(of: " ") {
+            type = type[space...].trimmingCharacters(in: .whitespaces)
+        }
+
+        let characters = Array(type)
+        var depth = 0
+        var lastArrow: Int?
+
+        for index in characters.indices {
+            switch characters[index] {
+            case "(", "[", "<":
+                depth += 1
+            case ")", "]":
+                depth -= 1
+            case ">" where index > 0 && characters[index - 1] == "-":
+                if depth == 0 {
+                    lastArrow = index
+                }
+            case ">":
+                depth -= 1
+            default:
+                break
+            }
+        }
+
+        if let lastArrow {
+            return valueTypeName(of: String(characters[(lastArrow + 1)...]))
+        }
+
+        // An optional function type, `(() -> T)?`.
+        if characters.first == "(", characters.count > 2, ["?", "!"].contains(characters.last),
+           characters[characters.count - 2] == ")"
+        {
+            let inner = String(characters[1 ..< (characters.count - 2)])
+            if inner.contains("->") {
+                return valueTypeName(of: inner)
+            }
+        }
+
+        return type
     }
 
     public func visit(_ node: FunctionCallExprSyntax) {
         collectKnownCallKeys(node)
-        collectCallSite(node)
+        collectCallSite(
+            arguments: node.arguments,
+            trailingClosure: node.trailingClosure,
+            additionalTrailingClosures: node.additionalTrailingClosures,
+            calleeToken: calleeNameToken(of: node.calledExpression)
+        )
         collectUnresolvedKey(node)
+    }
+
+    /// `table["key"]`: the index store records the reference to the subscript accessor at the opening bracket.
+    public func visit(_ node: SubscriptCallExprSyntax) {
+        collectCallSite(
+            arguments: node.arguments,
+            trailingClosure: node.trailingClosure,
+            additionalTrailingClosures: node.additionalTrailingClosures,
+            calleeToken: node.leftSquare
+        )
     }
 
     /// `@Parameter(title: "key")` is an attribute rather than a call, so it is invisible to call site resolution.
@@ -70,6 +138,20 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
             guard let label = argument.label?.text, Self.localizedAttributeLabels.contains(label) else { continue }
 
             insertLiteral(argument.expression)
+        }
+    }
+
+    /// A literal cast to a localized type, `"key" as LocalizedStringKey`, is a key wherever it appears.
+    public func visit(_ node: SequenceExprSyntax) {
+        let elements = Array(node.elements)
+
+        for index in elements.indices.dropFirst().dropLast() {
+            guard let cast = elements[index].as(UnresolvedAsExprSyntax.self), cast.questionOrExclamationMark == nil,
+                  let type = elements[index + 1].as(TypeExprSyntax.self),
+                  Self.isLocalizedType(type.type.trimmedDescription)
+            else { continue }
+
+            insertLiteral(elements[index - 1])
         }
     }
 
@@ -100,6 +182,24 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
 
     public func visit(_ node: InitializerDeclSyntax) {
         collectDefaultValueKeys(node.signature.parameterClause)
+    }
+
+    /// The default value of an associated value, `case title(LocalizedStringKey = "key")`, and the raw value of a case
+    /// whose raw type is a localized type, `enum Title: LocalizedStringKey { case greeting = "key" }`.
+    public func visit(_ node: EnumCaseDeclSyntax) {
+        let rawType = node.parent?.ancestorOrSelf { $0.as(EnumDeclSyntax.self) }?.inheritanceClause?.inheritedTypes.first?.type
+
+        for element in node.elements {
+            for parameter in element.parameterClause?.parameters ?? [] {
+                guard let value = parameter.defaultValue?.value else { continue }
+
+                usedStringKeys.formUnion(literalKeys(in: value, ofType: parameter.type))
+            }
+
+            if let rawType, let rawValue = element.rawValue?.value {
+                usedStringKeys.formUnion(literalKeys(in: rawValue, ofType: rawType))
+            }
+        }
     }
 
     public func visit(_ node: SubscriptDeclSyntax) {
@@ -160,16 +260,39 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
 
         guard Self.isLocalizedType(type.trimmedDescription) else { return [] }
 
-        return literalKeys(in: expression)
+        return Self.literalKeys(in: expression)
     }
 
-    private func collectCallSite(_ node: FunctionCallExprSyntax) {
-        let arguments = node.arguments.map { argument in
-            LocalizedStringCallSite.Argument(label: argument.label?.text, keys: literalKeys(in: argument.expression))
+    /// `calleeToken` is the token where the index store records the reference to the callee, nil when it cannot be
+    /// located syntactically.
+    private func collectCallSite(
+        arguments argumentList: LabeledExprListSyntax,
+        trailingClosure: ClosureExprSyntax?,
+        additionalTrailingClosures: MultipleTrailingClosureElementListSyntax,
+        calleeToken: TokenSyntax?
+    ) {
+        var arguments = argumentList.map { argument in
+            LocalizedStringCallSite.Argument(label: argument.label?.text, keys: Self.literalKeys(in: argument.expression))
+        }
+
+        // Trailing closures come last, those returning no literal are left out.
+        if let trailingClosure {
+            let keys = Self.literalKeys(in: ExprSyntax(trailingClosure))
+            if !keys.isEmpty {
+                arguments.append(LocalizedStringCallSite.Argument(label: nil, keys: keys, isTrailingClosure: true))
+            }
+        }
+
+        for closure in additionalTrailingClosures {
+            let keys = Self.literalKeys(in: ExprSyntax(closure.closure))
+            if !keys.isEmpty {
+                let label = closure.label.text
+                arguments.append(LocalizedStringCallSite.Argument(label: label == "_" ? nil : label, keys: keys))
+            }
         }
 
         guard arguments.contains(where: { !$0.keys.isEmpty }) else { return }
-        guard let calleeToken = calleeNameToken(of: node.calledExpression) else {
+        guard let calleeToken else {
             // The callee cannot be resolved, conservatively assume the literals are keys.
             usedStringKeys.formUnion(arguments.flatMap(\.keys))
             return
@@ -199,19 +322,13 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
     private func collectKnownCallKeys(_ node: FunctionCallExprSyntax) {
         let calledExpression = node.calledExpression
 
-        if let identifier = calledExpression.as(DeclReferenceExprSyntax.self) {
-            switch identifier.baseName.text {
-            case "NSLocalizedString", "LocalizedStringKey", "LocalizedStringResource", "Text":
-                // The first unlabeled string argument is the key.
-                if let firstArg = node.arguments.first, firstArg.label == nil {
-                    insertLiteral(firstArg.expression)
-                }
-            case "String":
-                if let localizedArg = node.arguments.first(where: { $0.label?.text == "localized" }) {
-                    insertLiteral(localizedArg.expression)
-                }
-            default:
-                break
+        if let name = Self.knownCalleeName(of: calledExpression) {
+            // `Text(optionalString ?? "literal")` calls the verbatim `Text.init<S: StringProtocol>(_:)`: whether the
+            // literal is a key depends on the type of the other operand, left to call site resolution.
+            if let keyArgument = Self.keyArgument(of: node, calleeName: name),
+               name != "Text" || !Self.containsNilCoalescing(keyArgument)
+            {
+                insertLiteral(keyArgument)
             }
             return
         }
@@ -222,6 +339,42 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
            let forKeyArg = node.arguments.first(where: { $0.label?.text == "forKey" })
         {
             insertLiteral(forKeyArg.expression)
+        }
+    }
+
+    /// The name of a called function or type, looking through an explicit initializer reference
+    /// (`LocalizedStringKey.init`) and naming `String.LocalizationValue` by its last component.
+    private static func knownCalleeName(of expression: ExprSyntax) -> String? {
+        if let identifier = expression.as(DeclReferenceExprSyntax.self) {
+            return identifier.baseName.text
+        }
+
+        guard let memberAccess = expression.as(MemberAccessExprSyntax.self), let base = memberAccess.base else { return nil }
+
+        switch memberAccess.declName.baseName.text {
+        case "init":
+            return knownCalleeName(of: base)
+        case "LocalizationValue" where base.as(DeclReferenceExprSyntax.self)?.baseName.text == "String":
+            return "LocalizationValue"
+        default:
+            return nil
+        }
+    }
+
+    /// The key argument of a well-known lookup: the first unlabeled argument, the `stringLiteral:` argument of a
+    /// localized type initializer, or the `localized:` argument of `String`.
+    private static func keyArgument(of node: FunctionCallExprSyntax, calleeName: String) -> ExprSyntax? {
+        guard let first = node.arguments.first else { return nil }
+
+        switch calleeName {
+        case "NSLocalizedString", "Text":
+            return first.label == nil ? first.expression : nil
+        case "LocalizedStringKey", "LocalizedStringResource", "LocalizationValue":
+            return first.label == nil || first.label?.text == "stringLiteral" ? first.expression : nil
+        case "String":
+            return node.arguments.first { $0.label?.text == "localized" }?.expression
+        default:
+            return nil
         }
     }
 
@@ -244,21 +397,20 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
     }
 
     /// The key argument of the lookups that accept a key built at runtime: `NSLocalizedString(_:)`,
-    /// `LocalizedStringKey(_:)`, `LocalizedStringResource(_:)`, `String.LocalizationValue(_:)`,
-    /// `Bundle.localizedString(forKey:)` and `Bundle.localizedAttributedString(forKey:)`. `acceptsKeyFormat` is false
+    /// `LocalizedStringKey(_:)`, `LocalizedStringResource(_:)`, `String.LocalizationValue(_:)` (also as `.init` or
+    /// `stringLiteral:`), `Bundle.localizedString(forKey:)` and `Bundle.localizedAttributedString(forKey:)`. `acceptsKeyFormat` is false
     /// for the lookups taking a plain `String`, for which an interpolated literal is evaluated at runtime rather than
     /// turned into a format key.
     private func runtimeKeyArgument(of node: FunctionCallExprSyntax) -> (ExprSyntax, Bool)? {
         let calledExpression = node.calledExpression
         let firstUnlabeled = node.arguments.first.flatMap { $0.label == nil ? $0.expression : nil }
 
-        if let identifier = calledExpression.as(DeclReferenceExprSyntax.self) {
-            let name = identifier.baseName.text
-            guard ["NSLocalizedString", "LocalizedStringKey", "LocalizedStringResource"].contains(name),
-                  let firstUnlabeled
+        if let name = Self.knownCalleeName(of: calledExpression) {
+            guard ["NSLocalizedString", "LocalizedStringKey", "LocalizedStringResource", "LocalizationValue"].contains(name),
+                  let keyArgument = Self.keyArgument(of: node, calleeName: name)
             else { return nil }
 
-            return (firstUnlabeled, name != "NSLocalizedString")
+            return (keyArgument, name != "NSLocalizedString")
         }
 
         guard let memberAccess = calledExpression.as(MemberAccessExprSyntax.self) else { return nil }
@@ -372,7 +524,7 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
     }
 
     private func insertLiteral(_ expression: ExprSyntax) {
-        usedStringKeys.formUnion(literalKeys(in: expression))
+        usedStringKeys.formUnion(Self.literalKeys(in: expression))
     }
 
     /// The catalogue key of a string literal. An interpolated literal maps to the format key Foundation derives
@@ -428,12 +580,12 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
         return "%@"
     }
 
-    /// String literals that an expression may evaluate to, looking through parentheses, ternaries, tuple, array and
-    /// dictionary literals, `if`/`switch` expressions and closure bodies. Interpolated literals are normalized to
-    /// their format key.
-    private func literalKeys(in expression: ExprSyntax) -> [String] {
+    /// String literals that an expression may evaluate to, looking through parentheses, ternaries, `??`, `try`,
+    /// `await`, tuple, array and dictionary literals, `if`/`switch` expressions and closure bodies. Interpolated
+    /// literals are normalized to their format key.
+    static func literalKeys(in expression: ExprSyntax) -> [String] {
         if let stringLiteral = expression.as(StringLiteralExprSyntax.self) {
-            return Self.localizationKey(of: stringLiteral).map { [$0] } ?? []
+            return localizationKey(of: stringLiteral).map { [$0] } ?? []
         }
 
         if let tuple = expression.as(TupleExprSyntax.self) {
@@ -449,12 +601,16 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
             return literalKeys(in: unresolvedTernary.thenExpression)
         }
 
-        if let sequence = expression.as(SequenceExprSyntax.self), sequence.elements.contains(where: { $0.is(UnresolvedTernaryExprSyntax.self) }) {
-            // An unfolded ternary: `condition ? "a" : "b"`. Only the branches can be keys.
-            let elements = Array(sequence.elements)
-            guard let ternaryIndex = elements.firstIndex(where: { $0.is(UnresolvedTernaryExprSyntax.self) }) else { return [] }
+        if let sequence = expression.as(SequenceExprSyntax.self) {
+            return literalKeys(inSequence: Array(sequence.elements)[...])
+        }
 
-            return elements[ternaryIndex...].flatMap { literalKeys(in: $0) }
+        if let tryExpression = expression.as(TryExprSyntax.self) {
+            return literalKeys(in: tryExpression.expression)
+        }
+
+        if let awaitExpression = expression.as(AwaitExprSyntax.self) {
+            return literalKeys(in: awaitExpression.expression)
         }
 
         if let array = expression.as(ArrayExprSyntax.self) {
@@ -485,55 +641,32 @@ public final class LocalizedStringSyntaxVisitor: PeripherySyntaxVisitor {
 
         return []
     }
-}
 
-/// Collects the string literals a body may return, ignoring literals passed to calls, used in conditions or patterns,
-/// or nested in closures and local declarations.
-private final class ReturnedLiteralCollector: SyntaxVisitor {
-    private var keys: Set<String> = []
-
-    static func collect(in node: some SyntaxProtocol) -> Set<String> {
-        let collector = ReturnedLiteralCollector(viewMode: .sourceAccurate)
-        collector.walk(node)
-        return collector.keys
-    }
-
-    override func visit(_ node: StringLiteralExprSyntax) -> SyntaxVisitorContinueKind {
-        if let key = LocalizedStringSyntaxVisitor.localizationKey(of: node) {
-            keys.insert(key)
+    /// String literals an unfolded operator sequence may evaluate to: the branches of a ternary, whose condition is
+    /// every element before it, and the operands of `??`. Operands of any other operator are not values of the
+    /// sequence; a literal cast with `as` is handled by `visit(_: SequenceExprSyntax)`.
+    private static func literalKeys(inSequence elements: ArraySlice<ExprSyntax>) -> [String] {
+        if let ternaryIndex = elements.firstIndex(where: { $0.is(UnresolvedTernaryExprSyntax.self) }),
+           let ternary = elements[ternaryIndex].as(UnresolvedTernaryExprSyntax.self)
+        {
+            return literalKeys(in: ternary.thenExpression) + literalKeys(inSequence: elements[(ternaryIndex + 1)...])
         }
-        return .skipChildren
+
+        if let coalescingIndex = elements.firstIndex(where: Self.isNilCoalescingOperator) {
+            return literalKeys(inSequence: elements[..<coalescingIndex])
+                + literalKeys(inSequence: elements[(coalescingIndex + 1)...])
+        }
+
+        guard elements.count == 1, let element = elements.first else { return [] }
+
+        return literalKeys(in: element)
     }
 
-    override func visit(_: FunctionCallExprSyntax) -> SyntaxVisitorContinueKind {
-        .skipChildren
+    private static func containsNilCoalescing(_ expression: ExprSyntax) -> Bool {
+        expression.tokens(viewMode: .sourceAccurate).contains { $0.tokenKind == .binaryOperator("??") }
     }
 
-    override func visit(_: SubscriptCallExprSyntax) -> SyntaxVisitorContinueKind {
-        .skipChildren
-    }
-
-    override func visit(_: MacroExpansionExprSyntax) -> SyntaxVisitorContinueKind {
-        .skipChildren
-    }
-
-    override func visit(_: ClosureExprSyntax) -> SyntaxVisitorContinueKind {
-        .skipChildren
-    }
-
-    override func visit(_: ConditionElementListSyntax) -> SyntaxVisitorContinueKind {
-        .skipChildren
-    }
-
-    override func visit(_: SwitchCaseLabelSyntax) -> SyntaxVisitorContinueKind {
-        .skipChildren
-    }
-
-    override func visit(_: VariableDeclSyntax) -> SyntaxVisitorContinueKind {
-        .skipChildren
-    }
-
-    override func visit(_: FunctionDeclSyntax) -> SyntaxVisitorContinueKind {
-        .skipChildren
+    private static func isNilCoalescingOperator(_ expression: ExprSyntax) -> Bool {
+        expression.as(BinaryOperatorExprSyntax.self)?.operator.text == "??"
     }
 }

@@ -16,6 +16,21 @@ enum ScanPreflight {
         logger.contextualized(with: "configuration").debug("'\(configuration.outputFormat.rawValue)' output requires relative paths, enabling '--relative-results'")
     }
 
+    /// Describes the options that were given but have no effect with the rest of the configuration.
+    static func ignoredOptionWarnings(of configuration: Configuration) -> [String] {
+        var warnings: [String] = []
+
+        if configuration.relativeResultsBase != nil, !configuration.relativeResults {
+            warnings.append("'--relative-to' only applies to relative result paths; it is ignored without '--relative-results' and with '--format \(configuration.outputFormat.rawValue)'.")
+        }
+
+        if let project = configuration.project, configuration.genericProjectConfig != nil {
+            warnings.append("Both '--project' and '--generic-project-config' are given; scanning the Xcode project '\(project.string)' and ignoring '--generic-project-config'.")
+        }
+
+        return warnings
+    }
+
     /// Checks the baseline and the output destinations, and returns the decoded baseline for filtering.
     static func validatePaths(of configuration: Configuration) throws -> Baseline? {
         try validateBaselineOptions(of: configuration)

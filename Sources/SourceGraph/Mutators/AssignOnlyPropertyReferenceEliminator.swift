@@ -27,9 +27,18 @@ enum AssignOnlyPropertyAnalyzer {
               !graph.references(to: property).contains(where: { $0.parent?.parent?.kind == .protocol }),
               let setter = property.declarations.first(where: { $0.kind == .functionAccessorSetter }),
               let getter = property.declarations.first(where: { $0.kind == .functionAccessorGetter }),
-              graph.references(to: setter).contains(where: { $0.kind != .retained }),
               !graph.references(to: getter).contains(where: { $0.kind != .retained })
         else { return false }
+
+        let setterReferences = graph.references(to: setter).filter { $0.kind != .retained }
+        guard !setterReferences.isEmpty else { return false }
+
+        // A constant can only be assigned by an initializer. Elsewhere, the index records a setter
+        // reference when the constant is the base of a write through a nonmutating subscript, such
+        // as `cache[key] = value` on a class instance, which reads the constant.
+        if property.isConstant {
+            return setterReferences.allSatisfy { $0.parent?.kind == .functionConstructor }
+        }
 
         return true
     }

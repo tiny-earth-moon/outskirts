@@ -8,7 +8,7 @@ Once you have settled on the options your project needs, keep them in a YAML con
 
 ## The configuration file
 
-outskirts reads `.outskirts.yml` at the project root (`--project-root`, the current directory by default). `.outskirts.yaml`, `.periphery.yml` and `.periphery.yaml` are read too, so existing projects keep working unchanged. `--config <file>` points to another file; a relative path is resolved from `--project-root`.
+outskirts reads `.outskirts.yml` at the project root (`--project-root`, the current directory by default). Failing that, it reads `.outskirts.yaml`, then `.periphery.yml`, then `.periphery.yaml`, so existing projects keep working unchanged. Only one file is read: the first of these that exists. `--config <file>` points to another file; a relative path is resolved from `--project-root`.
 
 Every key is the name of a scan option in `snake_case`, e.g. `--retain-public` is `retain_public`. The [options reference](options.md) lists every key with its type and default.
 
@@ -47,7 +47,7 @@ The command line takes precedence over the configuration file, which takes prece
 
 - An option given on the command line wins even when its value is the default: `--format xcode` wins over `format: json` in the file.
 - An option that is not given leaves the value of the file untouched.
-- Every boolean option has a `--no-` form to switch off, for one run, what the file enables: `--no-strict`, `--no-retain-public`, `--no-quiet`...
+- Every option that takes no value, except `--setup`, has a `--no-` form to switch off, for one run, what the file enables: `--no-strict`, `--no-retain-public`, `--no-quiet`...
 - A list given on the command line replaces the list of the file; the default `index_exclude` patterns are always kept.
 - `--setup`, `--project-root` and `--config` are command line only, and `xcode_list_arguments` is configuration file only.
 

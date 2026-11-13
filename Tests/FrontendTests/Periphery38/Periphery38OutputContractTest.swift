@@ -74,12 +74,14 @@ final class Periphery38OutputContractTest: XCTestCase {
         try assertKeepsEvery38Field("json")
     }
 
+    /// 3.8 gave every result of a declaration the same fingerprint, its ids, so GitLab showed only one of them;
+    /// outskirts hashes the rule with the ids. Known incompatibility (a fixed 3.8 bug), kept on purpose.
     func testCodeClimateOutputKeepsEvery38Field() throws {
-        try assertKeepsEvery38Field("codeclimate")
+        try assertKeepsEvery38Field("codeclimate", exceptChangedOnPurpose: "fingerprint")
     }
 
     func testGitLabCodeQualityOutputKeepsEvery38Field() throws {
-        try assertKeepsEvery38Field("gitlab-codequality")
+        try assertKeepsEvery38Field("gitlab-codequality", exceptChangedOnPurpose: "fingerprint")
     }
 
     func testExitStatusesAreThoseOf38() throws {
@@ -106,11 +108,20 @@ final class Periphery38OutputContractTest: XCTestCase {
         XCTAssertEqual(try String(bytes: scan(format), encoding: .utf8), expected, "the \(format) output differs from 3.8", file: file, line: line)
     }
 
-    private func assertKeepsEvery38Field(_ format: String) throws {
+    /// `key` names a field whose values changed on purpose: it must still be there, and its changes are expected.
+    private func assertKeepsEvery38Field(_ format: String, exceptChangedOnPurpose key: String? = nil) throws {
         let expected = try JSONSerialization.jsonObject(with: Data(contentsOf: Periphery38Contract.url("output/\(format).txt")))
         let output = try JSONSerialization.jsonObject(with: scan(format))
+        let missing = Self.missing(expected, in: output, at: format)
+        let changedOnPurpose = key.map { key in missing.filter { $0.contains(".\(key) changed from ") } } ?? []
 
-        XCTAssertEqual(Self.missing(expected, in: output, at: format), [])
+        XCTAssertEqual(missing.filter { !changedOnPurpose.contains($0) }, [])
+
+        if let key {
+            try expectKnownIncompatibility("the \(format) \(key) values differ from 3.8") {
+                XCTAssertEqual(changedOnPurpose, [])
+            }
+        }
     }
 
     /// The paths of the values of `expected` that `actual` lacks or holds with another value; arrays must have the

@@ -33,6 +33,13 @@ final class QuietModeTest: XCTestCase {
         }
     }
 
+    func testMaxResultsOutsideTheAgentFormatIsReportedAsIgnored() throws {
+        let output = try scan(["--format", "json", "--retain-public", "--max-results", "3"], in: Self.packageWithoutResult)
+
+        XCTAssertEqual(output.status, 0, output.stderrText)
+        XCTAssertTrue(output.stderrText.contains("'--max-results' only applies to '--format agent'"), output.stderrText)
+    }
+
     func testQuietWithNoResultPrintsNothingInXcodeFormat() throws {
         let output = try scan(["--format", "xcode", "--retain-public", "--quiet"], in: Self.packageWithoutResult)
 
@@ -113,11 +120,12 @@ final class QuietModeTest: XCTestCase {
         XCTAssertEqual(output.stdoutText, "")
     }
 
-    func testQuietPrintsNoConfigurationWarning() throws {
-        let output = try scan(["--format", "xcode", "--retain-public", "--quiet"], in: Self.packageWithInvalidConfiguration)
+    func testQuietStillPrintsTheConfigurationWarningOnStderrOnly() throws {
+        let output = try scan(["--format", "json", "--retain-public", "--quiet"], in: Self.packageWithInvalidConfiguration)
 
         XCTAssertEqual(output.status, 0, output.stderrText)
-        XCTAssertFalse(output.stderrText.contains("not_a_setting"), output.stderrText)
+        XCTAssertEqual(output.stdoutText, "")
+        XCTAssertTrue(output.stderrText.contains("invalid key 'not_a_setting'"), output.stderrText)
     }
 
     func testWithoutQuietTheConfigurationWarningIsPrintedOnStderr() throws {

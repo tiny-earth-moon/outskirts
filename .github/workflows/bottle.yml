@@ -264,10 +264,16 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
           CLT_LIB: /Library/Developer/CommandLineTools/usr/lib
+          RUNNER_LABEL: ${{ matrix.runner }}
         run: |
+          # The GitHub macOS images ship the Command Line Tools; only the preview image may lack them.
           if [[ ! -e $CLT_LIB/libIndexStore.dylib ]]; then
-            echo "::notice::No $CLT_LIB/libIndexStore.dylib on this runner, skipping"
-            exit 0
+            if [[ $RUNNER_LABEL == xcode-27 ]]; then
+              echo "::warning::No $CLT_LIB/libIndexStore.dylib on the $RUNNER_LABEL preview image, Command Line Tools check skipped"
+              exit 0
+            fi
+            echo "::error::No $CLT_LIB/libIndexStore.dylib on $RUNNER_LABEL, the Command Line Tools check cannot run"
+            exit 1
           fi
           clt_dir="$RUNNER_TEMP/clt-only"
           mkdir "$clt_dir"

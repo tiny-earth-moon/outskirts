@@ -17,7 +17,7 @@ Build every platform and the test targets into the index store you pass: code us
 Useful options in CI:
 
 - `--strict` exits with status 1 when any result is reported; combine it with a [baseline](baselines.md) to fail only on new results.
-- `--quiet` prints only the results, and nothing at all when there is none.
+- `--quiet` prints only the results, and nothing at all on stdout when there is none; warnings about the configuration file still go to stderr.
 - `--disable-update-check` skips the network check for a new version.
 - `--format` picks a format that your CI service reads, see [Output formats](output-formats.md).
 

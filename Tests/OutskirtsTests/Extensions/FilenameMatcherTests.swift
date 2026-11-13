@@ -28,6 +28,18 @@ final class FilenameMatcherTests: XCTestCase {
         assertNotMatch(filename: "/a/Sources/File.swift", relativeTo: "/", pattern: "/Sources/File.swift")
     }
 
+    func testRelativePattern_underRootWithGlobMetacharacters_matchesLiterally() {
+        for base in ["/x[1]/y{a}/z*", "/App [beta]", "/b[1]/p", "/what?"] {
+            assertMatch(filename: "\(base)/Sources/File.swift", relativeTo: base, pattern: "Sources/File.swift")
+            assertMatch(filename: "\(base)/Sources/File.swift", relativeTo: base, pattern: "Sources/*.swift")
+            assertMatch(filename: "\(base)/a/Sources/File.swift", relativeTo: "\(base)/a", pattern: "../**/File.swift")
+        }
+
+        assertNotMatch(filename: "/b1/p/Sources/File.swift", relativeTo: "/b[1]/p", pattern: "Sources/File.swift")
+        assertNotMatch(filename: "/zzz/Sources/File.swift", relativeTo: "/z*", pattern: "Sources/File.swift")
+        assertNotMatch(filename: "/whatx/Sources/File.swift", relativeTo: "/what?", pattern: "Sources/File.swift")
+    }
+
     // MARK: - Private
 
     private func assertMatch(filename: String, relativeTo base: String, pattern: String, file: StaticString = #file, line: UInt = #line) {

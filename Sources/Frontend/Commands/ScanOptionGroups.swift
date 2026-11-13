@@ -212,8 +212,8 @@ struct ResultsOptions: ParsableArguments {
     @Option(help: "File path where formatted results are written. A relative path is resolved from '--project-root'.", completion: .file())
     var writeResults: FilePath?
 
-    @Flag(help: "Do not print the results to stdout. Requires '--write-results'")
-    var skipStdoutResults: Bool = defaultConfiguration.$skipStdoutResults.defaultValue
+    @Flag(inversion: .prefixedNo, help: "Do not print the results to stdout. Requires '--write-results'")
+    var skipStdoutResults: Bool?
 
     @Option(help: "Explain why a declaration is reported, used or retained. Accepts a name (e.g. 'draw()' or 'Beta.draw()'), a USR or a 'file:line' location; repeat the option to explain several")
     var explain: [String] = []

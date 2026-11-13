@@ -125,6 +125,7 @@ public struct SourceFileCollector {
                 allTuples,
                 sourceModificationDate: sourceModificationDate,
                 module: \.3,
+                platform: { IndexPlatform(triple: $0.2.target) },
                 modificationDate: \.4
             )
             let modules = tuples.compactMapSet { $0.3 }
@@ -158,13 +159,15 @@ public struct SourceFileCollector {
 
     /// A unit written before its source file was last modified describes an older version of the file, e.g. a unit
     /// left in the store by a build whose output paths have since changed (a renamed package, a restored CI cache).
-    /// Such units are dropped when the same module has a unit written since, which describes the current file;
-    /// otherwise they are kept, as they are the only index data available for the file. With `index_built_from` too, as
+    /// Such units are dropped when the same module has a unit written since for the same platform, which describes the
+    /// current file; otherwise they are kept, as they are the only index data available for the file on their platform
+    /// (units of a platform unknown to `IndexPlatform` share a platform of their own). With `index_built_from` too, as
     /// git cannot tell which of the units was written from the revision: only whether the file is outdated changes.
     static func currentUnits<Unit>(
         _ units: [Unit],
         sourceModificationDate: Date?,
         module: (Unit) -> String,
+        platform: (Unit) -> IndexPlatform?,
         modificationDate: (Unit) -> Date?
     ) -> [Unit] {
         guard let sourceModificationDate else { return units }
@@ -175,17 +178,21 @@ public struct SourceFileCollector {
             return date >= sourceModificationDate
         }
 
-        let modulesWithCurrentUnit = Set(units.filter(isCurrent).map(module))
+        func group(_ unit: Unit) -> IndexCoverage.IndexedUnit {
+            IndexCoverage.IndexedUnit(module: module(unit), platform: platform(unit))
+        }
+
+        let groupsWithCurrentUnit = Set(units.filter(isCurrent).map(group))
 
         return units.filter { unit in
-            guard modulesWithCurrentUnit.contains(module(unit)), modificationDate(unit) != nil else { return true }
+            guard groupsWithCurrentUnit.contains(group(unit)), modificationDate(unit) != nil else { return true }
 
             return isCurrent(unit)
         }
     }
 
     /// The units kept by `currentUnits` that were written before the source file was last modified: they are the
-    /// only index data of their module for the file, yet describe an older version of it. With `index_built_from`,
+    /// only index data of their module and platform for the file, yet describe an older version of it. With `index_built_from`,
     /// git judges the files it knows instead (`changedSinceRevision` is non-nil): every unit of a file changed since
     /// the revision is outdated, and none of an unchanged file, whatever the dates.
     static func outdatedUnits<Unit>(

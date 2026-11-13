@@ -11,7 +11,7 @@ outskirts explores a Swift project, builds a map of what refers to what, and rep
 ### Requirements
 
 - **Build from source** (Homebrew without a bottle, Mint or `swift build`): macOS 15 or later (`Package.swift`), Swift 6.1.2 or later (checked at every scan) and Xcode 26.0 or later (required by the Homebrew formula). Xcode or the Command Line Tools must be installed, as outskirts loads `libIndexStore.dylib` from the toolchain.
-- **Homebrew bottle**: Apple silicon with macOS 27 or later, built with Xcode 27.2. It loads `libIndexStore.dylib` from `/Applications/Xcode.app`, or else from the Command Line Tools.
+- **Homebrew bottle**: Apple silicon, on each macOS release the formula publishes a bottle for (`brew info outskirts` lists them); on any other system Homebrew builds from source. It loads `libIndexStore.dylib` from `/Applications/Xcode.app`, or else from the Command Line Tools.
 - **Prebuilt archive**: Apple silicon with macOS 15 or later. Like the bottle, it loads `libIndexStore.dylib` from `/Applications/Xcode.app`, or else from the Command Line Tools.
 - **Linux**: Swift Package Manager projects only, see [Platforms](#platforms).
 
@@ -117,6 +117,10 @@ jobs:
 
 Leave `args` empty for a Swift package, or when a `.outskirts.yml` holds your options. The step fails when results are reported; set `fail-on-results: false` to only annotate, and `version` to pin a release. `@v1` follows the action's latest compatible release; its README shows how to pin it to a commit. The action's README lists every input; other CI setups are covered in [Continuous integration](ci.md).
 
+## Visual Studio Code
+
+The [outskirts extension](https://marketplace.visualstudio.com/items?itemName=tiny-earth-moon.outskirts) runs the installed `outskirts` from the editor and shows the results in a side bar and in the Problems panel, for each project of the workspace. It can reuse the existing index instead of building, and hand the results of a project, a file or a single declaration to a coding agent started in a terminal. Install it from the Extensions view by searching for "outskirts"; its source is [outskirts-vscode](https://github.com/tiny-earth-moon/outskirts-vscode).
+
 ## AI coding agents
 
 The repository ships an agent skill that teaches a coding agent to run a scan, triage the results and remove unused code safely. In Claude Code:
@@ -150,7 +154,7 @@ For an Xcode project, outskirts keeps its build in a cache folder that is keyed 
 
 The results are written to stdout. With any `--format` other than `xcode`, progress and `--verbose` messages go to stderr, so stdout carries only the report, e.g. `outskirts scan --format json > report.json`. `--write-results <file>` also writes the report to a file, and `--skip-stdout-results` then stops it from being printed to stdout.
 
-With `--quiet`, a scan that finds nothing prints nothing at all on stdout, whatever the format (no "No unused code detected." line, no empty JSON array), and `--quiet --write-results <file>` writes the report to the file only, as if `--skip-stdout-results` were given; the file always holds the complete report, an empty document included. Exit statuses are unchanged.
+With `--quiet`, a scan that finds nothing prints nothing at all on stdout, whatever the format (no "No unused code detected." line, no empty JSON array), and `--quiet --write-results <file>` writes the report to the file only, as if `--skip-stdout-results` were given; the file always holds the complete report, an empty document included. Warnings about the configuration file (an unknown key, an invalid value) are still printed on stderr, so a misspelt key never goes unnoticed. Exit statuses are unchanged.
 
 Interrupting a scan with Ctrl-C (`SIGINT`) or `SIGTERM` stops the running build and exits with status 130 or 143, see [Exit status](#exit-status).
 

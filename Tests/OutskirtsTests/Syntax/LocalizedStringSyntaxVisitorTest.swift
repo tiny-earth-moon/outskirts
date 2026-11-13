@@ -265,6 +265,60 @@ final class LocalizedStringSyntaxVisitorTest: XCTestCase {
         ])
     }
 
+    func testDetectsNilCoalescingOperands() throws {
+        let usedKeys = try collectUsedStringKeys(from: """
+        let key: LocalizedStringKey = optionalKey ?? "coalesce_let_key"
+        String(localized: isOn ? "coalesce_then_key" : (optionalValue ?? "coalesce_in_ternary_key"))
+        NSLocalizedString(first ?? second ?? "coalesce_chain_key", comment: "")
+        LocalizedStringKey(try optionalKey() ?? "coalesce_try_key")
+        LocalizedStringKey(await optionalKey() ?? "coalesce_await_key")
+        let plain: String = optionalString ?? "plain_coalesce_key"
+        String(localized: name == "compared_key" ? "compared_then_key" : "compared_else_key")
+        """)
+
+        XCTAssertEqual(usedKeys, [
+            "coalesce_let_key", "coalesce_then_key", "coalesce_in_ternary_key", "coalesce_chain_key",
+            "coalesce_try_key", "coalesce_await_key", "compared_then_key", "compared_else_key",
+        ])
+    }
+
+    func testLeavesNilCoalescingTextArgumentsToCallSiteResolution() throws {
+        let visitor = try visit("""
+        Text(optionalKey ?? "text_coalesce_key")
+        Text(isOn ? optionalString ?? "text_ternary_coalesce_key" : "text_else_key")
+        """)
+
+        // `Text(optionalString ?? "key")` calls the verbatim initializer: the index decides from the called overload.
+        XCTAssertEqual(visitor.usedStringKeys, [])
+        XCTAssertEqual(visitor.callSites.map(\.allKeys), [
+            ["text_coalesce_key"], ["text_ternary_coalesce_key", "text_else_key"],
+        ])
+    }
+
+    func testRecordsNilCoalescingOperandsOfCallSites() throws {
+        let callSites = try collectCallSites(from: """
+        view.navigationTitle(optionalKey ?? "coalesce_navigation_key")
+        """)
+
+        XCTAssertEqual(callSites.first?.arguments, [.init(label: nil, keys: ["coalesce_navigation_key"])])
+    }
+
+    func testDetectsLiteralsCastToLocalizedTypes() throws {
+        let usedKeys = try collectUsedStringKeys(from: """
+        let key = "cast_let_key" as LocalizedStringKey
+        Text("cast_argument_key" as LocalizedStringKey)
+        show(optionalKey ?? "cast_coalesce_key" as LocalizedStringKey)
+        let resource = ("cast_paren_key") as LocalizedStringResource
+        let value = "cast_value_key" as String.LocalizationValue
+        Text("cast_string_key" as String)
+        let optional = "cast_optional_key" as? LocalizedStringKey
+        """)
+
+        XCTAssertEqual(usedKeys, [
+            "cast_let_key", "cast_argument_key", "cast_coalesce_key", "cast_paren_key", "cast_value_key",
+        ])
+    }
+
     func testCollectsRuntimeKeysWithPrefixAndBundleScope() throws {
         let visitor = try visit("""
         NSLocalizedString(name, comment: "")
@@ -366,12 +420,169 @@ final class LocalizedStringSyntaxVisitorTest: XCTestCase {
         ])
     }
 
+    func testDetectsExplicitInitializerAndStringLiteralForms() throws {
+        let usedKeys = try collectUsedStringKeys(from: """
+        LocalizedStringKey.init("explicit_init_key")
+        Text(LocalizedStringKey.init("text_explicit_init_key"))
+        LocalizedStringKey(stringLiteral: "string_literal_key")
+        String.LocalizationValue(stringLiteral: "value_string_literal_key")
+        String.LocalizationValue.init("value_init_key")
+        LocalizedStringResource.init("resource_init_key", defaultValue: "resource_default_key")
+        String.init(localized: "string_init_key")
+        Text.init(verbatim: "verbatim_key")
+        LocalizedStringKey.init(verbatim: "labeled_key")
+        """)
+
+        XCTAssertEqual(usedKeys, [
+            "explicit_init_key", "text_explicit_init_key", "string_literal_key", "value_string_literal_key",
+            "value_init_key", "resource_init_key", "string_init_key",
+        ])
+    }
+
+    func testRecordsImplicitInitializerCallSitesInEveryPosition() throws {
+        let callSites = try collectCallSites(from: """
+        show(.init("argument_init_key"))
+        Item(title: .init("memberwise_init_key"))
+        let keys: [LocalizedStringKey] = [.init("array_init_key")]
+        make { .init("closure_init_key") }
+        String(localized: .init("localization_value_init_key"))
+        """)
+
+        let initSites = callSites.filter { $0.arguments.map(\.label) == [nil] && $0.column > 1 }
+        XCTAssertEqual(initSites.map(\.allKeys), [
+            ["argument_init_key"], ["memberwise_init_key"], ["array_init_key"], ["closure_init_key"],
+            ["localization_value_init_key"],
+        ])
+        XCTAssertEqual(initSites.map(\.column), [7, 14, 36, 9, 20])
+    }
+
+    func testCollectsRuntimeKeysOfExplicitInitializerForms() throws {
+        let visitor = try visit("""
+        LocalizedStringKey.init(name)
+        LocalizedStringKey(stringLiteral: name)
+        String.LocalizationValue.init(name)
+        """)
+
+        XCTAssertEqual(visitor.unresolvedKeys.map(\.line), [1, 2, 3])
+    }
+
+    func testRecordsTrailingClosuresOfCallSites() throws {
+        let callSites = try collectCallSites(from: """
+        make { "trailing_closure_key" }
+        pick(title: "title_key") { "first_closure_key" } detail: { "detail_closure_key" } _: { "unlabeled_closure_key" }
+        """)
+
+        XCTAssertEqual(callSites.map(\.arguments), [
+            [.init(label: nil, keys: ["trailing_closure_key"], isTrailingClosure: true)],
+            [
+                .init(label: "title", keys: ["title_key"]),
+                .init(label: nil, keys: ["first_closure_key"], isTrailingClosure: true),
+                .init(label: "detail", keys: ["detail_closure_key"]),
+                .init(label: nil, keys: ["unlabeled_closure_key"]),
+            ],
+        ])
+    }
+
+    func testDetectsEnumCaseDefaultAndRawValues() throws {
+        let usedKeys = try collectUsedStringKeys(from: """
+        enum Banner {
+            case title(LocalizedStringKey = "case_default_key", symbol: String = "case_symbol_key")
+            case detail(text: LocalizedStringResource? = "case_optional_default_key"), other(Int = 1)
+        }
+        enum Title: LocalizedStringKey {
+            case greeting = "raw_value_key"
+        }
+        enum Plain: String {
+            case greeting = "plain_raw_value_key"
+        }
+        """)
+
+        XCTAssertEqual(usedKeys, ["case_default_key", "case_optional_default_key", "raw_value_key"])
+    }
+
+    func testDetectsOnlyReturnedLiteralsOfBodies() throws {
+        let usedKeys = try collectUsedStringKeys(from: """
+        func title() -> LocalizedStringKey {
+            mode = "assigned_key"
+            if mode == "condition_key" { return "returned_if_key" }
+            let local = "local_key"
+            defer { log = "defer_key" }
+            #if DEBUG
+            return mode == "ternary_condition_key" ? "debug_then_key" : "debug_else_key"
+            #endif
+            func helper() -> String { return "nested_helper_key" }
+            return "returned_key"
+        }
+        var label: LocalizedStringKey {
+            get { "getter_key" }
+            set { stored = "setter_key" }
+        }
+        let make: () -> LocalizedStringKey = { mode = "closure_assign_key"; return "closure_returned_key" }
+        """)
+
+        XCTAssertEqual(usedKeys, [
+            "returned_if_key", "debug_then_key", "debug_else_key", "returned_key", "getter_key", "closure_returned_key",
+        ])
+    }
+
+    func testRecordsOnlyReturnedLiteralsOfTrailingClosures() throws {
+        let callSites = try collectCallSites(from: """
+        label { mode == "closure_condition_key" ? "closure_then_key" : "closure_else_key" }
+        label { mode = "closure_assign_key"; return "closure_return_key" }
+        """)
+
+        XCTAssertEqual(callSites.map(\.allKeys), [
+            ["closure_then_key", "closure_else_key"], ["closure_return_key"],
+        ])
+    }
+
+    func testIgnoresClosureDeclarationsTakingLocalizedArguments() throws {
+        let usedKeys = try collectUsedStringKeys(from: """
+        let format: (LocalizedStringKey) -> String = { _ in "closure_string_key" }
+        let make: @escaping () -> LocalizedStringKey = { "closure_key_key" }
+        let optionalMake: (() -> LocalizedStringResource)? = { "optional_closure_key" }
+        """)
+
+        XCTAssertEqual(usedKeys, ["closure_key_key", "optional_closure_key"])
+    }
+
     func testRetainsLiteralsPassedToUnlocatableCallees() throws {
         let usedKeys = try collectUsedStringKeys(from: """
         makeFormatter()("closure_key")
         """)
 
         XCTAssertEqual(usedKeys, ["closure_key"])
+    }
+
+    func testRecordsSubscriptCallSitesAtTheOpeningBracket() throws {
+        let visitor = try visit("""
+        _ = Sub()["subscript_key"]
+        _ = table[label: "label_key"]
+        _ = Table["static_key"]
+        _ = self["self_key"]
+        _ = a.b["chained_key"]
+        _ = table[two: "first_key", "second_key"]
+        _ = table[closure: { "closure_key" }]
+        _ = table[index: 1] { "trailing_key" }
+        _ = dict["dictionary_key"]
+        _ = array[0]
+        """)
+
+        XCTAssertEqual(visitor.callSites.map(\.line), [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        XCTAssertEqual(visitor.callSites.map(\.column), [10, 10, 10, 9, 8, 10, 10, 10, 9])
+        XCTAssertEqual(visitor.callSites.map(\.arguments), [
+            [.init(label: nil, keys: ["subscript_key"])],
+            [.init(label: "label", keys: ["label_key"])],
+            [.init(label: nil, keys: ["static_key"])],
+            [.init(label: nil, keys: ["self_key"])],
+            [.init(label: nil, keys: ["chained_key"])],
+            [.init(label: "two", keys: ["first_key"]), .init(label: nil, keys: ["second_key"])],
+            [.init(label: "closure", keys: ["closure_key"])],
+            [.init(label: "index", keys: []), .init(label: nil, keys: ["trailing_key"], isTrailingClosure: true)],
+            [.init(label: nil, keys: ["dictionary_key"])],
+        ])
+        // Whether the literals are keys depends on the subscript parameter types, resolved from the index store.
+        XCTAssertEqual(visitor.usedStringKeys, [])
     }
 
     // MARK: - Private

@@ -26,7 +26,7 @@ outskirts explores your Xcode project or Swift package, builds a map of what ref
 ### Requirements
 
 - **Build from source** (Homebrew without a bottle, Mint or `swift build`): macOS 15 or later (`Package.swift`), Swift 6.1.2 or later (checked at every scan) and Xcode 26.0 or later (required by the Homebrew formula). Xcode or the Command Line Tools must be installed, as outskirts loads `libIndexStore.dylib` from the toolchain.
-- **Homebrew bottle**: Apple silicon with macOS 27 or later, built with Xcode 27.2. It loads `libIndexStore.dylib` from `/Applications/Xcode.app`, or else from the Command Line Tools.
+- **Homebrew bottle**: Apple silicon, on each macOS release the formula publishes a bottle for (`brew info outskirts` lists them); on any other system Homebrew builds from source. It loads `libIndexStore.dylib` from `/Applications/Xcode.app`, or else from the Command Line Tools.
 - **Prebuilt archive**: Apple silicon with macOS 15 or later. Like the bottle, it loads `libIndexStore.dylib` from `/Applications/Xcode.app`, or else from the Command Line Tools.
 - **Linux**: Swift Package Manager projects only, see [Platforms](https://outskirts.dev/docs/getting-started/#platforms).
 
@@ -121,6 +121,10 @@ In the configuration file, write `retain_public_modules: [MyLibrary, OtherKit]`,
 
 <!-- docs:end -->
 
+## Visual Studio Code
+
+The [outskirts extension](https://marketplace.visualstudio.com/items?itemName=tiny-earth-moon.outskirts) shows the results in a side bar and in the Problems panel, for each project of the workspace, and can hand them to a coding agent. See [Getting started](https://outskirts.dev/docs/getting-started/#visual-studio-code).
+
 ## AI coding agents
 
 An agent skill teaches coding agents to scan, triage and remove unused code safely. In Claude Code:
@@ -140,7 +144,7 @@ There is nothing to do: the rename to outskirts (3.16.0) breaks nothing.
 
 - **New names**: the executable is `outskirts`, the Homebrew formula is `tiny-earth-moon/tap/outskirts`, the configuration file is `.outskirts.yml` and comment commands are written `// outskirts:ignore`.
 - **The `periphery` alias**: outskirts also installs a `periphery` executable, which behaves exactly like `outskirts`. It prints no warning and has no announced end date, so existing scripts, CI jobs and Xcode run scripts keep working.
-- **Configuration file**: `.periphery.yml` is still read next to `.outskirts.yml`. Rename it whenever you like.
+- **Configuration file**: `.periphery.yml` is still read when there is no `.outskirts.yml` (or `.outskirts.yaml`); only one file is read, the outskirts one first. Rename it whenever you like.
 - **Comment commands**: `// periphery:ignore`, `// periphery:ignore:all`, `// periphery:ignore:parameters` and `// periphery:override` are equivalent to their `outskirts:` form.
 - **Baselines**: baseline files written by Periphery keep matching, see [Baselines](https://outskirts.dev/docs/baselines/).
 - **Update check**: it now points at the outskirts repository.

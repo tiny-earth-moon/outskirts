@@ -33,7 +33,7 @@ Select a format with `--format` (`format` in the configuration file). The defaul
 
 ## xcode
 
-One line per result in the format Xcode and most editors understand, colored in a terminal (`--color auto`, `always` or `never`):
+One line per result in the format Xcode and most editors understand, colored in a terminal (`--color auto`, `always` or `never`; `auto` honors `NO_COLOR`):
 
 ```text
 /Project/Sources/Lib/Widget.swift:3:14: warning:
@@ -94,11 +94,11 @@ Each result carries a `peripheryResult/v1` fingerprint (a SHA-256 of the rule an
 
 ## gitlab-codequality
 
-A [Code Quality](https://docs.gitlab.com/ci/testing/code_quality/) report, which GitLab shows in merge requests. See [GitLab CI](ci.md#gitlab-ci).
+A [Code Quality](https://docs.gitlab.com/ci/testing/code_quality/) report, which GitLab shows in merge requests. See [GitLab CI](ci.md#gitlab-ci). Each finding carries the same `fingerprint` as `codeclimate`.
 
 ## codeclimate
 
-Code Climate JSON issues, each with a `check_name` (the result annotation), a `description`, a `fingerprint`, a `location` and a severity.
+Code Climate JSON issues, each with a `check_name` (the result annotation), a `description`, a `fingerprint`, a `location` and a severity. The fingerprint is a SHA-256 of the rule and the ids of the declaration, the same as the SARIF one: two results of one declaration get two fingerprints, and it holds no path, so it stays the same from one scan and one machine to the next. The location gives the line of the declaration as both `begin` and `end`.
 
 ## agent
 

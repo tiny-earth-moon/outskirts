@@ -1,16 +1,17 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/tiny-earth-moon/outskirts/master/outskirts.schema.json
 # Scenario: CI gate. The job fails when any unused code is found.
-# Run: outskirts scan --config examples/ci-strict.outskirts.yml > outskirts-report.json
-# Expected: exit status 1 with `strict`, 0 when nothing is reported; stdout contains only
-# the machine-readable report (`quiet` drops progress messages), ready to be
-# archived or parsed. Other formats: xcode, csv, json, checkstyle, codeclimate,
-# github-actions, github-markdown, gitlab-codequality.
+# Run: outskirts scan --config examples/ci-strict.outskirts.yml
+# Expected: exit status 1 with `strict`, 0 when nothing is reported. The machine-readable
+# report is written to `write_results`, ready to be archived or parsed; with `quiet` and
+# `write_results`, stdout stays empty and progress messages are dropped. Other formats:
+# xcode, csv, json, checkstyle, codeclimate, github-actions, github-markdown,
+# gitlab-codequality, sarif, agent.
 format: json            # or csv, github-actions...
 strict: true
 quiet: true
 color: never
 disable_update_check: true
-relative_results: true  # paths relative to the current directory, stable across runners
-# Also write the report to a file, whatever the stdout format.
+relative_results: true  # paths relative to the project root, stable across runners
+# Write the report to a file, in the format above.
 write_results: outskirts-report.json
-# skip_stdout_results: true  # also keep stdout empty, the report is only in the file
+# skip_stdout_results: true  # keep stdout empty even without `quiet`

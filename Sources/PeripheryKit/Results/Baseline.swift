@@ -27,14 +27,13 @@ public enum Baseline: Codable, Equatable {
         }
 
         init(id: String, result: ScanResult, projectRoot: FilePath) {
-            let path = result.declaration.location.file.path.string
-            let rootPrefix = projectRoot.string.hasSuffix("/") ? projectRoot.string : projectRoot.string + "/"
+            let path = result.declaration.location.file.path
 
             self.init(
                 id: id,
                 kind: result.declaration.kind.rawValue,
                 name: result.declaration.name,
-                file: path.hasPrefix(rootPrefix) ? String(path.dropFirst(rootPrefix.count)) : path
+                file: RealPath.relativePath(of: path, within: projectRoot)?.string ?? path.string
             )
         }
     }

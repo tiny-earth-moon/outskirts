@@ -1,7 +1,9 @@
 import Configuration
+import Extensions
 import Foundation
 import Logger
 import Shared
+import SystemPackage
 
 #if canImport(XcodeSupport)
     import XcodeSupport
@@ -37,7 +39,7 @@ final class GuidedSetup: SetupGuideHelpers {
 
         if projectGuides.count > 1 {
             print(logger.colorize("Select which project to use:", .bold))
-            let kindName = select(single: projectGuides.map(\.projectKindName))
+            let kindName = try select(single: projectGuides.map(\.projectKindName))
             projectGuide_ = projectGuides.first { $0.projectKindName == kindName }
             print("")
         } else if let singleGuide = projectGuides.first {
@@ -61,8 +63,7 @@ final class GuidedSetup: SetupGuideHelpers {
         var shouldSave = false
 
         if configuration.hasNonDefaultValues {
-            print(logger.colorize("\nSave configuration to \(Configuration.defaultConfigurationFile)?", .bold))
-            shouldSave = selectBoolean()
+            shouldSave = try confirmSave(to: Configuration.defaultConfigurationFile)
 
             if shouldSave {
                 try configuration.save()
@@ -73,6 +74,15 @@ final class GuidedSetup: SetupGuideHelpers {
         print(logger.colorize(formatScanCommand(options: options, didSave: shouldSave) + "\n", .bold))
 
         return project
+    }
+
+    func confirmSave(to path: FilePath) throws -> Bool {
+        print(logger.colorize("\nSave configuration to \(path)?", .bold))
+        guard try selectBoolean() else { return false }
+        guard path.exists else { return true }
+
+        print(logger.colorize("\n\(path) already exists, overwrite it?", .bold) + " Answering no keeps it unchanged.")
+        return try selectBoolean(default: false)
     }
 
     // MARK: - Private

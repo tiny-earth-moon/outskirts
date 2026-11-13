@@ -17,7 +17,7 @@ final class GitLabCodeQualityFormatter: OutputFormatter {
 
     func format(_ results: [ScanResult], colored: Bool) throws -> String? {
         let jsonObject = results.map { result in
-            var object = codeQualityIssue(result, colored: colored)
+            var object = codeQualityIssue(result, colored: colored, includesEndLine: false)
             object["severity"] = "info"
             return object
         }

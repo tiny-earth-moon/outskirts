@@ -150,8 +150,10 @@ struct ScanCommand: ParsableCommand {
         let logger = Logger(configuration: configuration, messagesToStderr: messagesToStderr)
         let baseline = try validate(configuration, logger: logger)
 
-        configurationWarnings.forEach { logger.warn($0) }
+        // A misspelt key or an invalid value changes what the scan does: it is reported even with --quiet.
+        configurationWarnings.forEach { logger.warn($0, canQuiet: false) }
         ScanPreflight.applyOutputFormatRequirements(to: configuration, logger: logger)
+        ScanPreflight.ignoredOptionWarnings(of: configuration).forEach { logger.warn($0) }
         logger.contextualized(with: "version").debug(PeripheryVersion)
         let shell = makeShell(logger: logger)
         let swiftVersion = try SwiftVersion(shell: shell)
@@ -183,7 +185,7 @@ struct ScanCommand: ParsableCommand {
         try writeBaselines(configuration: configuration, outputFilter: outputFilter, filteredResults: filteredResults, baseline: prepared.baseline, logger: logger)
 
         let reportedResults = try ChangedSinceFilter(configuration: configuration, shell: prepared.shell, logger: logger).filter(filteredResults)
-        try outputResults(reportedResults, filteredResultCount: filteredResults.count, configuration: configuration, logger: logger)
+        try outputResults(reportedResults, configuration: configuration, logger: logger)
 
         logger.endInterval(interval)
 
@@ -193,11 +195,17 @@ struct ScanCommand: ParsableCommand {
     }
 
     private func changeToProjectRoot() throws -> FilePath {
-        let projectRoot = projectOptions.projectRoot ?? FilePath(FileManager.default.currentDirectoryPath)
+        try Self.changeToProjectRoot(projectOptions.projectRoot)
+    }
+
+    /// Changes to the project root and returns it absolute and resolved: a relative root means nothing once the working
+    /// directory has changed, and a link must give the same paths as the real directory.
+    static func changeToProjectRoot(_ projectRoot: FilePath?) throws -> FilePath {
+        let projectRoot = projectRoot ?? FilePath(FileManager.default.currentDirectoryPath)
         if !FileManager.default.changeCurrentDirectoryPath(projectRoot.string) {
             throw PeripheryError.changeCurrentDirectoryFailed(projectRoot)
         }
-        return projectRoot
+        return FilePath(RealPath.resolve(FileManager.default.currentDirectoryPath))
     }
 
     private func loadConfiguration(projectRoot: FilePath) throws -> (Configuration, [String]) {
@@ -216,6 +224,22 @@ struct ScanCommand: ParsableCommand {
     }
 
     private func validate(_ configuration: Configuration, logger: Logger) throws -> Baseline? {
+        try Self.validateOptionCombinations(of: configuration)
+        configuration.buildFilenameMatchers(debug: logger.debug)
+        _ = try ReportExcludeRule.resolve(configuration)
+        _ = try AttributeRetentionRule.resolve(configuration)
+        return try ScanPreflight.validatePaths(of: configuration)
+    }
+
+    /// The settings that only make sense together, checked by the scan and by `config check`.
+    static func validateOptionCombinations(of configuration: Configuration) throws {
+        if configuration.cacheMaxAgeDays < 0 {
+            throw PeripheryError.usageError("The 'cache_max_age_days' setting must be 0 or more.")
+        }
+        if configuration.cacheMaxSizeGB < 0 {
+            throw PeripheryError.usageError("The 'cache_max_size_gb' setting must be 0 or more.")
+        }
+
         if configuration.skipStdoutResults, configuration.writeResults == nil {
             throw PeripheryError.usageError("The '--skip-stdout-results' option requires '--write-results', otherwise the results would not be output anywhere.")
         }
@@ -223,11 +247,6 @@ struct ScanCommand: ParsableCommand {
         if configuration.changedLines, configuration.changedSince == nil {
             throw PeripheryError.usageError("The '--changed-lines' option requires '--changed-since', otherwise there is nothing to compare the lines with.")
         }
-
-        configuration.buildFilenameMatchers(debug: logger.debug)
-        _ = try ReportExcludeRule.resolve(configuration)
-        _ = try AttributeRetentionRule.resolve(configuration)
-        return try ScanPreflight.validatePaths(of: configuration)
     }
 
     private func makeShell(logger: Logger) -> ShellImpl {
@@ -258,15 +277,19 @@ struct ScanCommand: ParsableCommand {
         }
     }
 
-    private func outputResults(_ reportedResults: [ScanResult], filteredResultCount: Int, configuration: Configuration, logger: Logger) throws {
+    private func outputResults(_ reportedResults: [ScanResult], configuration: Configuration, logger: Logger) throws {
         let outputFormat = configuration.outputFormat
         let formatter = outputFormat.formatter.init(configuration: configuration, logger: logger)
-        (formatter as? AgentFormatter)?.maxResults = resultsOptions.maxResults
+        if let agentFormatter = formatter as? AgentFormatter {
+            agentFormatter.maxResults = resultsOptions.maxResults
+        } else if resultsOptions.maxResults != nil {
+            logger.warn("'--max-results' only applies to '--format agent'; it is ignored with '--format \(outputFormat.rawValue)'.")
+        }
         let colored = outputFormat.supportsColoredOutput && logger.isColoredOutputEnabled
 
         let formattedOutput = try formatter.format(reportedResults, colored: colored)
 
-        if let output = formattedOutput, Self.shouldPrintToStdout(configuration: configuration, resultCount: filteredResultCount) {
+        if let output = formattedOutput, Self.shouldPrintToStdout(configuration: configuration, resultCount: reportedResults.count) {
             if outputFormat.supportsAuxiliaryOutput {
                 logger.info("", canQuiet: true)
             }

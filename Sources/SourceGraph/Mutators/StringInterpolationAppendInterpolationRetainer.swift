@@ -2,7 +2,7 @@ import Configuration
 import Foundation
 import Shared
 
-/// https://github.com/apple/swift/issues/56189
+/// https://github.com/swiftlang/swift/issues/56189
 /// Older index stores do not contain references to `appendInterpolation` functions from their use in string literals;
 /// Swift 6.4 records them (`KnownSwiftBugsTest`), so the retainer only runs on older toolchains.
 final class StringInterpolationAppendInterpolationRetainer: SourceGraphMutator {

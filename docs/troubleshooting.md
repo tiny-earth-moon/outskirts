@@ -37,7 +37,7 @@ outskirts compares the modification time of each source file with the index data
 
 > warning: 2 source files are newer than their index data in .build/out: Sources/Kit/Beta.swift, Sources/Kit/SameName.swift. Results in them may be at the wrong lines or missing: rebuild the project before scanning, or pass '--clean-build' to start from an empty index store.
 
-The warning names each index store with the number of files concerned and the first three of them. The results are left unchanged: the index data is still the only description of these files, but it describes an older version of them, so a result may point to a line that has moved, and a declaration added since is not seen. Build the project again, or scan without `--skip-build` so that outskirts builds it. Index data older than its source file is ignored, without a warning, when another index store holds data for the same file and module written after the last edit.
+The warning names each index store with the number of files concerned and the first three of them. The results are left unchanged: the index data is still the only description of these files, but it describes an older version of them, so a result may point to a line that has moved, and a declaration added since is not seen. Build the project again, or scan without `--skip-build` so that outskirts builds it. Index data older than its source file is ignored, without a warning, when another index store holds data for the same file, module and platform written after the last edit; the platform is read from the target triple of the index data. Index data of another platform is not replaced: with an iOS store and a macOS store of the same sources, rebuilding macOS alone after an edit leaves the iOS data in the scan, and the warning lists the edited files under the iOS store.
 
 In CI, pass [`--strict-index`](options.md#--strict-index) (`strict_index: true`) to fail the scan instead of printing the warning.
 
@@ -125,7 +125,7 @@ By default, code under `#if os(...)` is checked like any other code ([`--disable
 
 - **Swift packages**: give each platform its own `--scratch-path` and build it with `--triple` and `--sdk`, see [Swift package is platform-specific](#swift-package-is-platform-specific). With the `swiftbuild` build system (the default since Swift 6.4), the index store of a scratch path is `<scratch-path>/out`.
 
-Build all the stores from the same version of the sources. If one of them was built before an edit, outskirts prints the [warning above](#index-data-older-than-its-source) for the files concerned.
+Build all the stores from the same version of the sources. If one of them was built before an edit, outskirts prints the [warning above](#index-data-older-than-its-source) for the files concerned, even when the store of another platform was built after the edit (with `--strict-index`, the scan fails).
 
 ### Merging the results of separate scans
 

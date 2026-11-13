@@ -8,6 +8,8 @@ public struct SPMLocalizedView: View {
     private let name = "name"
     private let count = 3
     private let ratio = 0.5
+    private let optionalKey: LocalizedStringKey? = nil
+    private let optionalName: String? = nil
     @ObservedObject private var model = SPMLocalizedModel()
 
     public init() {}
@@ -28,6 +30,9 @@ public struct SPMLocalizedView: View {
                     Text("mac_interpolated_double_key \(ratio)")
                     SPMLockNote(model: model, messageKey: "mac_struct_init_key")
                     SPMPanelButton(title: "mac_struct_trailing_key", systemImage: "mac_struct_image_key") {}
+                    Text(optionalKey ?? "mac_coalesce_key")
+                    Text(optionalName ?? "mac_coalesce_string_key")
+                    Text("mac_cast_key" as LocalizedStringKey)
                 }
             }
             .navigationTitle("mac_navigation_title_key")
@@ -108,10 +113,95 @@ public enum SPMLocalizedStrings {
         values.count
     }
 
+    public static func key(_ key: LocalizedStringKey) -> LocalizedStringKey {
+        key
+    }
+
+    public static func closureKey(_ make: () -> LocalizedStringKey) -> LocalizedStringKey {
+        make()
+    }
+
+    public static func closureString(_ make: () -> String) -> String {
+        make()
+    }
+
+    public static func forward(_ header: (() -> String)? = nil, _ content: () -> LocalizedStringKey) -> LocalizedStringKey {
+        _ = header?()
+        return content()
+    }
+
+    public static func describe(_ format: (LocalizedStringKey) -> String) -> String {
+        format("mac_closure_argument_key")
+    }
+
     public static func use() {
         _ = resource("mac_resource_param_key")
         _ = localizationValue("mac_localization_value_param_key")
         _ = plain("mac_plain_string_param_key")
         _ = variadic("mac_variadic_key", "mac_variadic_key")
+        _ = key(.init("mac_dot_init_key"))
+        _ = SPMTitledItem(title: .init("mac_memberwise_init_key"))
+        _ = [.init("mac_value_init_key")] as [String.LocalizationValue]
+        _ = String(localized: .init("mac_localized_value_init_key"))
+        let string: String = .init(localized: "mac_string_init_key", defaultValue: "Default")
+        let resource: LocalizedStringResource = .init("mac_resource_init_key", defaultValue: "Default")
+        let plainName: SPMPlainName = .init("mac_plain_init_key")
+        _ = (string, resource, plainName)
+        _ = closureKey { "mac_trailing_closure_key" }
+        _ = closureString { "mac_trailing_closure_string_key" }
+        _ = forward { "mac_forward_scan_key" }
+        _ = describe { _ in "mac_closure_argument_string_key" }
+        _ = SPMLocalizedBanner.title()
+        useSubscripts()
+    }
+
+    static func useSubscripts() {
+        let table = SPMLocalizedTable()
+        let counts: [String: Int] = [:]
+        _ = table["mac_subscript_key"]
+        _ = table[resource: "mac_labeled_subscript_key"]
+        _ = SPMLocalizedTable["mac_static_subscript_key"]
+        _ = table.nested["mac_chained_subscript_key"]
+        _ = table.lookUp()
+        _ = table[plain: "mac_plain_subscript_key"]
+        _ = counts["mac_dictionary_subscript_key"]
+    }
+}
+
+struct SPMTitledItem {
+    let title: LocalizedStringKey
+}
+
+struct SPMPlainName {
+    init(_: String) {}
+}
+
+public enum SPMLocalizedBanner {
+    case title(LocalizedStringKey = "mac_case_default_key")
+}
+
+struct SPMLocalizedTable {
+    static subscript(_: LocalizedStringKey) -> Int {
+        0
+    }
+
+    subscript(_: LocalizedStringKey) -> Int {
+        0
+    }
+
+    subscript(resource _: LocalizedStringResource) -> Int {
+        0
+    }
+
+    subscript(plain _: String) -> Int {
+        0
+    }
+
+    var nested: Self {
+        self
+    }
+
+    func lookUp() -> Int {
+        self["mac_self_subscript_key"]
     }
 }

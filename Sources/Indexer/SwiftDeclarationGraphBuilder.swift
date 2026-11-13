@@ -170,7 +170,7 @@ struct SwiftDeclarationGraphBuilder {
     }
 
     /// Swift does not associate some type references with the containing declaration, resulting in references
-    /// with no clear parent. Property references are one example: https://github.com/apple/swift/issues/56163
+    /// with no clear parent. Property references are one example: https://github.com/swiftlang/swift/issues/56163
     ///
     /// References located in top-level code have no parent by nature and stay parentless, which makes them root
     /// references: the code always runs.

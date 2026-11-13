@@ -103,6 +103,33 @@ final class ConfigurationLoadTest: XCTestCase {
         XCTAssertTrue(configuration.retainsPublicDeclarations(inModules: ["Demo"]))
     }
 
+    func testIndexExcludeKeepsTheDefaultsFirstThenTheGivenPatternsInOrder() throws {
+        let given = (1 ... 6).map { "**/Vendor\($0)/**" }
+        let (configuration, warnings, _) = try load("index_exclude: [\((given + given).map { "'\($0)'" }.joined(separator: ", "))]\n")
+
+        XCTAssertEqual(warnings, [])
+        XCTAssertEqual(configuration.indexExclude, configuration.$indexExclude.defaultValue + given)
+    }
+
+    func testIndexExcludeGivenOnlyTheDefaultsIsNotANonDefaultValue() throws {
+        let defaults = Configuration().$indexExclude.defaultValue
+        let (configuration, _, _) = try load("index_exclude: [\(defaults.reversed().map { "'\($0)'" }.joined(separator: ", "))]\n")
+
+        XCTAssertEqual(configuration.indexExclude, defaults)
+        XCTAssertFalse(configuration.hasNonDefaultValues)
+    }
+
+    func testRetainPublicListAndRetainPublicModulesAreBothKeptWithAWarning() throws {
+        let (configuration, warnings, file) = try load("""
+        retain_public: [Lib, Shared]
+        retain_public_modules: [OtherKit, Shared]
+        """)
+
+        XCTAssertFalse(configuration.retainPublic)
+        XCTAssertEqual(configuration.retainPublicModules, ["Lib", "Shared", "OtherKit"])
+        XCTAssertEqual(warnings, ["\(file): 'retain_public' and 'retain_public_modules' both list modules, both lists are used; write them under 'retain_public_modules' only"])
+    }
+
     func testRetainPublicListOfNonStringsWarnsUnderItsOwnKey() throws {
         let (configuration, warnings, file) = try load("retain_public: [Lib, 1]\n")
 

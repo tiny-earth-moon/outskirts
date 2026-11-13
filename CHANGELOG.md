@@ -1,3 +1,30 @@
+## 3.24.1 (2026-11-14)
+
+##### Breaking
+
+- The `codeclimate` and `gitlab-codequality` formats give each issue its own fingerprint, the SHA-256 of the rule and the declaration identifiers, instead of the declaration identifiers alone, so two results of one declaration no longer collapse into one finding. Every fingerprint of these two formats changes once with this release: a tool that tracks them, such as GitLab, shows the existing issues as resolved and new again after the first scan. The fingerprints no longer depend on where the project lives. outskirts' own baselines are unaffected. The `codeclimate` format also gives `lines.end`.
+
+##### Enhancements
+
+- Configuration warnings (an unknown key, an invalid value) are printed on stderr even with `--quiet`, which used to hide a misspelt key in CI. stdout still holds the results only.
+- `--no-skip-stdout-results` is available, and `skip_stdout_results` from the configuration file is honored; the command line option used to override it unconditionally. `config check` rejects the option combinations the scan rejects, such as `skip_stdout_results` without `write_results`.
+- The guided setup (`scan --setup`) stops at the end of input instead of repeating its prompts until it crashed, and asks before overwriting an existing configuration file.
+- `--project-root` is resolved to an absolute real path, so a relative root or one reached through a link works with `--index-built-from`, `--changed-since`, `write_results` and baselines.
+- Glob metacharacters (`[`, `*`, `?`) in the project path are matched literally in `index_exclude`, `report_exclude`, `report_include`, `retain_files`, `localized_string_catalog_exclude`, implicit package resources and synchronized groups.
+- Warnings are printed when `--relative-to`, `--max-results` outside the `agent` format, or `--project` together with `--generic-project-config` has no effect.
+- The `NO_COLOR` environment variable is honored, and messages on stderr are colored according to the stderr terminal.
+- Negative cache limits are rejected.
+- A configuration whose YAML aliases expand past 100000 values is refused instead of exhausting time and memory.
+- The `checkstyle`, `github-markdown`, `agent` and `xcode` formats escape control characters, line breaks and Markdown or HTML markup in result names and paths, so a hostile name such as a String Catalog key cannot break the XML, inject markup or forge a diagnostic line. The `xcode` format with colors escapes an escape character from a name or path.
+- With `--quiet`, a scan whose `--changed-since` filter leaves no result prints nothing.
+- Documentation: the Visual Studio Code extension is presented, a YAML example of `localized_string_key_patterns` is valid, and a few statements are corrected.
+
+##### Bug Fixes
+
+- String Catalog keys are retained when passed through type initializers (`.init("key")`, `LocalizedStringKey(stringLiteral:)`, `String(localized:)`), `??` operands, `as` casts to a localized type, trailing closures returning a literal, enum case default values and localized subscripts (`table["key"]`). They used to be reported unused, and `fix --apply` removed them.
+- A `let` assigned through a subscript (`cache[key] = value`) is no longer reported as assign-only; neither is a `let` destructured from a tuple.
+- With an iOS and a macOS index store of the same sources, rebuilding one platform alone no longer drops the units of the other: its references were lost, code was reported unused and no warning was printed, even with `--strict-index`. The stale unit is now kept and reported as out of date.
+
 ## 3.24.0 (2026-11-13)
 
 ##### Breaking

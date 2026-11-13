@@ -55,31 +55,48 @@ extension OutputFormatter {
         return String(bytes: data, encoding: .utf8)
     }
 
-    /// The keys that Code Climate and GitLab Code Quality issues share.
-    func codeQualityIssue(_ result: ScanResult, colored: Bool) -> [AnyHashable: Any] {
+    /// The keys that Code Climate and GitLab Code Quality issues share. `lines.end` is part of the Code Climate
+    /// location only: the GitLab report has `begin` alone.
+    func codeQualityIssue(_ result: ScanResult, colored: Bool, includesEndLine: Bool) -> [AnyHashable: Any] {
         let location = declarationLocation(from: result.declaration)
         let description = describe(result, colored: colored)
             .map(\.1)
             .joined(separator: ", ")
 
+        var lines: [AnyHashable: Any] = ["begin": location.line]
+        if includesEndLine {
+            // A result points at the line of its declaration, not at a range.
+            lines["end"] = location.line
+        }
+
         return [
             "description": description,
             "check_name": result.annotation.name,
-            "fingerprint": result.declaration.usrs.sorted().joined(separator: "."),
+            "fingerprint": fingerprint(of: result),
             "location": [
                 "path": outputPath(location).url.relativePath,
-                "lines": ["begin": location.line] as [AnyHashable: Any],
+                "lines": lines,
             ] as [AnyHashable: Any],
         ]
+    }
+
+    /// Identifies a result from one scan to the next: a SHA-256 of its rule and of its ids, so that two results of
+    /// the same declaration differ, and that no path or position enters it.
+    func fingerprint(of result: ScanResult) -> String {
+        let input = ([result.annotation.name] + result.usrs.sorted()).joined(separator: "\n")
+        return SHA256.hexDigest(of: Data(input.utf8))
     }
 
     func describe(_ result: ScanResult, colored: Bool) -> [(Location, String)] {
         var description = ""
         var secondaryResults: [(Location, String)] = []
         let location = declarationLocation(from: result.declaration)
-        let kindDisplayName = declarationKindDisplayName(from: result.declaration)
+        // With colors, the formatter's own escape sequences must survive the final escaping pass, so the text that
+        // comes from the project is escaped here, before any color is added.
+        let text: (String) -> String = { colored ? $0.withVisibleControlCharacters() : $0 }
+        let kindDisplayName = text(declarationKindDisplayName(from: result.declaration))
         let capitalizedKind = kindDisplayName.prefix(1).uppercased() + kindDisplayName.dropFirst()
-        let name = colored ? logger.colorize(result.declaration.name, .lightBlue) : result.declaration.name
+        let name = colored ? logger.colorize(text(result.declaration.name), .lightBlue) : result.declaration.name
 
         switch result.annotation {
         case .unused:
@@ -94,13 +111,13 @@ extension OutputFormatter {
                 var msg = "Redundant protocol conformance '\(name)'"
 
                 if !inherited.isEmpty {
-                    msg += " (replace with '\(inherited.sorted().joined(separator: ", "))')"
+                    msg += " (replace with '\(text(inherited.sorted().joined(separator: ", ")))')"
                 }
 
                 return ($0.location, msg)
             }
         case let .redundantPublicAccessibility(modules):
-            let modulesJoined = modules.sorted().joined(separator: ", ")
+            let modulesJoined = text(modules.sorted().joined(separator: ", "))
             description += "Redundant public accessibility for \(kindDisplayName) '\(name)' (not used outside of \(modulesJoined))"
         case .redundantOpenAccessibility:
             let verb = result.declaration.kind == .class ? "subclassed" : "overridden"
@@ -110,7 +127,7 @@ extension OutputFormatter {
         case let .redundantAccessLevel(redundancy):
             description += "Redundant \(redundancy.accessibility.rawValue) access level for \(kindDisplayName) '\(name)' "
             if let context = redundancy.context, let parent = result.declaration.parent {
-                description += "(already the default inside its \(context.rawValue) \(declarationKindDisplayName(from: parent)))"
+                description += "(already the default inside its \(context.rawValue) \(text(declarationKindDisplayName(from: parent))))"
             } else {
                 description += "(already the default at the top level)"
             }
@@ -119,7 +136,7 @@ extension OutputFormatter {
         case .superfluousIgnoreCommand:
             description += "Superfluous ignore comment for \(kindDisplayName) '\(name)' (declaration is referenced and should not be ignored)"
         case let .unusedAssetCatalogSymbol(symbol):
-            description += unusedAssetCatalogSymbolDescription(symbol, symbolName: name)
+            description += unusedAssetCatalogSymbolDescription(symbol, symbolName: name, text: text)
         case .missingMetalFunction:
             description += "Metal function '\(name)' not found in any .metal file"
         }
@@ -127,15 +144,15 @@ extension OutputFormatter {
         return [(location, description)] + secondaryResults
     }
 
-    func unusedAssetCatalogSymbolDescription(_ symbol: AssetCatalogSymbol, symbolName: String) -> String {
+    func unusedAssetCatalogSymbolDescription(_ symbol: AssetCatalogSymbol, symbolName: String, text: (String) -> String = { $0 }) -> String {
         guard let assetName = symbol.assetName else {
             return "Unused asset catalog \(symbol.kind.displayName) '\(symbolName)' (asset name not found in the generated symbols)"
         }
 
-        var description = "Unused asset catalog \(symbol.kind.displayName) '\(assetName)'"
+        var description = "Unused asset catalog \(symbol.kind.displayName) '\(text(assetName))'"
 
         if !symbol.assetPaths.isEmpty {
-            description += " (\(symbol.assetPaths.map { outputPath($0).string }.joined(separator: ", ")))"
+            description += " (\(text(symbol.assetPaths.map { outputPath($0).string }.joined(separator: ", "))))"
         }
 
         return description

@@ -67,6 +67,17 @@ final class FilePathGlobTest: XCTestCase {
         XCTAssertTrue(result.isEmpty)
     }
 
+    func testGlobstar_underDirectoryWithGlobMetacharacters_listsItsFiles() throws {
+        let root = "\(baseDir)/x[1]/y{a}/z*"
+        try fileManager.createDirectory(atPath: "\(root)/sub", withIntermediateDirectories: true)
+        fileManager.createFile(atPath: "\(root)/top.ext", contents: nil)
+        fileManager.createFile(atPath: "\(root)/sub/nested.ext", contents: nil)
+
+        let paths = FilePath.glob("\(root)/**/*.ext", onUnreadableDirectory: Self.failOnUnreadableDirectory).sorted()
+
+        XCTAssertPathsEqual(paths, ["\(root)/sub/nested.ext", "\(root)/top.ext"])
+    }
+
     private static func failOnUnreadableDirectory(_ path: FilePath, _: any Error) {
         XCTFail("Unexpected unreadable directory: \(path.string)")
     }

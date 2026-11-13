@@ -116,6 +116,20 @@ final class ScanOutputStreamsTest: XCTestCase {
         }
     }
 
+    func testQuietPrintsNothingWhenChangedSinceLeavesNoResult() throws {
+        let package = try Self.package.get()
+        for arguments in [["init", "-q"], ["add", "-A"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base"]] {
+            let git = try runCapturingOutput(URL(fileURLWithPath: "/usr/bin/git"), arguments, currentDirectoryURL: package, outputDirectory: outputDirectory)
+            XCTAssertEqual(git.status, 0, "git \(arguments)")
+        }
+        addTeardownBlock { try? FileManager.default.removeItem(at: package.appendingPathComponent(".git")) }
+
+        let output = try scan(["--format", "json", "--quiet", "--changed-since", "HEAD"])
+
+        XCTAssertEqual(output.status, 0, output.stderrText)
+        XCTAssertEqual(output.stdoutText, "")
+    }
+
     private func reportNames(in data: Data) throws -> [String] {
         let report = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [[String: Any]], "stdout is not a JSON report")
         return report.compactMap { $0["name"] as? String }

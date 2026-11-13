@@ -49,9 +49,9 @@ public final class AgentFormatter: OutputFormatter {
             }
             if case let .result(path, _) = entry.content, path != file {
                 file = path
-                lines.append("### `\(path)`")
+                lines.append("### " + inlineCode(path))
             }
-            lines.append(entry.line)
+            lines.append(entry.line.withVisibleControlCharacters())
         }
 
         if shownCount < results.count {
@@ -131,8 +131,8 @@ public final class AgentFormatter: OutputFormatter {
             let path = outputPath(unusedFile.path).string
             let declarations = sorted(resultsInUnusedFiles[unusedFile.path] ?? [])
                 .filter { $0.declaration.parent == nil && $0.declaration.kind != .module }
-                .map { "\(kind(of: $0.declaration)) `\($0.declaration.name)`" }
-            let line = "- `\(path)` (\(counted(unusedFile.lineCount, "line"))): " + declarations.joined(separator: ", ")
+                .map { "\(kind(of: $0.declaration)) " + inlineCode($0.declaration.name) }
+            let line = "- " + inlineCode(path) + " (\(counted(unusedFile.lineCount, "line"))): " + declarations.joined(separator: ", ")
             entries.append(Entry(section: .unusedFiles, content: .unusedFile, sortKey: path, resultCount: resultsInUnusedFiles[unusedFile.path]?.count ?? 0, line: line))
         }
 
@@ -156,7 +156,7 @@ public final class AgentFormatter: OutputFormatter {
             lineRange = "L\(span.lines.lowerBound)-\(span.lines.upperBound)"
         }
 
-        var line = "- \(lineRange) \(kind(of: declaration)) `\(declaration.name)`: \(action(for: result))"
+        var line = "- \(lineRange) \(kind(of: declaration)) " + inlineCode(declaration.name) + ": \(action(for: result))"
         if let snippet = source?.snippet(at: location.line, maximumLength: Self.maximumSnippetLength) {
             line += " · " + inlineCode(snippet)
         }
@@ -242,8 +242,20 @@ public final class AgentFormatter: OutputFormatter {
         return entries.prefix(end)
     }
 
-    private func inlineCode(_ code: String) -> String {
-        code.contains("`") ? "`` \(code) ``" : "`\(code)`"
+    /// A code span that holds `code` whatever it contains: its control characters become visible escapes, and its
+    /// fence is one backtick longer than the longest run of backticks inside it.
+    private func inlineCode(_ rawCode: String) -> String {
+        let code = rawCode.withVisibleControlCharacters()
+        var longestRun = 0
+        var run = 0
+        for character in code {
+            run = character == "`" ? run + 1 : 0
+            longestRun = max(longestRun, run)
+        }
+        guard longestRun > 0 else { return "`\(code)`" }
+
+        let fence = String(repeating: "`", count: longestRun + 1)
+        return "\(fence) \(code) \(fence)"
     }
 
     private func counted(_ count: Int, _ noun: String) -> String {

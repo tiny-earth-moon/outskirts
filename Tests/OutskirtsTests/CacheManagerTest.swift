@@ -4,6 +4,12 @@ import TestShared
 import XCTest
 
 final class CacheManagerTest: XCTestCase {
+    func testSizeLimitInBytesSaturatesInsteadOfWrapping() {
+        XCTAssertEqual(CacheManager.bytes(gigabytes: 2), 2 << 30)
+        XCTAssertEqual(CacheManager.bytes(gigabytes: 1 << 34), Int64.max)
+        XCTAssertEqual(CacheManager.bytes(gigabytes: Int.max), Int64.max)
+    }
+
     private var root: URL!
     private var cache: URL!
     private let fm = FileManager.default

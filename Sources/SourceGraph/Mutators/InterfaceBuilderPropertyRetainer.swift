@@ -86,7 +86,7 @@ final class InterfaceBuilderPropertyRetainer {
 
     /// Prepositions that Swift recognizes for Objective-C selector conversion.
     /// When a first parameter label is one of these, it's just capitalized without adding "With".
-    /// Source: https://github.com/apple/swift/blob/main/lib/Basic/PartsOfSpeech.def
+    /// Source: https://github.com/swiftlang/swift/blob/main/lib/Basic/PartsOfSpeech.def
     private static let knownPrepositions: Set<String> = [
         "above", "after", "along", "alongside", "as", "at",
         "before", "below", "by",

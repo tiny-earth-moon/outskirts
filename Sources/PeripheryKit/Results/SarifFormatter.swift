@@ -97,7 +97,7 @@ final class SarifFormatter: OutputFormatter {
             "level": "warning",
             "message": ["text": descriptions[0].1],
             "locations": [["physicalLocation": physicalLocation(declarationLocation)]],
-            "partialFingerprints": [Self.fingerprintKey: fingerprint(ruleId: ruleId, ids: result.usrs)],
+            "partialFingerprints": [Self.fingerprintKey: fingerprint(of: result)],
             "properties": [
                 "kind": declarationKind(from: result.declaration),
                 "accessibility": result.declaration.accessibility.value.rawValue,
@@ -156,10 +156,5 @@ final class SarifFormatter: OutputFormatter {
         }
 
         return text.utf16.count + 1
-    }
-
-    private func fingerprint(ruleId: String, ids: Set<String>) -> String {
-        let input = ([ruleId] + ids.sorted()).joined(separator: "\n")
-        return SHA256.hexDigest(of: Data(input.utf8))
     }
 }

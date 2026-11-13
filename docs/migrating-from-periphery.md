@@ -12,7 +12,7 @@ There is nothing to do: the rename to outskirts (3.16.0) breaks nothing.
 
 - **New names**: the executable is `outskirts`, the Homebrew formula is `tiny-earth-moon/tap/outskirts`, the configuration file is `.outskirts.yml` and comment commands are written `// outskirts:ignore`.
 - **The `periphery` alias**: outskirts also installs a `periphery` executable, which behaves exactly like `outskirts`. It prints no warning and has no announced end date, so existing scripts, CI jobs and Xcode run scripts keep working.
-- **Configuration file**: `.periphery.yml` is still read next to `.outskirts.yml`. Rename it whenever you like.
+- **Configuration file**: `.periphery.yml` is still read when there is no `.outskirts.yml` (or `.outskirts.yaml`); only one file is read, the outskirts one first. Rename it whenever you like.
 - **Comment commands**: `// periphery:ignore`, `// periphery:ignore:all`, `// periphery:ignore:parameters` and `// periphery:override` are equivalent to their `outskirts:` form.
 - **Baselines**: baseline files written by Periphery keep matching, see [Baselines](baselines.md).
 - **Update check**: it now points at the outskirts repository.
@@ -37,6 +37,7 @@ Most changes are additions; the following ones may need a look when you come fro
 - **Build arguments**: commands are run without a shell since 3.12.12. Each element of `build_arguments`, `xcode_list_arguments` and of the arguments after `--` is passed as exactly one argument, so an element such as `"-destination generic/platform=iOS"` must be written as two elements.
 - **Build cache**: it lives in `~/Library/Caches/com.github.tiny-earth-moon.outskirts`. The first scan moves a cache left under the former directory, so nothing is rebuilt.
 - **Configuration values**: values are checked when the file is loaded, and a value of the wrong type or an unknown key is reported instead of being ignored. Run [`outskirts config check`](configuration.md#checking-a-configuration-file) once to see what your file contains.
+- **Code Climate and GitLab Code Quality**: the `fingerprint` of an issue is a SHA-256 of its rule and of the ids of its declaration, so that two results of one declaration are no longer merged. Each fingerprint changes once, so GitLab shows the findings of the first pipeline after the upgrade as resolved and new again. See [Output formats](output-formats.md#codeclimate).
 - **SARIF**: the SARIF driver is named `outskirts`, and the fingerprint key keeps its `peripheryResult/v1` name, so the alerts already tracked by GitHub code scanning keep matching. See [Output formats](output-formats.md#sarif).
 
 The [changelog](../CHANGELOG.md) lists every change, version by version.

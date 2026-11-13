@@ -22,23 +22,39 @@
 <meta name="twitter:description" content="Explore your Swift project and report the code nothing reaches.">
 <meta name="twitter:image" content="https://outskirts.dev/social-preview.png">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"outskirts","description":"Finds unused code in Swift projects: unused declarations, assign-only properties, unused imports, redundant public accessibility and protocol conformances.","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Linux","softwareVersion":"3.24.0","license":"https://opensource.org/licenses/MIT","url":"https://outskirts.dev/","downloadUrl":"https://github.com/tiny-earth-moon/outskirts/releases","codeRepository":"https://github.com/tiny-earth-moon/outskirts","isBasedOn":"https://github.com/peripheryapp/periphery","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"outskirts","description":"Finds unused code in Swift projects: unused declarations, assign-only properties, unused imports, redundant public accessibility and protocol conformances.","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Linux","softwareVersion":"3.24.1","license":"https://opensource.org/licenses/MIT","url":"https://outskirts.dev/","downloadUrl":"https://github.com/tiny-earth-moon/outskirts/releases","codeRepository":"https://github.com/tiny-earth-moon/outskirts","isBasedOn":"https://github.com/peripheryapp/periphery","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
 </script>
 </head>
 <body>
+<a class="skip" href="#content">Skip to content</a>
 <header>
-<nav class="topnav" aria-label="Site"><a href="/docs/">Documentation</a> <a href="https://github.com/tiny-earth-moon/outskirts">GitHub</a></nav>
-<h1>
+<nav class="topnav" aria-label="Site"><a href="/docs/">Documentation</a> <a href="/docs/changelog/">Changelog</a> <a href="https://github.com/tiny-earth-moon/outskirts">GitHub</a></nav>
 <picture>
 <source srcset="/outskirts-logo-dark.svg" media="(prefers-color-scheme: dark)">
 <img src="/outskirts-logo.svg" alt="outskirts" width="922" height="256">
 </picture>
-</h1>
-<p class="pitch">Find what lies at the outskirts of your Swift code: the declarations nothing reaches.</p>
-<p>outskirts explores your project, builds a map of what refers to what, and reports the code that sits beyond every entry point. Open source, for Xcode projects and Swift packages.</p>
-<p class="cta"><a class="button" href="/docs/getting-started/">Get started</a> <a href="https://github.com/tiny-earth-moon/outskirts">View on GitHub</a> <a href="/docs/changelog/">Latest release</a></p>
+<h1>Find unused code in Swift projects</h1>
+<p class="pitch">outskirts builds your project, maps what refers to what, and reports the declarations nothing reaches. Open source under the MIT license, for Xcode projects and Swift packages, on macOS and Linux.</p>
+<p class="cta"><a class="button" href="/docs/getting-started/">Get started</a> <a href="https://github.com/tiny-earth-moon/outskirts">View on GitHub</a></p>
 </header>
-<main>
+<main id="content">
+<figure class="example">
+<pre><code>import Combine  <span class="result">// Unused import 'Combine'</span>
+
+final class LegacyCache {  <span class="result">// Unused class 'LegacyCache'</span>
+    func purge() {}
+}
+
+final class Session {
+    <span class="result">// Assign-only property 'token' is assigned, but never used</span>
+    var token: String
+
+    init(token: String) {
+        self.token = token
+    }
+}</code></pre>
+<figcaption>Three of the results a scan reports, shown here as comments next to the code they point at. Every kind of result has its example in the <a href="/docs/analysis/">analysis</a> page.</figcaption>
+</figure>
 <section>
 <h2>What it finds</h2>
 <ul>
@@ -50,26 +66,48 @@
 <li>Redundant protocol conformances</li>
 </ul>
 <p>A lot of this code is not dead weight to throw away: it is often a feature that was never wired up, a leftover from a refactor, or an API waiting for its first caller. outskirts shows you where it is, and you decide.</p>
-<p>Every kind of result, with an example: <a href="/docs/analysis/">analysis</a>.</p>
 <p>Results can be reported as <code>xcode</code>, <code>json</code>, <code>csv</code>, <code>github-actions</code>, <code>codeclimate</code> or <code>sarif</code>, among others.</p>
 </section>
 <section>
-<h2>Install</h2>
+<h2>Install and run a first scan</h2>
+<ol class="steps">
+<li>
+<p>Install with Homebrew:</p>
 <pre><code>brew install tiny-earth-moon/tap/outskirts</code></pre>
-<p>Or build from source:</p>
-<pre><code>git clone https://github.com/tiny-earth-moon/outskirts
-cd outskirts
-swift build -c release --product outskirts</code></pre>
-<p>Requirements: macOS 15 and Xcode 26 for Xcode projects and Swift packages, or Linux with Swift 6.1.2 for Swift packages.</p>
-</section>
-<section>
-<h2>Quick start</h2>
-<p>From the root of your project, a guided setup detects the project type and prints the full command:</p>
+<p>Mint, a prebuilt archive and a build from source are covered in <a href="/docs/getting-started/#install">Install</a>. Requirements: macOS 15 and Xcode 26 for Xcode projects and Swift packages, or Linux with Swift 6.1.2 for Swift packages.</p>
+</li>
+<li>
+<p>From the root of your project, let the guided setup detect the project type, print the full scan command and run it:</p>
 <pre><code>outskirts scan --setup</code></pre>
-<p>Then scan an Xcode project, or a Swift package:</p>
+</li>
+<li>
+<p>Later, scan an Xcode project, or a Swift package:</p>
 <pre><code>outskirts scan --project MyApp.xcodeproj --schemes MyApp
 outskirts scan</code></pre>
-<p>Keep your options in a <code>.outskirts.yml</code> file at the project root. To keep a declaration on purpose, add a <code>// outskirts:ignore</code> comment above it.</p>
+</li>
+</ol>
+<p>Keep your options in a <a href="/docs/configuration/"><code>.outskirts.yml</code></a> file at the project root. To keep a declaration on purpose, add a <a href="/docs/comment-commands/"><code>// outskirts:ignore</code></a> comment above it.</p>
+</section>
+<section>
+<h2>Where it runs</h2>
+<ul class="cards">
+<li>
+<h3><a href="/docs/getting-started/#github-actions">GitHub Actions</a></h3>
+<p>The outskirts action installs a release, checks its checksum and build provenance, and shows each result as an annotation on the pull request.</p>
+</li>
+<li>
+<h3><a href="/docs/getting-started/#visual-studio-code">Visual Studio Code</a></h3>
+<p>The extension runs the installed <code>outskirts</code> from the editor and lists the results in a side bar and in the Problems panel.</p>
+</li>
+<li>
+<h3><a href="/docs/getting-started/#ai-coding-agents">AI coding agents</a></h3>
+<p>An agent skill teaches a coding agent to scan, triage the results and remove unused code safely; <code>--format agent</code> prints a compact report for it.</p>
+</li>
+<li>
+<h3><a href="/docs/xcode-integration/">Xcode</a></h3>
+<p>A run script in an aggregate target shows the results as warnings in the issue navigator, next to the code they point at.</p>
+</li>
+</ul>
 </section>
 <section>
 <h2>Coming from Periphery</h2>
@@ -83,7 +121,7 @@ outskirts scan</code></pre>
 <p>The full guide: <a href="/docs/migrating-from-periphery/">migrating from Periphery</a>.</p>
 </section>
 <section>
-<h2>In CI</h2>
+<h2>In continuous integration</h2>
 <pre><code># record today's results
 outskirts scan --write-baseline baseline.json
 

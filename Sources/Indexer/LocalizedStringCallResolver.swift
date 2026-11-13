@@ -36,21 +36,53 @@ enum LocalizedStringCallResolver {
                   let parameters = parameters(fromDemangledSignature: demangled)
             else { return callSite.allKeys }
 
-            keys.formUnion(usedKeys(for: callSite.arguments, parameters: parameters))
+            keys.formUnion(usedKeys(
+                for: callSite.arguments,
+                parameters: parameters,
+                stringKeyLabels: stringKeyLabels(ofDemangledSignature: demangled)
+            ))
         }
 
         return keys
     }
 
-    static func usedKeys(for arguments: [LocalizedStringCallSite.Argument], parameters: [Parameter]) -> Set<String> {
+    /// `stringKeyLabels` are the labels of the plain string parameters that take the key itself, see
+    /// `stringKeyLabels(ofDemangledSignature:)`.
+    static func usedKeys(
+        for arguments: [LocalizedStringCallSite.Argument],
+        parameters: [Parameter],
+        stringKeyLabels: Set<String?> = []
+    ) -> Set<String> {
         var keys: Set<String> = []
         var nextIndex = 0
         var lastMatched: Parameter?
 
-        for argument in arguments {
+        for (position, argument) in arguments.enumerated() {
             let parameter: Parameter?
 
-            if argument.label == nil, let lastMatched, lastMatched.isVariadic {
+            if argument.isTrailingClosure {
+                // Swift skips a parameter with a default value when a later parameter requires the closure. Default
+                // values are not part of the signature, so the closure may go to any parameter of function type before
+                // the one of the next labeled argument: its literals are keys when any of them takes a localized value.
+                let nextLabel = arguments.dropFirst(position + 1).first.map(\.label)
+                let bound = nextLabel.flatMap { label in parameters[nextIndex...].firstIndex { $0.label == label } }
+                let candidates = parameters[nextIndex ..< (bound ?? parameters.endIndex)].indices.filter {
+                    parameters[$0].type.contains("->")
+                }
+
+                guard let first = candidates.first else {
+                    keys.formUnion(argument.keys)
+                    continue
+                }
+
+                if candidates.contains(where: { LocalizedStringSyntaxVisitor.isLocalizedType(parameters[$0].type) }) {
+                    keys.formUnion(argument.keys)
+                }
+
+                lastMatched = parameters[first]
+                nextIndex = first + 1
+                continue
+            } else if argument.label == nil, let lastMatched, lastMatched.isVariadic {
                 parameter = lastMatched
             } else if let index = parameters[nextIndex...].firstIndex(where: { $0.label == argument.label }) {
                 parameter = parameters[index]
@@ -67,7 +99,9 @@ enum LocalizedStringCallResolver {
 
             lastMatched = parameter
 
-            if LocalizedStringSyntaxVisitor.isLocalizedType(parameter.type) {
+            if LocalizedStringSyntaxVisitor.isLocalizedType(parameter.type)
+                || (stringKeyLabels.contains(parameter.label) && stringKeyTypes.contains(parameter.type))
+            {
                 keys.formUnion(argument.keys)
             }
         }
@@ -101,7 +135,52 @@ enum LocalizedStringCallResolver {
         return splitTopLevel(list).map(parseParameter)
     }
 
+    /// The labels of the plain string parameters whose argument is the key itself: the unlabeled and `stringLiteral:`
+    /// parameters of a localized type initializer, e.g. `SwiftUI.LocalizedStringKey.init(Swift.String)` called as
+    /// `.init("key")`, and the `localized:` parameter of a `String` initializer.
+    static func stringKeyLabels(ofDemangledSignature signature: String) -> Set<String?> {
+        let characters = Array(signature)
+        guard let open = parameterListStart(in: characters) else { return [] }
+
+        let name = droppingGenericClause(String(characters[..<open])[...])
+        guard name.hasSuffix(".init") else { return [] }
+
+        let owner = droppingGenericClause(name.dropLast(".init".count))
+        let ownerName = owner.split(separator: ".").last.map(String.init) ?? ""
+
+        if LocalizedStringSyntaxVisitor.localizedTypeNames.contains(ownerName) {
+            return [nil, "stringLiteral"]
+        }
+
+        return owner.hasSuffix("Swift.String") ? ["localized"] : []
+    }
+
     // MARK: - Private
+
+    private static let stringKeyTypes: Set = ["Swift.String", "Swift.StaticString"]
+
+    /// `Name<A where A: P>` without its trailing generic clause.
+    private static func droppingGenericClause(_ text: Substring) -> Substring {
+        guard text.hasSuffix(">") else { return text }
+
+        var depth = 0
+        var index = text.endIndex
+
+        while index > text.startIndex {
+            index = text.index(before: index)
+
+            if text[index] == ">", index == text.startIndex || text[text.index(before: index)] != "-" {
+                depth += 1
+            } else if text[index] == "<" {
+                depth -= 1
+                if depth == 0 {
+                    return text[..<index]
+                }
+            }
+        }
+
+        return text
+    }
 
     /// Parenthesized groups that qualify a name rather than list parameters: `(extension in Module)` and the
     /// private discriminator of `(name in _0123456789ABCDEF)`.
