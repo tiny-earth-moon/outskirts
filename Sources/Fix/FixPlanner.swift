@@ -1,5 +1,6 @@
 import Foundation
 import PeripheryKit
+import Shared
 import SystemPackage
 
 /// Turns the unused String Catalog keys of a scan into whole-file changes, applying the safety rules.
@@ -88,14 +89,5 @@ public struct FixPlanner {
             guard !uncommitted.contains(realPath) else { throw SkipReason.uncommittedChanges }
             guard tracked.contains(realPath) else { throw SkipReason.notTrackedByGit }
         }
-    }
-}
-
-enum RealPath {
-    static func resolve(_ path: String) -> String {
-        guard let resolved = realpath(path, nil) else { return path }
-
-        defer { free(resolved) }
-        return String(cString: resolved)
     }
 }

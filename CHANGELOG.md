@@ -1,4 +1,4 @@
-## master
+## 3.24.0 (2026-11-13)
 
 ##### Breaking
 
@@ -6,7 +6,10 @@
 
 ##### Enhancements
 
-- None.
+- `--derived-data-path` takes DerivedData directories, as passed to `xcodebuild -derivedDataPath`, and reads their index stores; it can be repeated and combined with `--index-store-path`, and implies `--skip-build`. A directory that does not exist or holds no index store is an error.
+- `--strict-index-coverage` fails the scan when the index data misses a scanned target on one of the platforms it supports, or some of its source files, with an error that names each target and platform. Without it, a scan on the index of a build that left out a platform or the test targets reports the code they use as unused, silently. See [Index data missing a target or a platform](docs/troubleshooting.md#index-data-missing-a-target-or-a-platform).
+- `--index-built-from <rev>` judges whether the index data is out of date with git instead of modification dates: files added, deleted, renamed or modified since the revision the index was built from are reported, with a warning or a failure with `--strict-index`, including the project files, package manifests and resources the scan reads. Files git does not know are still judged by date. The revision is the caller's statement; an unknown revision is an error.
+- Together these options let a CI job scan on the index of a build that just ran instead of building again, see [Reusing the build](docs/ci.md#reusing-the-build).
 
 ##### Bug Fixes
 

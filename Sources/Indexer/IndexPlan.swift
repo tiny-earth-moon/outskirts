@@ -13,6 +13,9 @@ public struct IndexPlan {
     /// A catalogue without an entry has an unknown owner.
     public let xcStringsModules: [FilePath: Set<String>]
     public let expectedSourceFiles: [String: Set<FilePath>]
+    /// The module and platforms of the targets of `expectedSourceFiles`, for `strict_index_coverage`; a target
+    /// without an entry is covered by index data of any module and platform for its files.
+    public let coverageTargets: [String: CoverageTarget]
     /// The names of the index store units that could not be read, whose source files are missing from `sourceFiles`.
     public let unreadableUnits: [String]
     public let indexStorePaths: Set<FilePath>
@@ -29,6 +32,7 @@ public struct IndexPlan {
         xcStringsPaths: Set<FilePath> = [],
         xcStringsModules: [FilePath: Set<String>] = [:],
         expectedSourceFiles: [String: Set<FilePath>] = [:],
+        coverageTargets: [String: CoverageTarget] = [:],
         unreadableUnits: [String] = [],
         indexStorePaths: Set<FilePath> = [],
         globalAccentColorNames: Set<String>? = nil
@@ -41,6 +45,7 @@ public struct IndexPlan {
         self.xcStringsPaths = xcStringsPaths
         self.xcStringsModules = xcStringsModules
         self.expectedSourceFiles = expectedSourceFiles
+        self.coverageTargets = coverageTargets
         self.unreadableUnits = unreadableUnits
         self.indexStorePaths = indexStorePaths
         self.globalAccentColorNames = globalAccentColorNames

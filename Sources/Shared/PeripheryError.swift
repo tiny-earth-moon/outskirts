@@ -29,7 +29,12 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
     case noIndexedSourceFiles(fileCount: Int, indexStorePaths: [String])
     case outdatedIndexData(message: String)
     case unreadableIndexUnits(message: String)
+    case incompleteIndexCoverage(message: String)
     case emptyIndexStore(indexStorePaths: [String])
+    case derivedDataPathNotFound(derivedDataPath: String)
+    case derivedDataIndexStoreNotFound(derivedDataPath: String, tried: [String])
+    case indexBuiltFromNotInGitWorkTree(path: String)
+    case indexBuiltFromUnknownRevision(revision: String, repository: String, message: String)
 
     public var errorDescription: String? {
         switch self {
@@ -97,9 +102,20 @@ public enum PeripheryError: Error, LocalizedError, CustomStringConvertible {
             return message
         case let .unreadableIndexUnits(message):
             return message
+        case let .incompleteIndexCoverage(message):
+            return message
         case let .emptyIndexStore(indexStorePaths):
             let paths = indexStorePaths.map { "\n  - \($0)" }.joined()
             return "The index store(s) hold no unit for an existing source file, so no results can be reported. Index store(s):\(paths)\nBuild the project first, and make sure the index store paths point to the index store of that build."
+        case let .derivedDataPathNotFound(derivedDataPath):
+            return "The DerivedData directory given to '--derived-data-path' does not exist: \(derivedDataPath)"
+        case let .derivedDataIndexStoreNotFound(derivedDataPath, tried):
+            let paths = tried.map { "\n  - \($0)" }.joined()
+            return "The DerivedData directory given to '--derived-data-path' has no index store: \(derivedDataPath)\nExpected one of:\(paths)"
+        case let .indexBuiltFromNotInGitWorkTree(path):
+            return "'--index-built-from' needs a git working tree, but '\(path)' is not inside one."
+        case let .indexBuiltFromUnknownRevision(revision, repository, message):
+            return "'--index-built-from \(revision)' is not a git revision of \(repository): \(message)"
         }
     }
 

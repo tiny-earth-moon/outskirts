@@ -69,6 +69,48 @@ public final class XcodeTarget {
         }
     }
 
+    /// The SDK names of the platforms the target supports in its configurations: `SUPPORTED_PLATFORMS`, else
+    /// `SDKROOT`, of the target settings, else of the project ones. Empty when an `.xcconfig` file sets them.
+    public var supportedSDKs: Set<String> {
+        let configurations = target.buildConfigurationList?.buildConfigurations ?? []
+
+        return configurations.flatMapSet { configuration -> Set<String> in
+            let levels = [configuration.buildSettings, projectConfiguration(named: configuration.name)?.buildSettings ?? [:]]
+            let value = levels.lazy.compactMap { $0["SUPPORTED_PLATFORMS"] ?? $0["SDKROOT"] }.first
+            let names: [String] = switch value {
+            case let .string(string): string.split(separator: " ").map(String.init)
+            case let .array(values): values
+            case nil: []
+            }
+            return Set(names.filter { !$0.contains("$") })
+        }
+    }
+
+    /// The name of the module the target compiles: `PRODUCT_MODULE_NAME`, else `PRODUCT_NAME`, else the target
+    /// name, made a C identifier. `nil` when the configurations disagree, or a setting refers to a variable other than
+    /// `TARGET_NAME` (e.g. one set in an `.xcconfig` file).
+    public var moduleName: String? {
+        let configurations = target.buildConfigurationList?.buildConfigurations ?? []
+        let names = configurations.map { configuration -> String? in
+            let settings = buildSettings(of: configuration)
+            var value = settings["PRODUCT_MODULE_NAME"] ?? settings["PRODUCT_NAME"] ?? "$(TARGET_NAME)"
+            for reference in ["$(TARGET_NAME)", "${TARGET_NAME}", "$(TARGET_NAME:c99extidentifier)", "${TARGET_NAME:c99extidentifier}"] {
+                value = value.replacingOccurrences(of: reference, with: target.name)
+            }
+            return value.contains("$") || value.isEmpty ? nil : Self.c99Identifier(value)
+        }
+
+        guard let name = names.first ?? Self.c99Identifier(target.name), names.allSatisfy({ $0 == name }) else { return nil }
+
+        return name
+    }
+
+    static func c99Identifier(_ value: String) -> String {
+        let identifier = String(value.map { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_") ? $0 : "_" })
+
+        return identifier.first?.isNumber == true ? "_" + identifier : identifier
+    }
+
     public func files(kind: ProjectFileKind) -> Set<FilePath> {
         files[kind, default: []]
     }
@@ -214,14 +256,15 @@ public final class XcodeTarget {
         ]
     }
 
+    private func projectConfiguration(named name: String) -> XCBuildConfiguration? {
+        project.xcodeProject.pbxproj.rootObject?.buildConfigurationList?.buildConfigurations.first { $0.name == name }
+    }
+
     /// The project configuration's settings of the same name, overridden by the target configuration's.
     private func buildSettings(of configuration: XCBuildConfiguration) -> [String: String] {
         var settings: [String: String] = [:]
 
-        let projectConfiguration = project.xcodeProject.pbxproj.rootObject?.buildConfigurationList?.buildConfigurations
-            .first { $0.name == configuration.name }
-
-        for buildSettings in [projectConfiguration?.buildSettings, configuration.buildSettings].compactMap(\.self) {
+        for buildSettings in [projectConfiguration(named: configuration.name)?.buildSettings, configuration.buildSettings].compactMap(\.self) {
             for (key, value) in buildSettings {
                 switch value {
                 case let .string(string): settings[key] = string

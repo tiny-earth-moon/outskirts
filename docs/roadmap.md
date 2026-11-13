@@ -12,6 +12,7 @@ Issues carry a priority label, from `P1` (first) to `P3`.
 
 Recent releases, newest first:
 
+- **3.24.0** (2026-11-13): scan on the index of a build that just ran instead of building again, with a coverage check per target and platform and a freshness check against a git revision.
 - **3.23.0** (2026-11-11): `outskirts fix` removes unused String Catalog keys, dry run by default; `--format agent` for coding agents.
 - **3.22.0** (2026-11-10): `scan --explain`; build provenance attestations for the bottles and the archive; file patterns follow the volume's case sensitivity.
 - **3.21.4** (2026-11-10): `Void` properties initialized for their side effect retained; unreadable index units reported; safer output, baseline, shell and cache handling.
@@ -42,7 +43,6 @@ Recent releases, newest first:
 In order, each one opt-in:
 
 - **Act on results**: `fix` covers unused String Catalog keys since 3.23.0; unused imports and redundant `public` follow once every variant is scanned.
-- **Faster scans in CI**: reuse the index of a build that just ran, with a freshness check.
 - **Every variant**: scan the union of platform and configuration variants as an opt-in, the prerequisite for removing unused imports and declarations with `fix`.
 - Opt-in analysis of enum cases only matched in patterns and never constructed.
 - Prebuilt binaries beyond macOS 27.

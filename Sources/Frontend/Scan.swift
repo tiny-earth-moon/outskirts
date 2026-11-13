@@ -28,11 +28,19 @@ final class Scan {
     }
 
     func perform(project: Project) throws -> Output {
+        if !configuration.derivedDataPath.isEmpty {
+            configuration.indexStorePath = try DerivedDataIndexStore.merge(
+                indexStorePaths: configuration.indexStorePath,
+                derivedDataPaths: configuration.derivedDataPath
+            )
+        }
+
         if !configuration.indexStorePath.isEmpty {
-            logger.warn("When using the '--index-store-path' option please ensure that Xcode is not running. False-positives can occur if Xcode writes to the index store while outskirts is running.")
+            let option = configuration.derivedDataPath.isEmpty ? "--index-store-path" : "--derived-data-path"
+            logger.warn("When using the '\(option)' option please ensure that Xcode is not running. False-positives can occur if Xcode writes to the index store while outskirts is running.")
 
             if !configuration.skipBuild {
-                logger.warn("The '--index-store-path' option implies '--skip-build', specify it to silence this warning.")
+                logger.warn("The '\(option)' option implies '--skip-build', specify it to silence this warning.")
                 configuration.skipBuild = true
             }
         }

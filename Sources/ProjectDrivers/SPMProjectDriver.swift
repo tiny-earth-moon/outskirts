@@ -63,6 +63,7 @@ extension SPMProjectDriver: ProjectDriver {
         let xibPaths = projectFiles(of: .interfaceBuilder, from: description)
         let xcDataModelPaths = projectFiles(of: .xcDataModel, from: description)
         let xcStringsPaths = projectFiles(of: .xcStrings, from: description)
+        let expectedSourceFiles = expectedSourceFiles(from: description, excluding: excludedTestTargets)
 
         return IndexPlan(
             sourceFiles: sourceFiles,
@@ -70,13 +71,38 @@ extension SPMProjectDriver: ProjectDriver {
             xcDataModelPaths: xcDataModelPaths,
             xcStringsPaths: xcStringsPaths,
             xcStringsModules: projectFileModules(of: .xcStrings, from: description),
-            expectedSourceFiles: expectedSourceFiles(from: description, excluding: excludedTestTargets),
+            expectedSourceFiles: expectedSourceFiles,
+            coverageTargets: configuration.strictIndexCoverage ? coverageTargets(of: expectedSourceFiles.keys) : [:],
             unreadableUnits: unreadableUnits,
             indexStorePaths: indexStorePaths
         )
     }
 
     // MARK: - Private
+
+    /// Every target is expected on the platform the package is built for: the host, or the platform of a `--triple`
+    /// build argument; any platform with `--swift-sdk`, whose platform is not known here.
+    func coverageTargets(of targets: some Sequence<String>) -> [String: CoverageTarget] {
+        let platforms = Self.buildPlatforms(arguments: configuration.buildArguments)
+
+        return Dictionary(uniqueKeysWithValues: targets.map { ($0, CoverageTarget(moduleName: $0, platforms: platforms)) })
+    }
+
+    static func buildPlatforms(arguments: [String]) -> Set<IndexPlatform> {
+        for (index, argument) in arguments.enumerated() {
+            if argument == "--swift-sdk" || argument.hasPrefix("--swift-sdk=") {
+                return []
+            }
+            if argument.hasPrefix("--triple=") {
+                return IndexPlatform(triple: String(argument.dropFirst("--triple=".count))).map { [$0] } ?? []
+            }
+            if argument == "--triple" {
+                return arguments.indices.contains(index + 1) ? IndexPlatform(triple: arguments[index + 1]).map { [$0] } ?? [] : []
+            }
+        }
+
+        return [.host]
+    }
 
     func expectedSourceFiles(from description: PackageDescription, excluding excludedTargets: Set<String>) -> [String: Set<FilePath>] {
         let excluded = excludedTargets.union(configuration.excludeTargets)

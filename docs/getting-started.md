@@ -102,7 +102,7 @@ In the configuration file, write `retain_public_modules: [MyLibrary, OtherKit]`,
 
 ## GitHub Actions
 
-On a macOS runner, the [outskirts action](https://github.com/tiny-earth-moon/outskirts-action) installs the latest release, checks the archive checksum and runs `outskirts scan`, with each result shown as an annotation on the pull request:
+On a macOS runner, the [outskirts action](https://github.com/tiny-earth-moon/outskirts-action) installs the latest release, checks the archive checksum and build provenance attestation, and runs `outskirts scan`, with each result shown as an annotation on the pull request:
 
 ```yaml
 jobs:
@@ -115,7 +115,7 @@ jobs:
           args: --project MyApp.xcodeproj --schemes MyApp
 ```
 
-Leave `args` empty for a Swift package, or when a `.outskirts.yml` holds your options. The step fails when results are reported; set `fail-on-results: false` to only annotate, and `version` to pin a release. The action's README lists every input; other CI setups are covered in [Continuous integration](ci.md).
+Leave `args` empty for a Swift package, or when a `.outskirts.yml` holds your options. The step fails when results are reported; set `fail-on-results: false` to only annotate, and `version` to pin a release. `@v1` follows the action's latest compatible release; its README shows how to pin it to a commit. The action's README lists every input; other CI setups are covered in [Continuous integration](ci.md).
 
 ## AI coding agents
 

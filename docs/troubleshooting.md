@@ -41,6 +41,31 @@ The warning names each index store with the number of files concerned and the fi
 
 In CI, pass [`--strict-index`](options.md#--strict-index) (`strict_index: true`) to fail the scan instead of printing the warning.
 
+### Index data restored from another checkout
+
+Since 3.24.0.
+
+Modification times say little about an index store restored from a cache, or read from a copy of the project: a fresh checkout makes every file newer than its index data, and a file edited then set back to an older date looks unchanged. When you know the git revision the index was built from, pass it with [`--index-built-from`](options.md#--index-built-from) (`index_built_from`) and outskirts asks git instead. A file is then out of date when git reports it changed since that revision, committed, staged, unstaged or untracked, whatever its modification time:
+
+- a modified file, and a deleted or renamed file whose index data describes declarations that no longer exist;
+- a Swift file added since the revision, which has no index data;
+- a file the scan reads besides the index: Interface Builder files, property lists, String Catalogs, Metal sources, Core Data models and mappings, asset catalogs, Xcode projects and workspaces, and package manifests.
+
+> warning: 2 files changed since 4f1c2ab, the revision the index was built from, in DerivedData/Index.noindex/DataStore: Sources/Kit/Beta.swift, Sources/Kit/Gamma.swift. Results may be at the wrong lines or missing: rebuild the project before scanning, or pass '--clean-build' to start from an empty index store.
+
+Files that git does not track, such as generated files outside the working tree or ignored by it, are still judged by their modification time. The scan fails when the project root is not in a git working tree, or when the revision names no commit (fetch it first in a shallow CI checkout), rather than falling back to modification times. `--strict-index` fails the scan instead of printing the warning, as above.
+
+The revision is an assertion: outskirts cannot check that the index was built from it, and an index built with uncommitted changes is described by no revision. Let the build record it next to its output, from the same checkout:
+
+```bash
+xcodebuild build -scheme App -derivedDataPath DerivedData
+git rev-parse HEAD > DerivedData/outskirts-rev
+# later, with DerivedData restored next to the checkout
+outskirts scan --skip-build \
+  --derived-data-path DerivedData \
+  --index-built-from "$(cat DerivedData/outskirts-rev)"
+```
+
 ## Code referenced only in an #if DEBUG branch
 
 outskirts builds your project with the default build configuration, typically Debug. Code behind other compilation conditions is invisible: only the branches that are compiled are indexed. In the example below, `releaseName` is reported as unused, as it is only referenced in the non-debug branch.
@@ -159,6 +184,18 @@ With `--skip-build`, outskirts looks for the index store of the last build and l
 ## A declaration used only by a target that was not built
 
 The index store only describes the targets that were built. For an Xcode project, add the schemes that build every target using the code with `--schemes`; see [How a scan works](getting-started.md#how-a-scan-works).
+
+## Index data missing a target or a platform
+
+Since 3.24.0.
+
+An index store only describes what its build compiled: one platform of a project built for several, or the app without its test targets. Scanned on such a store, the code used only by the missing targets is reported as unused. outskirts warns about a target that has some of its source files without index data, but a target with none at all is silent by default, since a target left out of the scanned schemes is often deliberate.
+
+Pass [`--strict-index-coverage`](options.md#--strict-index-coverage) (`strict_index_coverage: true`) to fail the scan instead, with an error that names each target and platform missing from the index data. Coverage is judged per target and per platform, not per file: a file shared by an iOS and a macOS target is indexed by the iOS build alone, which does not make the macOS target covered.
+
+- **Expected targets**: the targets of the project with Swift source files (every target of the package for a Swift package), minus [`exclude_targets`](options.md#--exclude-targets), and the test targets unless [`--exclude-tests`](options.md#--exclude-tests) is set. Leave out with `exclude_targets` the targets that none of your builds compiles.
+- **Expected platforms**: for an Xcode target, the platforms of its `SUPPORTED_PLATFORMS` build setting, else of its `SDKROOT`, as written in the project file (the target settings, else the project ones). Device and simulator are the same platform; Mac Catalyst is not expected, even when the target supports it. When these settings come from an `.xcconfig` file only, any platform covers the target. For a Swift package, the platform of the host, or the one of a `--triple` build argument. There is no setting yet to leave out one platform of a target: when a target declares a platform that none of your builds compiles, build that platform too, or leave the whole target out with `exclude_targets`, or keep `--strict-index-coverage` off for that scan.
+- **Covered**: a target is covered on a platform when the index data holds a unit of its module, compiled for that platform, for one of its files; the platform is read from the target triple of the unit. When the module name of an Xcode target cannot be read from the project file, or appears in no unit, units of any module for its files count. A target covered on its platforms must also have index data for each of its files.
 
 ## Mixed Swift and Objective-C
 

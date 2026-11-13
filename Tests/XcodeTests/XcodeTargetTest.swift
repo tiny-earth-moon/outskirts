@@ -46,6 +46,22 @@ final class XcodeTargetTest: XCTestCase {
         XCTAssertEqual(testTarget.globalAccentColorNames, [])
     }
 
+    func testSupportedSDKs_preferTheTargetSettingsOverTheProjectOnes() {
+        let sdks = { (name: String) in self.project.targets.first { $0.name == name }!.supportedSDKs }
+
+        XCTAssertEqual(sdks("UIKitProject"), ["iphoneos", "iphonesimulator"])
+        XCTAssertEqual(sdks("UIKitProjectTests"), ["iphoneos"])
+        XCTAssertEqual(sdks("WatchWidgetExtension"), ["watchos"])
+    }
+
+    func testModuleName_followsTheProductNameAsACIdentifier() {
+        let moduleName = { (name: String) in self.project.targets.first { $0.name == name }!.moduleName }
+
+        XCTAssertEqual(moduleName("UIKitProject"), "UIKitProject")
+        XCTAssertEqual(moduleName("Target With Spaces"), "Target_With_Spaces")
+        XCTAssertEqual(XcodeTarget.c99Identifier("9 Lives-App"), "_9_Lives_App")
+    }
+
     func testInfoPlistSettingExpandsBuildSettingVariables() throws {
         let target = project.targets.first { $0.name == "UIKitProject" }!
         let settings = ["PLIST_DIR": "${TARGET_NAME}"]

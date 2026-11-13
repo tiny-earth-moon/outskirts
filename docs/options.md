@@ -112,6 +112,14 @@ Key `index_store_path` · list of strings · default empty.
 
 See [Getting started: Swift packages](getting-started.md#swift-packages), [Getting started: Xcode projects](getting-started.md#xcode-projects), [Configuration: Paths](configuration.md#paths), [Continuous integration: Reusing the build](ci.md#reusing-the-build).
 
+### `--derived-data-path`
+
+Since 3.24.0.
+
+DerivedData directories (as passed to xcodebuild -derivedDataPath), relative to the project root, whose index stores are added to index_store_path; implies skip_build.
+
+Key `derived_data_path` · list of strings · default empty.
+
 ### `--strict-index`
 
 Since 3.21.0.
@@ -120,7 +128,27 @@ Fail the scan when a source file is newer than its index data, instead of warnin
 
 Key `strict_index` · flag, `--no-strict-index` to switch off · default `false`.
 
-See [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Troubleshooting: Index data older than its source](troubleshooting.md#index-data-older-than-its-source), [Roadmap: Published](roadmap.md#published).
+See [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Troubleshooting: Index data older than its source](troubleshooting.md#index-data-older-than-its-source), [Troubleshooting: Index data restored from another checkout](troubleshooting.md#index-data-restored-from-another-checkout), [Roadmap: Published](roadmap.md#published).
+
+### `--strict-index-coverage`
+
+Since 3.24.0.
+
+Fail the scan when the index data misses a scanned target on one of the platforms it supports, or some of its source files, instead of warning or ignoring it.
+
+Key `strict_index_coverage` · flag, `--no-strict-index-coverage` to switch off · default `false`.
+
+See [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Troubleshooting: Index data missing a target or a platform](troubleshooting.md#index-data-missing-a-target-or-a-platform).
+
+### `--index-built-from`
+
+Since 3.24.0.
+
+Git revision the index store was built from, e.g. the commit of the build that wrote it. Source files are then judged out of date when git reports them changed since this revision (modified, added, deleted or renamed, untracked files included), whatever their modification date; files outside the git working tree are still judged by date. outskirts cannot check the revision: record it when building.
+
+Key `index_built_from` · string · default none.
+
+See [Continuous integration: Reusing the build](ci.md#reusing-the-build), [Troubleshooting: Index data restored from another checkout](troubleshooting.md#index-data-restored-from-another-checkout).
 
 ### `--json-package-manifest-path`
 
@@ -162,7 +190,7 @@ Targets to exclude from indexing.
 
 Key `exclude_targets` · list of strings · default empty.
 
-See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation), [Fixing unused String Catalog keys: Partial scans](fix.md#partial-scans).
+See [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Configuration: Validation](configuration.md#validation), [Fixing unused String Catalog keys: Partial scans](fix.md#partial-scans), [Troubleshooting: Index data missing a target or a platform](troubleshooting.md#index-data-missing-a-target-or-a-platform).
 
 ### `--exclude-tests`
 
@@ -170,7 +198,7 @@ Exclude test targets from indexing.
 
 Key `exclude_tests` · flag, `--no-exclude-tests` to switch off · default `false`.
 
-See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Fixing unused String Catalog keys: Partial scans](fix.md#partial-scans).
+See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Troubleshooting: Index data missing a target or a platform](troubleshooting.md#index-data-missing-a-target-or-a-platform), [Fixing unused String Catalog keys: Partial scans](fix.md#partial-scans).
 
 ### `--index-exclude`
 

@@ -21,6 +21,13 @@ struct IndexCoverage {
         let storeList = plan.indexStorePaths.map(\.string).sorted().joined(separator: ", ")
         let gaps = try gaps()
 
+        if configuration.strictIndexCoverage {
+            let shortfalls = Self.shortfalls(expected: expectedFiles(), units: indexedUnits(), targets: plan.coverageTargets)
+            if !shortfalls.isEmpty {
+                throw PeripheryError.incompleteIndexCoverage(message: Self.incompleteCoverageMessage(shortfalls, storeList: storeList))
+            }
+        }
+
         for gap in gaps {
             logger.warn("\(gap.files.count) source file(s) in target \(gap.target) have no index data; results for them are not reliable (index store: \(storeList))")
 
@@ -36,9 +43,7 @@ struct IndexCoverage {
     /// files may be the target's). Throws when none of the expected files is indexed.
     func gaps() throws -> [Gap] {
         let indexed = Set(plan.sourceFiles.keys.map { $0.path.lexicallyNormalized() })
-        let expected = plan.expectedSourceFiles
-            .mapValues { Set($0.map { $0.lexicallyNormalized() }.filter { !configuration.isIndexExcluded($0) }) }
-            .filter { !$0.value.isEmpty }
+        let expected = expectedFiles()
         let allExpected = Set(expected.values.joined())
 
         if !allExpected.isEmpty, indexed.isDisjoint(with: allExpected) {
@@ -57,5 +62,12 @@ struct IndexCoverage {
 
             return Gap(target: target, files: missing.sorted { $0.string < $1.string })
         }
+    }
+
+    /// The source files of each scanned target, normalized, without those left out with `index_exclude`.
+    func expectedFiles() -> [String: Set<FilePath>] {
+        plan.expectedSourceFiles
+            .mapValues { Set($0.map { $0.lexicallyNormalized() }.filter { !configuration.isIndexExcluded($0) }) }
+            .filter { !$0.value.isEmpty }
     }
 }

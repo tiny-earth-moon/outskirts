@@ -364,6 +364,17 @@
       },
       "default": []
     },
+    "derived_data_path": {
+      "description": "DerivedData directories (as passed to xcodebuild -derivedDataPath), relative to the project root, whose index stores are added to index_store_path; implies skip_build.",
+      "type": [
+        "array",
+        "string"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
     "skip_build": {
       "description": "Skip the project build step.",
       "type": "boolean",
@@ -383,6 +394,15 @@
       "description": "Fail the scan when a source file is newer than its index data, instead of warning.",
       "type": "boolean",
       "default": false
+    },
+    "strict_index_coverage": {
+      "description": "Fail the scan when the index data misses a scanned target on one of the platforms it supports, or some of its source files, instead of warning or ignoring it.",
+      "type": "boolean",
+      "default": false
+    },
+    "index_built_from": {
+      "description": "Git revision the index store was built from, e.g. the commit of the build that wrote it. Source files are then judged out of date when git reports them changed since this revision (modified, added, deleted or renamed, untracked files included), whatever their modification date; files outside the git working tree are still judged by date. outskirts cannot check the revision: record it when building.",
+      "type": "string"
     },
     "cache_max_age_days": {
       "description": "Age in days after which unused Xcode build caches are evicted at the end of a scan; 0 disables the age rule. Caches of projects that no longer exist are always evicted.",

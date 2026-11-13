@@ -169,6 +169,9 @@ public final class Configuration {
     @Setting(key: "index_store_path", defaultValue: [], convert: SettingConverter.filePathList)
     public var indexStorePath: [FilePath]
 
+    @Setting(key: "derived_data_path", defaultValue: [], convert: SettingConverter.filePathList)
+    public var derivedDataPath: [FilePath]
+
     @Setting(key: "skip_build", defaultValue: false)
     public var skipBuild: Bool
 
@@ -180,6 +183,11 @@ public final class Configuration {
 
     @Setting(key: "strict_index", defaultValue: false)
     public var strictIndex: Bool
+
+    @Setting(key: "strict_index_coverage", defaultValue: false)
+    public var strictIndexCoverage: Bool
+    @Setting(key: "index_built_from", defaultValue: nil, convert: SettingConverter.optionalString)
+    public var indexBuiltFrom: String?
 
     @Setting(key: "relative_results", defaultValue: false)
     public var relativeResults: Bool
@@ -484,8 +492,8 @@ public final class Configuration {
         $retainJsAccessible, $retainObjcAnnotated, $retainUnusedProtocolFuncParams, $retainUnusedParametersWithoutDefault, $retainSwiftUIPreviews, $disableRedundantPublicAnalysis, $enableRedundantPublicMembers, $enableOpenFinalAnalysis, $enableEmptyExtensionAnalysis, $enableRedundantAccessLevelAnalysis, $reportUnusedTypeParameters,
         $disablePlatformConditionalRetention, $disableUnusedImportAnalysis, $enableUnusedSystemImports, $disableUnusedLocalizedStringAnalysis, $localizedStringCatalogExclude, $localizedStringKeyPatterns, $localizedStringKeyLiteralMatch, $retainRuntimeLocalizedKeys, $superfluousIgnoreComments, $retainUnusedImportedModules,
         $externalEncodableProtocols, $externalCodableProtocols, $externalTestCaseClasses, $verbose, $quiet, $color,
-        $disableUpdateCheck, $strict, $indexStorePath,
-        $skipBuild, $skipSchemesValidation, $cleanBuild, $strictIndex, $cacheMaxAgeDays, $cacheMaxSizeGB, $buildArguments, $xcodeListArguments, $relativeResults, $relativeResultsBase, $changedSince, $changedLines,
+        $disableUpdateCheck, $strict, $indexStorePath, $derivedDataPath,
+        $skipBuild, $skipSchemesValidation, $cleanBuild, $strictIndex, $strictIndexCoverage, $indexBuiltFrom, $cacheMaxAgeDays, $cacheMaxSizeGB, $buildArguments, $xcodeListArguments, $relativeResults, $relativeResultsBase, $changedSince, $changedLines,
         $jsonPackageManifestPath, $retainCodableProperties, $retainEncodableProperties, $retainEquatableProperties,
         $retainHashableProperties, $baseline, $writeBaseline, $pruneBaseline, $strictBaseline,
         $writeResults, $skipStdoutResults, $genericProjectConfig,

@@ -154,9 +154,12 @@
             )
             let (sourceFiles, unreadableUnits) = try collector.collect()
             let excluded = excludedTestTargets.union(configuration.excludeTargets)
-            let expectedSourceFiles = targets
-                .filter { !excluded.contains($0.name) && !$0.swiftSourceFiles.isEmpty }
+            let scannedTargets = targets.filter { !excluded.contains($0.name) && !$0.swiftSourceFiles.isEmpty }
+            let expectedSourceFiles = scannedTargets
                 .reduce(into: [String: Set<FilePath>]()) { $0[$1.name, default: []].formUnion($1.swiftSourceFiles) }
+            let coverageTargets = configuration.strictIndexCoverage ? scannedTargets.reduce(into: [String: CoverageTarget]()) {
+                $0[$1.name] = CoverageTarget(moduleName: $1.moduleName, platforms: $1.supportedSDKs.compactMapSet(IndexPlatform.init(sdk:)))
+            } : [:]
             let infoPlistPaths = targets.flatMapSet { $0.files(kind: .infoPlist) }
             let xibPaths = targets.flatMapSet { $0.files(kind: .interfaceBuilder) }
             let xcDataModelPaths = targets.flatMapSet { $0.files(kind: .xcDataModel) }
@@ -171,6 +174,7 @@
                 xcMappingModelPaths: xcMappingModelPaths,
                 xcStringsPaths: xcStringsPaths,
                 expectedSourceFiles: expectedSourceFiles,
+                coverageTargets: coverageTargets,
                 unreadableUnits: unreadableUnits,
                 indexStorePaths: indexStorePaths,
                 globalAccentColorNames: targets.flatMapSet(\.globalAccentColorNames)

@@ -83,7 +83,7 @@ jobs:
         run: swift test
   scripts:
     name: Release scripts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -92,7 +92,7 @@ jobs:
         run: scripts/tests/test-bottle-block.sh
   linux:
     name: Linux (Swift 6.4)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container: swift:6.4-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,7 +116,7 @@ jobs:
   linux-minimum:
     name: Linux (Swift 6.1, minimum toolchain)
     # The minimum supported toolchain is `minimumVersion` in Sources/Shared/SwiftVersion.swift (6.1.2).
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container: swift:6.1-noble
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -139,7 +139,7 @@ jobs:
     name: Site and documentation
     # Builds outskirts.dev from docs/ and checks it, and checks that docs/options.md and the README extracts are in
     # step with their sources (`npm run sync` in site/ regenerates them).
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: site

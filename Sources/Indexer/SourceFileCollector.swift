@@ -12,6 +12,9 @@ public struct SourceFileCollector {
         let collected: [(FilePath, FilePath, IndexStore, UnitReader, String, Date?)]
         let unreadable: [String]
         let hasIgnoredUnit: Bool
+        /// With `index_built_from`: the main files of the units whose source file no longer exists, and of all units.
+        let missing: [FilePath]
+        let mainFiles: [FilePath]
     }
 
     private let indexStorePaths: Set<FilePath>
@@ -38,6 +41,9 @@ public struct SourceFileCollector {
         let logger = logger
         // `Configuration` is not `Sendable`: the jobs only read it, and nothing mutates it while they run.
         nonisolated(unsafe) let configuration = configuration
+        let projectRoot = FilePath.makeAbsolute(configuration.projectRoot, relativeTo: currentFilePath)
+        let freshness = try configuration.indexBuiltFrom.map { try GitIndexFreshness.read(revision: $0, in: projectRoot) }
+        let judgesByGit = freshness != nil
 
         let storeResults = try JobPool(jobs: Array(indexStorePaths))
             .flatMap { indexStorePath -> [StoreUnits] in
@@ -47,6 +53,8 @@ public struct SourceFileCollector {
 
                 let unitsDirectory = indexStorePath.appending("v5/units")
                 var hasIgnoredUnit = false
+                var missing: [FilePath] = []
+                var mainFiles: [FilePath] = []
 
                 let collected = units.filter { !$0.isSystem }.compactMap { unit -> (FilePath, FilePath, IndexStore, UnitReader, String, Date?)? in
                     let filePath = unit.mainFile
@@ -56,10 +64,16 @@ public struct SourceFileCollector {
                     }
 
                     let file = FilePath.makeAbsolute(filePath, relativeTo: currentFilePath)
+                    if judgesByGit {
+                        mainFiles.append(file)
+                    }
 
                     if !configuration.isIndexExcluded(file) {
                         guard file.exists else {
                             logger.debug("Source file does not exist: \(file.string)")
+                            if judgesByGit, !excludedTargets.contains(unit.moduleName) {
+                                missing.append(file)
+                            }
                             return nil
                         }
 
@@ -78,7 +92,7 @@ public struct SourceFileCollector {
                     return nil
                 }
 
-                return [StoreUnits(path: indexStorePath, collected: collected, unreadable: unreadable, hasIgnoredUnit: hasIgnoredUnit)]
+                return [StoreUnits(path: indexStorePath, collected: collected, unreadable: unreadable, hasIgnoredUnit: hasIgnoredUnit, missing: missing, mainFiles: mainFiles)]
             }
         let unreadableUnits = storeResults.reduce(into: [FilePath: Set<String>]()) { $0[$1.path] = Set($1.unreadable) }
         if let warning = try Self.unreadableUnitsWarning(unreadableUnits, relativeTo: currentFilePath, strict: configuration.strictIndex) {
@@ -102,6 +116,8 @@ public struct SourceFileCollector {
 
         var sourceFiles: [SourceFile: [IndexUnit]] = [:]
         var outdatedFiles: [FilePath: Set<FilePath>] = [:]
+        var changedFiles: [FilePath: Set<FilePath>] = [:]
+        var filesJudgedByDate = 0
 
         for (file, allTuples) in collected {
             let sourceModificationDate = Self.modificationDate(of: file)
@@ -115,13 +131,26 @@ public struct SourceFileCollector {
             let sourceFile = SourceFile(path: file, modules: modules)
             sourceFiles[sourceFile] = tuples.map { IndexUnit(store: $0.1, unit: $0.2) }
 
-            for tuple in Self.outdatedUnits(tuples, sourceModificationDate: sourceModificationDate, modificationDate: \.4) {
-                outdatedFiles[tuple.0, default: []].insert(file)
+            let changedSinceRevision = freshness?.hasChanged(file)
+            if changedSinceRevision == nil {
+                filesJudgedByDate += 1
+            }
+
+            for tuple in Self.outdatedUnits(tuples, sourceModificationDate: sourceModificationDate, changedSinceRevision: changedSinceRevision, modificationDate: \.4) {
+                if changedSinceRevision == nil {
+                    outdatedFiles[tuple.0, default: []].insert(file)
+                } else {
+                    changedFiles[tuple.0, default: []].insert(file)
+                }
             }
         }
 
         if let warning = try Self.outdatedIndexWarning(outdatedFiles, relativeTo: currentFilePath, strict: configuration.strictIndex) {
             logger.warn(warning)
+        }
+
+        if let freshness {
+            try warnAboutChanges(since: freshness, in: storeResults, changedFiles: changedFiles, filesJudgedByDate: filesJudgedByDate, projectRoot: projectRoot)
         }
 
         return (sourceFiles, unreadableUnits.values.flatMap(\.self).sorted())
@@ -130,7 +159,8 @@ public struct SourceFileCollector {
     /// A unit written before its source file was last modified describes an older version of the file, e.g. a unit
     /// left in the store by a build whose output paths have since changed (a renamed package, a restored CI cache).
     /// Such units are dropped when the same module has a unit written since, which describes the current file;
-    /// otherwise they are kept, as they are the only index data available for the file.
+    /// otherwise they are kept, as they are the only index data available for the file. With `index_built_from` too, as
+    /// git cannot tell which of the units was written from the revision: only whether the file is outdated changes.
     static func currentUnits<Unit>(
         _ units: [Unit],
         sourceModificationDate: Date?,
@@ -155,12 +185,19 @@ public struct SourceFileCollector {
     }
 
     /// The units kept by `currentUnits` that were written before the source file was last modified: they are the
-    /// only index data of their module for the file, yet describe an older version of it.
+    /// only index data of their module for the file, yet describe an older version of it. With `index_built_from`,
+    /// git judges the files it knows instead (`changedSinceRevision` is non-nil): every unit of a file changed since
+    /// the revision is outdated, and none of an unchanged file, whatever the dates.
     static func outdatedUnits<Unit>(
         _ units: [Unit],
         sourceModificationDate: Date?,
+        changedSinceRevision: Bool? = nil,
         modificationDate: (Unit) -> Date?
     ) -> [Unit] {
+        if let changedSinceRevision {
+            return changedSinceRevision ? units : []
+        }
+
         guard let sourceModificationDate else { return [] }
 
         return units.filter { unit in
@@ -209,6 +246,57 @@ public struct SourceFileCollector {
         return warning
     }
 
+    /// With `index_built_from`, a single warning for the files changed since the revision: those described by units of
+    /// each index store, and those no unit accounts for (added sources, and the other files the scan reads).
+    static func changedSinceRevisionWarning(
+        _ changedFiles: [FilePath: Set<FilePath>],
+        unindexed: Set<FilePath>,
+        revision: String,
+        relativeTo base: FilePath,
+        examples: Int = 3
+    ) -> String? {
+        var groups = changedFiles
+            .filter { !$0.value.isEmpty }
+            .sorted { ($1.value.count, $0.key.string) < ($0.value.count, $1.key.string) }
+            .map { (label: "in \(display($0.key, relativeTo: base))", files: $0.value) }
+        if !unindexed.isEmpty {
+            groups.append((label: "not in the index", files: unindexed))
+        }
+        let count = groups.reduce(0) { $0 + $1.files.count }
+
+        guard count > 0 else { return nil }
+
+        func list(_ files: Set<FilePath>) -> String {
+            Self.list(files.map { display($0, relativeTo: base) }, examples: examples)
+        }
+
+        let subject = count == 1 ? "1 file changed" : "\(count) files changed"
+        let location = if groups.count == 1, let (label, files) = groups.first {
+            ", \(label): \(list(files))"
+        } else {
+            ": " + groups.map { "\($0.files.count) \($0.label) (\(list($0.files)))" }.joined(separator: ", ")
+        }
+
+        return "\(subject) since \(revision), the revision the index was built from\(location). Results may be at the wrong lines or missing: rebuild the project before scanning, or pass '--clean-build' to start from an empty index store."
+    }
+
+    /// The warning to print for the files changed since the revision, if any; with `strict_index`, the scan fails instead.
+    static func changedSinceRevisionWarning(
+        _ changedFiles: [FilePath: Set<FilePath>],
+        unindexed: Set<FilePath>,
+        revision: String,
+        relativeTo base: FilePath,
+        strict: Bool
+    ) throws -> String? {
+        guard let warning = changedSinceRevisionWarning(changedFiles, unindexed: unindexed, revision: revision, relativeTo: base) else { return nil }
+
+        if strict {
+            throw PeripheryError.outdatedIndexData(message: warning + " Failing as '--strict-index' is set.")
+        }
+
+        return warning
+    }
+
     /// A single warning for the scan, naming each index store with its number of unreadable units and a few of them.
     /// The source files these units describe are missing from the scan, so their declarations are not indexed and
     /// whatever only they reference is reported as unused.
@@ -243,6 +331,39 @@ public struct SourceFileCollector {
     }
 
     // MARK: - Private
+
+    /// With `index_built_from`: warns about the files changed since the revision, or fails with `strict_index`.
+    private func warnAboutChanges(
+        since freshness: GitIndexFreshness,
+        in storeResults: [StoreUnits],
+        changedFiles: [FilePath: Set<FilePath>],
+        filesJudgedByDate: Int,
+        projectRoot: FilePath
+    ) throws {
+        var changedFiles = changedFiles
+        for store in storeResults {
+            for file in store.missing where freshness.hasChanged(file) == true {
+                changedFiles[store.path, default: []].insert(file)
+            }
+        }
+
+        let unindexed = freshness.unindexedChanges(
+            indexed: Set(storeResults.flatMap(\.mainFiles)),
+            in: projectRoot,
+            isExcluded: configuration.isIndexExcluded
+        )
+        logger.debug("index freshness: git \(freshness.revision), \(freshness.changed.count) files changed, \(filesJudgedByDate) files outside the repository checked by date")
+
+        if let warning = try Self.changedSinceRevisionWarning(
+            changedFiles,
+            unindexed: unindexed,
+            revision: freshness.revision,
+            relativeTo: FilePath.current,
+            strict: configuration.strictIndex
+        ) {
+            logger.warn(warning)
+        }
+    }
 
     private static func display(_ path: FilePath, relativeTo base: FilePath) -> String {
         path.starts(with: base) ? path.relativeTo(base).string : path.string

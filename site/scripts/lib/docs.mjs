@@ -96,7 +96,7 @@ export function loadPages() {
 export function changelogPage() {
   const source = readFileSync(join(REPO_DIR, "CHANGELOG.md"), "utf8");
   const body =
-    "# Changelog\n\nEvery change of outskirts, newest first. The `master` section lists what is merged and not released yet. " +
+    "# Changelog\n\nEvery change of outskirts, newest first. " +
     "This page is generated from [CHANGELOG.md](https://github.com/tiny-earth-moon/outskirts/blob/master/CHANGELOG.md) at each build.\n\n" +
     source.replace(/^##### (.+)$/gm, "### $1");
   return {

@@ -42,6 +42,11 @@ struct BuildOptions: ParsableArguments {
     @Flag(inversion: .prefixedNo, help: "Fail the scan when a source file is newer than its index data, instead of warning")
     var strictIndex: Bool?
 
+    @Flag(inversion: .prefixedNo, help: "Fail the scan when the index data misses a scanned target on one of the platforms it supports, or some of its source files")
+    var strictIndexCoverage: Bool?
+    @Option(help: "Git revision the index store was built from: source files changed since it (per git) are reported as out of date, whatever their modification date")
+    var indexBuiltFrom: String?
+
     @Flag(inversion: .prefixedNo, help: "Skip schemes validation")
     var skipSchemesValidation: Bool?
 
@@ -56,6 +61,9 @@ struct BuildOptions: ParsableArguments {
 
     @Option(parsing: .upToNextOption, help: "Index store paths, relative paths being resolved from '--project-root'. Implies '--skip-build'", completion: .directory)
     var indexStorePath: [FilePath] = defaultConfiguration.$indexStorePath.defaultValue
+
+    @Option(parsing: .upToNextOption, help: "DerivedData directories (as passed to 'xcodebuild -derivedDataPath') whose index stores are added to '--index-store-path', relative paths being resolved from '--project-root'. Implies '--skip-build'", completion: .directory)
+    var derivedDataPath: [FilePath] = defaultConfiguration.$derivedDataPath.defaultValue
 
     @Option(help: "Maximum age in days of unused Xcode build caches before they are evicted at the end of a scan. 0 disables eviction (default: 14)")
     var cacheMaxAgeDays: Int?

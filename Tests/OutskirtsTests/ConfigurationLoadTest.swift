@@ -155,6 +155,18 @@ final class ConfigurationLoadTest: XCTestCase {
 
     // MARK: - Lists
 
+    func testDerivedDataPathIsLoadedAsAList() throws {
+        let (configuration, warnings, _) = try load("""
+        derived_data_path:
+          - DerivedData/iOS
+          - DerivedData/macOS
+        """)
+
+        XCTAssertEqual(warnings, [])
+        XCTAssertEqual(configuration.derivedDataPath, [FilePath("DerivedData/iOS"), FilePath("DerivedData/macOS")])
+        XCTAssertEqual(configuration.indexStorePath, [])
+    }
+
     func testScalarForAListSettingIsWrapped() throws {
         let (configuration, warnings, _) = try load("""
         exclude_targets: Demo
