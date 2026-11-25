@@ -109,8 +109,11 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
 
         if try isEffectivelyPublic(extendedDecl) {
             validateDescendentsOfPublicDeclaration(decl)
+        } else if !decl.location.file.modules.isSubset(of: extendedDecl.location.file.modules) {
+            // A client can @testable import the type's module and import the extension's module normally.
+            validatePublicMembers(of: decl)
         } else {
-            // The extended declaration is not publicly accessible, nor are the members of this extension.
+            // In the type's own module, its accessibility also limits the members of its extension.
             markExplicitPublicDescendentDeclarations(from: decl)
         }
     }

@@ -1,3 +1,9 @@
+## 3.28.1 (2026-11-25)
+
+##### Bug Fixes
+
+- An explicit `public` member of an extension declared in another module than its internal type, such as a factory that a client calls after `@testable import` of the type's module and a plain import of the extension's module, is no longer reported as redundant when a client in another module uses it, it appears in a public signature or it satisfies a protocol requirement ([#434](https://github.com/tiny-earth-moon/outskirts/issues/434), thanks [@denis-egaluev](https://github.com/denis-egaluev)).
+
 ## 3.28.0 (2026-11-23)
 
 ##### Enhancements

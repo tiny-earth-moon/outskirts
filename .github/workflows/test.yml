@@ -1,9 +1,15 @@
 name: Test
 on:
+  # The Swift jobs never read site/: a commit or pull request that only changes the site skips them (the site has its
+  # own check, npm run check, on deploy). One file outside site/ runs every job.
   push:
     branches:
       - master
-  pull_request: {}
+    paths-ignore:
+      - site/**
+  pull_request:
+    paths-ignore:
+      - site/**
   # Runs every job, the macOS minimum-Xcode one included, on any branch: gh workflow run Test --ref <branch>
   workflow_dispatch: {}
 permissions:
