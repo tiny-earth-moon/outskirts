@@ -1,15 +1,9 @@
 name: Test
 on:
-  # The Swift jobs never read site/: a commit or pull request that only changes the site skips them (the site has its
-  # own check, npm run check, on deploy). One file outside site/ runs every job.
   push:
     branches:
       - master
-    paths-ignore:
-      - site/**
   pull_request:
-    paths-ignore:
-      - site/**
   # Runs every job, the macOS minimum-Xcode one included, on any branch: gh workflow run Test --ref <branch>
   workflow_dispatch: {}
 permissions:
@@ -141,19 +135,3 @@ jobs:
         run: swift build
       - name: Test
         run: swift test
-  site:
-    name: Site and documentation
-    # Builds outskirts.dev from docs/ and checks it, and checks that docs/options.md and the README extracts are in
-    # step with their sources (`npm run sync` in site/ regenerates them).
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: site
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Install
-        run: npm ci --no-audit --no-fund
-      - name: Check
-        run: npm run check

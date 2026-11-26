@@ -100,7 +100,7 @@ final class ConfigurationSchemaTest: XCTestCase {
         let reference = try Documentation.page("options")
         let lines = reference.split(separator: "\n").map(String.init)
         let properties = try XCTUnwrap(generatedSchema()["properties"] as? [String: [String: Any]])
-        let stale = "docs/options.md is out of date: run 'npm run sync' in site/"
+        let stale = "docs/options.md is out of date with the schema"
 
         for (key, property) in properties {
             let facts = lines.first { $0.hasPrefix("Key `\(key)`") }

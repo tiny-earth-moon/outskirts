@@ -1,3 +1,9 @@
+## 3.28.2 (2026-11-26)
+
+##### Bug Fixes
+
+- An explicit `public` member of a `package` type, of an extension of a `package` type or of a `package` type nested in a public type is no longer reported as redundant when another module of the package uses it: the members of a `package` type default to `internal`, so removing `public` would not compile.
+
 ## 3.28.1 (2026-11-25)
 
 ##### Bug Fixes

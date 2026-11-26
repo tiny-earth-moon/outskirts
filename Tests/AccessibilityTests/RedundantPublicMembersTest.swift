@@ -29,11 +29,13 @@ final class RedundantPublicMembersTest: SPMSourceGraphTestCase {
     func testProtocolWitnesses() {
         analyze()
 
-        assertNotRedundantPublicAccessibility(.functionMethodInstance("rpmRequirement()"))
-        assertNotRedundantPublicAccessibility(.varInstance("rpmRequirementProperty"))
-        assertNotRedundantPublicAccessibility(.varInstance("description"))
-        assertNotRedundantPublicAccessibility(.functionOperatorInfix("==(_:_:)"))
-        assertNotRedundantPublicAccessibility(.functionConstructor("init(from:)"))
+        assertNotRedundantPublicAccessibility(.struct("RpmPublicStruct")) {
+            self.assertNotRedundantPublicAccessibility(.functionMethodInstance("rpmRequirement()"))
+            self.assertNotRedundantPublicAccessibility(.varInstance("rpmRequirementProperty"))
+            self.assertNotRedundantPublicAccessibility(.varInstance("description"))
+            self.assertNotRedundantPublicAccessibility(.functionOperatorInfix("==(_:_:)"))
+            self.assertNotRedundantPublicAccessibility(.functionConstructor("init(from:)"))
+        }
     }
 
     func testInlinableMember() {

@@ -86,7 +86,7 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
             }
         } else {
             // Declaration is not explicitly public, any explicit public descendants are therefore redundant.
-            markExplicitPublicDescendentDeclarations(from: decl)
+            markExplicitPublicDescendentDeclarations(boundedBy: decl)
         }
     }
 
@@ -114,7 +114,11 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
             validatePublicMembers(of: decl)
         } else {
             // In the type's own module, its accessibility also limits the members of its extension.
-            markExplicitPublicDescendentDeclarations(from: decl)
+            if extendedDecl.modifiers.contains("package") {
+                validatePublicMembers(of: decl)
+            } else {
+                markExplicitPublicDescendentDeclarations(from: decl)
+            }
         }
     }
 
@@ -148,12 +152,23 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
         }
     }
 
+    /// Marks the explicit public descendants of a declaration that is not publicly accessible. Members of a `package`
+    /// declaration default to `internal`, so its explicit public members used by another module of the package are
+    /// not redundant.
+    private func markExplicitPublicDescendentDeclarations(boundedBy decl: Declaration) {
+        if decl.modifiers.contains("package") {
+            validatePublicMembers(of: decl)
+        } else {
+            markExplicitPublicDescendentDeclarations(from: decl)
+        }
+    }
+
     private func markExplicitPublicDescendentsOfNonPublicDescendents(from decl: Declaration) {
         for childDecl in decl.declarations where !childDecl.isImplicit {
             if childDecl.accessibility.isAccessibleCrossModule {
                 markExplicitPublicDescendentsOfNonPublicDescendents(from: childDecl)
             } else {
-                markExplicitPublicDescendentDeclarations(from: childDecl)
+                markExplicitPublicDescendentDeclarations(boundedBy: childDecl)
             }
         }
     }
@@ -176,7 +191,7 @@ final class RedundantExplicitPublicAccessibilityMarker: SourceGraphMutator {
             } else if member.accessibility.isAccessibleCrossModule {
                 validatePublicMembers(of: member)
             } else {
-                markExplicitPublicDescendentDeclarations(from: member)
+                markExplicitPublicDescendentDeclarations(boundedBy: member)
             }
         }
     }

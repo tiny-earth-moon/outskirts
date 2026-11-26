@@ -5,5 +5,6 @@ import XCTest
 final class TestableImportTests: XCTestCase {
     func testFactoryThroughTestableImport() {
         _ = ImportedValue.makeTestableValue()
+        _ = SharedValue.makeSharedFromHelpers()
     }
 }
