@@ -25,22 +25,26 @@ public struct SourceFileCollector {
 
     private let indexStorePaths: Set<FilePath>
     private let excludedModules: Set<String>
+    private let testModules: Set<String>
     private let scanInputs: ScanInputs
     private let logger: ContextualLogger
     private let configuration: Configuration
 
     /// `excludedModules`: the modules of the targets the driver leaves out, which index units name; the names of
-    /// `exclude_targets` are left out as module names too. `scanInputs`: with `index_built_from`, only the changes
-    /// to these files can make the results out of date.
+    /// `exclude_targets` are left out as module names too. `testModules`: the modules of the test targets, whose own
+    /// source files are marked as test files. `scanInputs`: with `index_built_from`, only the changes to these files
+    /// can make the results out of date.
     public init(
         indexStorePaths: Set<FilePath>,
         excludedModules: Set<String>,
+        testModules: Set<String> = [],
         scanInputs: ScanInputs,
         logger: ContextualLogger,
         configuration: Configuration
     ) {
         self.indexStorePaths = indexStorePaths
         self.excludedModules = excludedModules
+        self.testModules = testModules
         self.scanInputs = scanInputs
         self.logger = logger
         self.configuration = configuration
@@ -142,7 +146,7 @@ public struct SourceFileCollector {
                 modificationDate: \.4
             )
             let modules = tuples.compactMapSet { $0.3 }
-            let sourceFile = SourceFile(path: file, modules: modules)
+            let sourceFile = SourceFile(path: file, modules: modules, isTestFile: Self.isTestFile(modules: modules, testModules: testModules))
             sourceFiles[sourceFile] = tuples.map { IndexUnit(store: $0.1, unit: $0.2) }
 
             let changedSinceRevision = freshness?.hasChanged(file)
@@ -176,6 +180,12 @@ public struct SourceFileCollector {
         }
 
         return (sourceFiles, unreadableUnits.values.flatMap(\.self).sorted())
+    }
+
+    /// Whether a file compiled into `modules` belongs to test targets only: a file also compiled into a module that is
+    /// not a test target's is not a test file.
+    static func isTestFile(modules: Set<String>, testModules: Set<String>) -> Bool {
+        !modules.isEmpty && modules.isSubset(of: testModules)
     }
 
     /// A unit written before its source file was last modified describes an older version of the file, e.g. a unit

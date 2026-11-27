@@ -59,6 +59,14 @@ final class SPMExcludedTargetModuleNameTest: SPMSourceGraphTestCase {
         XCTAssertEqual(Set(plan.expectedSourceFiles.keys), ["My-Lib"])
     }
 
+    func testTestTargetSources_areMarkedAsTestFiles() throws {
+        let plan = try plan { _ in }
+        let testFiles = plan.sourceFiles.keys.filter(\.isTestFile)
+
+        XCTAssertEqual(Set(testFiles.map(\.path)), [SPMHyphenatedProjectPath.appending("Tests/My-LibTests/GreeterTests.swift")])
+        XCTAssertEqual(Set(testFiles.flatMap(\.modules)), ["My_LibTests"])
+    }
+
     func testUnmatchedExcludedTargets_namesOnlyTheUnknownNames() {
         let targets = ["My-Lib", "My_Lib", "My-LibTests", "My_LibTests"]
 

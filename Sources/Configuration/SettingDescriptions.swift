@@ -33,6 +33,7 @@ extension Configuration {
         "enable_empty_extension_analysis": "Find extensions that declare no member and no conformance.",
         "enable_redundant_access_level_analysis": "Find access modifiers identical to the default of their enclosing context.",
         "report_unused_type_parameters": "Also report unused generic parameters of types, ignored by default as they may be phantom types.",
+        "report_test_only": "Report the declarations used only by test code, outside the test targets.",
         "disable_platform_conditional_retention": "Do not retain declarations unavailable on a platform or referenced from platform conditional compilation blocks.",
         "disable_unused_import_analysis": "Turn off the analysis of unused imports.",
         "enable_unused_system_imports": "Also analyze imports of system frameworks (experimental).",

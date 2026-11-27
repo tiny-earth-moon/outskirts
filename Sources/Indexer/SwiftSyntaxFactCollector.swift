@@ -72,6 +72,19 @@ struct SwiftSyntaxFactCollector {
             }
         }
 
+        // With `report_test_only`, a reference written in a branch the build did not compile (`#if !DEBUG`, a custom
+        // flag) still counts as a use by the app.
+        if configuration.reportTestOnly,
+           !sourceFile.isTestFile,
+           !configuration.isAnalyzedGeneratedAssetSymbolsFile(sourceFile.path)
+        {
+            let names = PlatformConditionalNameCollector.collectEveryCondition(from: multiplexingSyntaxVisitor.syntax)
+
+            if !names.isEmpty {
+                graph.withLock { $0.addConditionalCompilationNames(names) }
+            }
+        }
+
         let parameterAttributeNames = ParameterAttributeNameCollector.collect(from: multiplexingSyntaxVisitor.syntax)
 
         if !parameterAttributeNames.isEmpty {

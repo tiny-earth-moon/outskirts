@@ -127,6 +127,7 @@ struct ScanCommand: ParsableCommand {
         configuration.apply(\.$enableEmptyExtensionAnalysis, analysisOptions.enableEmptyExtensionAnalysis)
         configuration.apply(\.$enableRedundantAccessLevelAnalysis, analysisOptions.enableRedundantAccessLevelAnalysis)
         configuration.apply(\.$reportUnusedTypeParameters, analysisOptions.reportUnusedTypeParameters)
+        configuration.apply(\.$reportTestOnly, analysisOptions.reportTestOnly)
         configuration.apply(\.$disablePlatformConditionalRetention, analysisOptions.disablePlatformConditionalRetention)
         configuration.apply(\.$disableUnusedImportAnalysis, analysisOptions.disableUnusedImportAnalysis)
         configuration.apply(\.$enableUnusedSystemImports, analysisOptions.enableUnusedSystemImports)

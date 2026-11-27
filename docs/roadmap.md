@@ -41,7 +41,7 @@ Recent releases, newest first:
 - 3.x releases only add: every new behaviour is opt-in, and defaults change in 4.0 only.
 - The Periphery 3.8 command line, configuration keys, comment commands, output formats and exit codes keep working throughout 3.x.
 - A deprecated option warns for at least one minor release before it is removed, and removal waits for a major release.
-- 4.0 ships with a migration command for the configuration and baselines. After it, 3.x gets toolchain and crash fixes for at least three months, longer if usage calls for it.
+- 4.0 is planned with a migration command for the configuration and baselines. After it ships, 3.x gets toolchain and crash fixes for at least three months, longer if usage calls for it.
 
 ## Next
 
@@ -54,7 +54,7 @@ In order, each one opt-in:
 
 ## Toward 4.0
 
-The 4.0 theme: what ships on any platform or configuration is used; everything else is reported with a stable id and can be removed safely. These changes are breaking and ship together:
+The 4.0 theme: what ships on any platform or configuration is used; everything else is reported with a stable id and can be removed safely. No date is set, and the list may change with feedback. These changes are breaking and are planned to ship together:
 
 - Scanning every variant becomes the default and replaces name-based retention.
 - Configuration v2: schema, strict validation and per-module overrides.

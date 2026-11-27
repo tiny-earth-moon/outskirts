@@ -66,7 +66,7 @@ final class SourceGraphVariantTwinTest: XCTestCase {
             graph.markRetained(first)
             graph.indexingComplete()
 
-            UsedDeclarationMarker(graph: graph, configuration: Configuration(), swiftVersion: swiftVersion).mutate()
+            try UsedDeclarationMarker(graph: graph, configuration: Configuration(), swiftVersion: swiftVersion).mutate()
 
             XCTAssertEqual(graph.unusedDeclarations.contains(target), !everyVariant, "every_variant: \(everyVariant)")
         }

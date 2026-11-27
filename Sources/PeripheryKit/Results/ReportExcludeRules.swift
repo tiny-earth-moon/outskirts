@@ -14,7 +14,7 @@ enum ResultKind {
     static let annotationNames: Set<String> = Set([
         "unused", "assignOnlyProperty", "unassignedOptionalProperty", "redundantProtocol", "redundantPublicAccessibility",
         "redundantOpenAccessibility", "missingFinal", "redundantAccessLevel", "emptyExtension", "superfluousIgnoreCommand",
-        "missingMetalFunction",
+        "missingMetalFunction", "testOnly",
     ]).union(AssetCatalogSymbolKind.allCases.map(\.annotationName))
 
     static let identifiers: Set<String> = annotationNames.union(annotationNames.flatMap { annotation in
@@ -48,6 +48,7 @@ enum ResultKind {
         case .superfluousIgnoreCommand: "superfluousIgnoreCommand"
         case let .unusedAssetCatalogSymbol(symbol): symbol.kind.annotationName
         case .missingMetalFunction: "missingMetalFunction"
+        case .testOnly: "testOnly"
         }
     }
 }

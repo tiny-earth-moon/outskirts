@@ -23,7 +23,7 @@ final class UsedDeclarationMarkerTest: XCTestCase {
     private func mutate(_ graph: SourceGraph) throws {
         let logger = Logger(quiet: true, verbose: false, colorMode: .never)
         let swiftVersion = try SwiftVersion(shell: ShellImpl(logger: logger))
-        UsedDeclarationMarker(graph: graph, configuration: Configuration(), swiftVersion: swiftVersion).mutate()
+        try UsedDeclarationMarker(graph: graph, configuration: Configuration(), swiftVersion: swiftVersion).mutate()
     }
 
     private func makeFunction(_ index: Int) -> Declaration {

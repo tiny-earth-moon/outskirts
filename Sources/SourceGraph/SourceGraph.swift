@@ -7,6 +7,13 @@ import SystemPackage
 public final class SourceGraph {
     public private(set) var allDeclarations: Set<Declaration> = []
     public private(set) var usedDeclarations: Set<Declaration> = []
+    /// With `report_test_only`, the entries of the test-only chains, the declarations reported as `testOnly`.
+    public internal(set) var testOnlyDeclarations: Set<Declaration> = []
+    /// With `report_test_only`, each declaration outside test files that only code in test files uses, and the entry
+    /// of its chain.
+    public internal(set) var testOnlyEntries: [Declaration: Declaration] = [:]
+    /// With `report_test_only`, the retained declarations that only code in test files keeps, and nothing else.
+    public internal(set) var retainedForTestsOnly: Set<Declaration> = []
     public private(set) var redundantProtocols: [Declaration: (references: Set<Reference>, inherited: Set<Reference>)] = [:]
     /// Protocols that would be redundant were they not retained by an ignore comment.
     public private(set) var suppressedRedundantProtocols: Set<Declaration> = []
@@ -34,6 +41,8 @@ public final class SourceGraph {
     public private(set) var platformConditionalNames: Set<String> = []
     public private(set) var parameterAttributeNames: Set<String> = []
     public private(set) var platformConditionalNamesByFile: [SourceFile: Set<String>] = [:]
+    /// With `report_test_only`, the names written in any `#if` clause of a file outside the test targets.
+    public internal(set) var conditionalCompilationNames: Set<String> = []
     public private(set) var usedLocalizedStringKeys: Set<String> = []
     /// Literals passed as `Dictionary` keys or `Set` elements, keys only when `declaresHashableLocalizedType`.
     public private(set) var hashableKeyedLocalizedStringKeys: Set<String> = []
@@ -183,6 +192,8 @@ public final class SourceGraph {
     }
 
     public func markRetained(_ declaration: Declaration) {
+        retainedForTestsOnly.remove(declaration)
+
         if let parent = declaration.parent {
             for usr in declaration.usrs {
                 let reference = Reference(
@@ -226,6 +237,7 @@ public final class SourceGraph {
         }
 
         retainedDeclarations.remove(declaration)
+        retainedForTestsOnly.remove(declaration)
 
         let retainedReferences = declaration.usrs.flatMapSet { usr in
             allReferencesByUsr[usr, default: []]
@@ -452,7 +464,7 @@ public final class SourceGraph {
         unindexedSourceFilesByModule[module, default: []].append(contentsOf: files)
     }
 
-    private func recordRetentionReason(_ reason: RetentionReason, for declaration: Declaration) {
+    func recordRetentionReason(_ reason: RetentionReason, for declaration: Declaration) {
         if !retentionReasons[declaration, default: []].contains(reason) {
             retentionReasons[declaration, default: []].append(reason)
         }

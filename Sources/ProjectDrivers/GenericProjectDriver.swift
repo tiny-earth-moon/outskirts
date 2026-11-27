@@ -146,6 +146,7 @@ extension GenericProjectDriver: ProjectDriver {
         let collector = SourceFileCollector(
             indexStorePaths: indexStorePaths,
             excludedModules: configuration.excludeTests ? testTargets : [],
+            testModules: testTargets,
             scanInputs: ScanInputs(
                 sourceFiles: nil,
                 resources: plistPaths.union(xibPaths).union(xcDataModelsPaths).union(xcMappingModelsPaths).union(xcStringsPaths),

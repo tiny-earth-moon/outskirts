@@ -21,11 +21,15 @@ public final class PlatformConditionalNameCollector: SyntaxVisitor {
     public private(set) var names: Set<String> = []
 
     private let configurations: [PlatformBuildConfiguration]
+    private let collectsEveryCondition: Bool
 
     /// - Parameter configurations: the configurations the file was compiled for. When empty, every clause of every
     ///   platform conditional block is collected.
-    public init(configurations: [PlatformBuildConfiguration] = []) {
+    /// - Parameter collectsEveryCondition: whether every clause of every `#if` block is collected, whatever its
+    ///   condition (`DEBUG`, custom flags), as the compiled clause of a custom condition cannot be known.
+    public init(configurations: [PlatformBuildConfiguration] = [], collectsEveryCondition: Bool = false) {
         self.configurations = configurations
+        self.collectsEveryCondition = collectsEveryCondition
         super.init(viewMode: .sourceAccurate)
     }
 
@@ -38,7 +42,19 @@ public final class PlatformConditionalNameCollector: SyntaxVisitor {
         return collector.names
     }
 
+    /// The names written in any clause of any `#if` block, whatever its condition.
+    public static func collectEveryCondition(from syntax: SourceFileSyntax) -> Set<String> {
+        let collector = PlatformConditionalNameCollector(collectsEveryCondition: true)
+        collector.walk(syntax)
+        return collector.names
+    }
+
     override public func visit(_ node: IfConfigDeclSyntax) -> SyntaxVisitorContinueKind {
+        if collectsEveryCondition {
+            node.clauses.forEach(collectNames(in:))
+            return .skipChildren
+        }
+
         guard node.clauses.contains(where: { isPlatformCondition($0.condition) }) else {
             return .visitChildren
         }

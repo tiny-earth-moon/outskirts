@@ -1,5 +1,6 @@
 import Foundation
 import Logger
+@testable import ProjectDrivers
 import Shared
 import SystemPackage
 @testable import TestShared
@@ -139,5 +140,9 @@ final class XcodeTargetTest: XCTestCase {
 
         XCTAssertFalse(projectTarget.isTestTarget)
         XCTAssertTrue(testTarget.isTestTarget)
+    }
+
+    func testTestModules_nameOnlyTheTestTargets() {
+        XCTAssertEqual(XcodeProjectDriver.testModules(of: project.targets), ["UIKitProjectTests"])
     }
 }

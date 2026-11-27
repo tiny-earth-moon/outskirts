@@ -126,6 +126,17 @@ final class SourceFileCollectorTest: XCTestCase {
         XCTAssertEqual(current(units, sourceModificationDate: edited), ["lib", "app"])
     }
 
+    func testFileOfTestModulesOnly_isATestFile() {
+        XCTAssertTrue(SourceFileCollector.isTestFile(modules: ["AppTests"], testModules: ["AppTests", "LibTests"]))
+        XCTAssertTrue(SourceFileCollector.isTestFile(modules: ["AppTests", "LibTests"], testModules: ["AppTests", "LibTests"]))
+    }
+
+    func testFileSharedWithANonTestModule_isNotATestFile() {
+        XCTAssertFalse(SourceFileCollector.isTestFile(modules: ["App", "AppTests"], testModules: ["AppTests"]))
+        XCTAssertFalse(SourceFileCollector.isTestFile(modules: ["App"], testModules: ["AppTests"]))
+        XCTAssertFalse(SourceFileCollector.isTestFile(modules: [], testModules: ["AppTests"]))
+    }
+
     func testUnknownDates_keepAllUnits() {
         let units = [
             Unit(name: "undated", module: "Frontend", date: nil),

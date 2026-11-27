@@ -36,6 +36,10 @@ The result annotations are:
 | `redundantAccessLevel` | [Redundant access levels](analysis.md#redundant-access-levels) |
 | `emptyExtension` | [Empty extensions](analysis.md#empty-extensions) |
 | `superfluousIgnoreCommand` | [Superfluous ignore comments](analysis.md#superfluous-ignore-comments) |
+| `unusedAssetCatalogColor` | [Asset catalog colors](analysis.md#asset-catalog-colors) |
+| `unusedAssetCatalogImage` | [Asset catalog images](analysis.md#asset-catalog-images) |
+| `missingMetalFunction` | [Metal functions](analysis.md#metal-functions) |
+| `testOnly` | [Test-only declarations](analysis.md#test-only-declarations) |
 
 ## Including results
 

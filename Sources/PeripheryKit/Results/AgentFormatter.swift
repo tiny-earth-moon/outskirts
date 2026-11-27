@@ -79,12 +79,14 @@ public final class AgentFormatter: OutputFormatter {
         case unusedFiles
         case unusedCode
         case declarationChanges
+        case testOnlyCode
 
         var title: String {
             switch self {
             case .unusedFiles: "Delete these files (every declaration unused)"
             case .unusedCode: "Remove unused code"
             case .declarationChanges: "Change declarations"
+            case .testOnlyCode: "Review code used only by tests"
             }
         }
 
@@ -149,11 +151,12 @@ public final class AgentFormatter: OutputFormatter {
         let source = location.file.path.extension == "swift" ? sources.file(location.file.path) : nil
         let section: Section = switch result.annotation {
         case .redundantPublicAccessibility, .redundantOpenAccessibility, .missingFinal, .redundantAccessLevel: .declarationChanges
+        case .testOnly: .testOnlyCode
         default: .unusedCode
         }
 
         var lineRange = "L\(location.line)"
-        if section == .unusedCode, let span = source?.span(at: location), span.lines.count > 1 {
+        if section == .unusedCode || section == .testOnlyCode, let span = source?.span(at: location), span.lines.count > 1 {
             lineRange = "L\(span.lines.lowerBound)-\(span.lines.upperBound)"
         }
 
@@ -196,6 +199,8 @@ public final class AgentFormatter: OutputFormatter {
             "delete asset: " + unusedAssetCatalogSymbolDescription(symbol, symbolName: result.declaration.name)
         case .missingMetalFunction:
             "check: no such function in any .metal file, fix the name or remove the reference"
+        case .testOnly:
+            "check: used only by tests, delete it with the tests that use it or use it in the app"
         }
     }
 

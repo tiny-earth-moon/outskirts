@@ -139,6 +139,8 @@ extension OutputFormatter {
             description += unusedAssetCatalogSymbolDescription(symbol, symbolName: name, text: text)
         case .missingMetalFunction:
             description += "Metal function '\(name)' not found in any .metal file"
+        case .testOnly:
+            description += "Test-only \(kindDisplayName) '\(name)' is used only by tests"
         }
 
         return [(location, description)] + secondaryResults
@@ -248,6 +250,8 @@ extension ScanResult.Annotation {
             symbol.kind.annotationName
         case .missingMetalFunction:
             "missingMetalFunction"
+        case .testOnly:
+            "testOnly"
         }
     }
 }

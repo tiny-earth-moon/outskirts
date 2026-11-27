@@ -288,6 +288,7 @@
             let collector = SourceFileCollector(
                 indexStorePaths: indexStorePaths,
                 excludedModules: excludedTargets.mapSet { $0.moduleName ?? $0.name },
+                testModules: Self.testModules(of: targets),
                 scanInputs: ScanInputs(
                     sourceFiles: Set(expectedSourceFiles.values.joined()),
                     resources: infoPlistPaths.union(xibPaths).union(xcDataModelPaths).union(xcMappingModelPaths).union(xcStringsPaths),
@@ -324,6 +325,11 @@
                     || excludeTargets.contains(target.name)
                     || target.moduleName.map(excludeTargets.contains) == true
             }
+        }
+
+        /// The modules of the test targets, which index units name.
+        static func testModules(of targets: Set<XcodeTarget>) -> Set<String> {
+            targets.filter(\.isTestTarget).mapSet { $0.moduleName ?? $0.name }
         }
 
         /// The targets with Swift source files, minus the excluded names, keyed by name. A name shared by targets of

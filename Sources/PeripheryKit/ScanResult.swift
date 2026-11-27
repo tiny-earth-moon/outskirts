@@ -16,6 +16,7 @@ public struct ScanResult {
         case superfluousIgnoreCommand
         case unusedAssetCatalogSymbol(AssetCatalogSymbol)
         case missingMetalFunction
+        case testOnly
     }
 
     let declaration: Declaration
@@ -24,6 +25,9 @@ public struct ScanResult {
     public var usrs: Set<String> {
         if case .superfluousIgnoreCommand = annotation {
             return declaration.usrs.mapSet { "superfluous-ignore-\($0)" }
+        }
+        if case .testOnly = annotation {
+            return declaration.usrs.mapSet { "test-only-\($0)" }
         }
         return declaration.usrs
     }

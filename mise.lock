@@ -3,18 +3,17 @@
 lockfile_version = 4
 
 [[tools.swiftformat]]
-version = "0.64.2"
+version = "0.64.7"
 backend = "github:nicklockwood/SwiftFormat"
-specifiers = ["0.64.2"]
+specifiers = ["0.64.7"]
 
 [tools.swiftformat.options]
 no_app = "true"
 
 [tools.swiftformat."platforms.macos-arm64"]
-checksum = "sha256:103b784eeb7bfcbdce12d07f7464a5c12bfdcc6d8d417b6989125fdc2dbf07ae"
-checksum_source = "mise-versions"
-url = "https://github.com/nicklockwood/SwiftFormat/releases/download/0.64.2/swiftformat.zip"
-url_api = "https://api.github.com/repos/nicklockwood/SwiftFormat/releases/assets/677565401"
+checksum = "sha256:e82e224325cbd3403fc7b68caf6c917926dc106de3af875fca4b87e3c4634038"
+url = "https://github.com/nicklockwood/SwiftFormat/releases/download/0.64.7/swiftformat.zip"
+url_api = "https://api.github.com/repos/nicklockwood/SwiftFormat/releases/assets/747332879"
 
 [[tools.swiftlint]]
 version = "0.65.1"

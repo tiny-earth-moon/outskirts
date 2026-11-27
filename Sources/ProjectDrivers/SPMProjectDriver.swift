@@ -190,6 +190,7 @@ extension SPMProjectDriver: ProjectDriver {
         let collector = SourceFileCollector(
             indexStorePaths: indexStorePaths,
             excludedModules: excludedTargets.mapSet(\.moduleName),
+            testModules: Self.testModules(of: description),
             scanInputs: ScanInputs(
                 sourceFiles: Set(expectedSourceFiles.values.joined()),
                 resources: xibPaths.union(xcDataModelPaths).union(xcStringsPaths),
@@ -273,6 +274,27 @@ extension SPMProjectDriver: ProjectDriver {
         }
 
         return result
+    }
+
+    /// The modules of the test targets, and the modules SwiftPM generates to discover and run their tests where the
+    /// Objective-C runtime is missing: `<Package>PackageDiscoveredTests` and `<Package>PackageTests`, or one
+    /// `<TestTarget>_test_runner` per test target, depending on the SwiftPM version, on Linux.
+    static func testModules(of description: PackageDescription) -> Set<String> {
+        let modules = description.targets.filter(\.isTestTarget).mapSet(\.moduleName)
+        guard !modules.isEmpty else { return modules }
+
+        let runners = modules.map { $0 + "_test_runner" }
+        guard let name = description.name else { return modules.union(runners) }
+
+        let generated = ["PackageDiscoveredTests", "PackageTests"].map { c99Identifier(name + $0) }
+        return modules.union(runners).union(generated)
+    }
+
+    /// The name made a C identifier, as SwiftPM names a module: each character that is not a letter, a digit or `_`
+    /// becomes `_`, and a leading digit is prefixed with `_`.
+    private static func c99Identifier(_ name: String) -> String {
+        let identifier = String(name.map { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_") ? $0 : "_" })
+        return identifier.first?.isNumber == true ? "_" + identifier : identifier
     }
 
     /// The test targets with `exclude_tests`, and the targets `exclude_targets` names by target or module name.

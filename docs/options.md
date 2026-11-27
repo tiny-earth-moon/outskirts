@@ -38,7 +38,7 @@ Since 3.22.0.
 
 Explains why a declaration is reported, used or retained, before the results. Accepts a name (`draw()`, `draw` or `Beta.draw()`), a USR or a `file:line` location; repeat the option to explain several declarations, e.g. `--explain 'draw()' --explain Sources/Kit/Shape.swift:12`.
 
-See [Troubleshooting: Why a declaration is reported or kept](troubleshooting.md#why-a-declaration-is-reported-or-kept).
+See [Analysis: Test-only declarations](analysis.md#test-only-declarations), [Troubleshooting: Why a declaration is reported or kept](troubleshooting.md#why-a-declaration-is-reported-or-kept).
 
 ### `--max-results`
 
@@ -250,7 +250,7 @@ Exclude test targets from indexing.
 
 Key `exclude_tests` · flag, `--no-exclude-tests` to switch off · default `false`.
 
-See [Analysis: Literal matching](analysis.md#literal-matching), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Troubleshooting: Index data missing a target or a platform](troubleshooting.md#index-data-missing-a-target-or-a-platform), [Fixing unused String Catalog keys: Partial scans](fix.md#partial-scans).
+See [Analysis: Literal matching](analysis.md#literal-matching), [Analysis: Test-only declarations](analysis.md#test-only-declarations), [Excluding files: Excluding indexed files](excluding-files.md#excluding-indexed-files), [Troubleshooting: Index data missing a target or a platform](troubleshooting.md#index-data-missing-a-target-or-a-platform).
 
 ### `--index-exclude`
 
@@ -349,6 +349,16 @@ Also report unused generic parameters of types, ignored by default as they may b
 Key `report_unused_type_parameters` · flag, `--no-report-unused-type-parameters` to switch off · default `false`.
 
 See [Analysis: Generic type parameters](analysis.md#generic-type-parameters), [Roadmap: Published](roadmap.md#published).
+
+### `--report-test-only`
+
+Since 3.29.0.
+
+Report the declarations used only by test code, outside the test targets.
+
+Key `report_test_only` · flag, `--no-report-test-only` to switch off · default `false`.
+
+See [Analysis: Result kinds](analysis.md#result-kinds), [Analysis: Test-only declarations](analysis.md#test-only-declarations), [Output formats: agent](output-formats.md#agent).
 
 ### `--enable-unassigned-optional-analysis`
 

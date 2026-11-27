@@ -1,3 +1,10 @@
+## 3.29.0 (2026-11-27)
+
+##### Enhancements
+
+- `--report-test-only` (`report_test_only: true`, off by default) reports the declarations of the app that only test code uses, such as a view kept alive only by snapshot tests, as `testOnly` ("used only by tests"). Only the outermost declaration of each test-only group is reported: generated members stay with their type and generated asset symbols with their catalog. A declaration that a platform conditional of a test file keeps only by writing its name is test-only too. Test code and its helpers are never reported; with `exclude_tests`, nothing is test-only. Every output format, `report_exclude` and baselines know the new kind; see "Test-only declarations" in the analysis guide.
+- `--explain` names the files whose `#if` clauses keep a declaration through platform conditional retention.
+
 ## 3.28.2 (2026-11-26)
 
 ##### Bug Fixes

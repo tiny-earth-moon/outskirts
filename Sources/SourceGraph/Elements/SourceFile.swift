@@ -4,6 +4,9 @@ import SystemPackage
 public final class SourceFile {
     public let path: FilePath
     public let modules: Set<String>
+    /// Whether the file belongs to test targets only: every module its index units compile it into is the module of a
+    /// test target. A file shared with another target is not a test file.
+    public let isTestFile: Bool
     public var importStatements: [ImportStatement] = []
     public var importsSwiftTesting = false
     public var usesDistributedModifier = false
@@ -11,9 +14,10 @@ public final class SourceFile {
     /// modified or of unknown date, or the file changed since `index_built_from`, see `SourceFileCollector.mayBeOutdated`.
     public var hasOutdatedIndex = false
 
-    public init(path: FilePath, modules: Set<String>) {
+    public init(path: FilePath, modules: Set<String>, isTestFile: Bool = false) {
         self.path = path
         self.modules = modules
+        self.isTestFile = isTestFile
     }
 }
 

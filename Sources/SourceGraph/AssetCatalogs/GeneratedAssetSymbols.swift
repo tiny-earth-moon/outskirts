@@ -8,6 +8,53 @@ import SystemPackage
 /// `static let logo = ImageResource(name: "Logo", bundle: resourceBundle)` and the `UIImage.logo` and `NSImage.logo`
 /// accessors.
 enum GeneratedAssetSymbols {
+    /// An asset of a generated file, with its symbols and whether its name is referenced as a string.
+    struct Asset {
+        let kind: AssetCatalogSymbolKind
+        let name: String?
+        let declarations: [Declaration]
+        let isReferencedByName: Bool
+    }
+
+    private struct AssetKey: Hashable, Comparable {
+        let kind: AssetCatalogSymbolKind
+        let symbolName: String
+
+        static func < (lhs: Self, rhs: Self) -> Bool {
+            (lhs.kind.rawValue, lhs.symbolName) < (rhs.kind.rawValue, rhs.symbolName)
+        }
+    }
+
+    /// The assets of the generated files analyzed with the given configuration, by file, kind and symbol name.
+    static func assets(in graph: SourceGraph, configuration: Configuration) throws -> [Asset] {
+        let kinds = AssetCatalogSymbolKind.detected(by: configuration)
+        guard !kinds.isEmpty else { return [] }
+
+        let rootsByFile = Dictionary(grouping: rootDeclarations(in: graph, configuration: configuration)) { $0.location.file.path }
+        var assets: [Asset] = []
+
+        for (file, fileRoots) in rootsByFile.sorted(by: { $0.key.string < $1.key.string }) {
+            let symbolsByKey = Dictionary(grouping: symbols(in: fileRoots, kinds: kinds)) { AssetKey(kind: $0.1, symbolName: $0.0.name) }
+            var assetNamesByKind: [AssetCatalogSymbolKind: [String: String]] = [:]
+
+            for (key, assetSymbols) in symbolsByKey.sorted(by: { $0.key < $1.key }) {
+                if assetNamesByKind[key.kind] == nil {
+                    assetNamesByKind[key.kind] = try assetNames(in: file, kind: key.kind)
+                }
+
+                let name = assetNamesByKind[key.kind]?[key.symbolName]
+                assets.append(Asset(
+                    kind: key.kind,
+                    name: name,
+                    declarations: assetSymbols.map(\.0).sorted(),
+                    isReferencedByName: name.map { graph.assetCatalogNameReferences.contains($0) } ?? false
+                ))
+            }
+        }
+
+        return assets
+    }
+
     /// The root declarations of the generated files analyzed with the given configuration.
     static func rootDeclarations(in graph: SourceGraph, configuration: Configuration) -> [Declaration] {
         graph.rootDeclarations

@@ -19,6 +19,7 @@ final class CommandLinePrecedenceTest: XCTestCase {
         ("enable_empty_extension_analysis", \.enableEmptyExtensionAnalysis),
         ("enable_redundant_access_level_analysis", \.enableRedundantAccessLevelAnalysis),
         ("report_unused_type_parameters", \.reportUnusedTypeParameters),
+        ("report_test_only", \.reportTestOnly),
         ("disable_unused_import_analysis", \.disableUnusedImportAnalysis),
         ("enable_unused_system_imports", \.enableUnusedSystemImports),
         ("superfluous_ignore_comments", \.superfluousIgnoreComments),

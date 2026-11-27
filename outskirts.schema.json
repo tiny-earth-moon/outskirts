@@ -219,6 +219,11 @@
       "type": "boolean",
       "default": false
     },
+    "report_test_only": {
+      "description": "Report the declarations used only by test code, outside the test targets.",
+      "type": "boolean",
+      "default": false
+    },
     "disable_platform_conditional_retention": {
       "description": "Do not retain declarations unavailable on a platform or referenced from platform conditional compilation blocks.",
       "type": "boolean",

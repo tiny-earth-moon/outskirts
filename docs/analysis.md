@@ -27,6 +27,7 @@ Each result carries an annotation, which is also the kind you give to `report_ex
 | `unusedAssetCatalogColor` | `--detect-unused-asset-catalog-colors` | [Asset catalog colors](#asset-catalog-colors) |
 | `unusedAssetCatalogImage` | `--detect-unused-asset-catalog-images` | [Asset catalog images](#asset-catalog-images) |
 | `missingMetalFunction` | `--detect-unused-metal-functions` | [Metal functions](#metal-functions) |
+| `testOnly` | `--report-test-only` | [Test-only declarations](#test-only-declarations) |
 
 Unused parameters, imports, localized strings and Metal functions are `unused` results; the JSON `kind` field tells them apart (`var.parameter`, `module`, `localized_string`, `metal_function`), and a `report_exclude` kind can be narrowed with it, e.g. `unused.var.parameter`.
 
@@ -824,3 +825,44 @@ A name that is not a plain string literal (a variable, an interpolation) may nam
 A library that is not built from the project's `.metal` files may declare any function, so as soon as a Swift source creates one, no `missingMetalFunction` is reported at all (the `unused` results are unchanged). The calls that count are `makeLibrary(source:)` (with or without `options:`), `makeLibrary(URL:)`, `makeLibrary(filepath:)`, `makeLibrary(data:)`, `makeLibrary(stitchedDescriptor:)`, `makeBinaryArchive(` and any use of `MTLBinaryArchive`; `makeLibrary()` and `makeDefaultLibrary()` read the compiled project library and do not. `--verbose` prints the first such call and says why literals naming unknown functions are left out.
 
 Known limits: functions declared in `.h` headers or inside C++ namespaces are not read, so a literal naming one is reported as not found, unless a library created at run time is present.
+
+## Test-only declarations
+
+Since 3.29.0.
+
+Opt-in: [`--report-test-only`](options.md), key `report_test_only: true`.
+
+A declaration of the app that only test code uses is not unused: the tests reach it, so it is never reported as `unused`. It still costs what dead code costs, as the app never runs it. With the option, outskirts walks the graph a second time from the roots outside the test targets only, ignoring every reference written in a test file, and reports the declarations the first walk reached and the second did not as `testOnly`, with the message `Test-only struct 'LegacyBadge' is used only by tests`.
+
+Only the entry of each test-only chain is reported: a test-only declaration that another test-only declaration of the app contains or references is a link of that declaration's chain, and so are the witnesses of a test-only protocol requirement. Deleting the entry with its tests leaves its links unused, and the next scan reports them. Excluding an entry with `report_exclude` or an ignore comment hides its chain too. `--explain` on a link says that it is test-only and names the entry it is reported on.
+
+The second walk also starts from the retained declarations of the app and from every declaration named in an `#if` clause of the app, whatever the condition, along with the initializers of a named type: the branch may not be the one the index compiled (`#if !DEBUG`, the `#else` of `#if DEBUG`, a custom flag), so a declaration the tests call and the app calls only in such a branch is not reported.
+
+A declaration that [platform conditional retention](framework-conventions.md#platform-conditionals) keeps only because a platform conditional block of a test file writes its name is retained for the tests alone: the second walk does not start from it, so it is reported when the app does not use it otherwise. When a file of the app writes its name too, it is a root of the second walk. `--explain` names the files that write it.
+
+The members the compiler generates for a type, such as a memberwise initializer, are reached with their type rather than from the retained declarations: when only tests use a type, the declarations that only its generated members reference are links of its chain. With [asset catalog colors](#asset-catalog-colors) or [images](#asset-catalog-images), the generated symbols of an asset are grouped as they are for unused assets: a symbol only tests use is not reported when the app uses another symbol of the asset or loads it by name.
+
+A typical case is a view that the app no longer shows, kept alive by its snapshot tests alone:
+
+```swift
+// App target: no screen shows LegacyBadge any more.
+struct LegacyBadge: View {
+    var body: some View { Text("New") }
+}
+
+// Test target
+func testLegacyBadge() {
+    assertSnapshot(of: LegacyBadge())
+}
+// Test-only struct 'LegacyBadge' is used only by tests
+```
+
+Delete the view with its snapshot test, or use it in the app again.
+
+What is never reported: the code of the test targets, its helpers and fixtures included, is never `testOnly`; it keeps the results it had without the option. A declaration that the app uses as well as the tests, a retained declaration (but one retained for the tests alone) and a declaration kept by the [framework conventions](framework-conventions.md) of the app are not reported either. Without the option, the second walk does not run and the results are unchanged.
+
+Limits:
+
+- Test files are those of the test targets the project driver knows: SwiftPM test targets (with the test discovery and entry point modules SwiftPM generates for them on Linux), the test targets of the Xcode schemes and the `test_targets` of a generic project configuration. A file compiled into both an app target and a test target is not a test file, so its uses count as uses by the app.
+- With `--exclude-tests` (`exclude_tests`), the test targets are not indexed: nothing is test-only, and the declarations only tests use are reported as `unused`.
+- A declaration whose name is written in an `#if` clause of the app is a root of the second walk, even when the clause names another declaration of the same name (`all`, `shared`), so it is not reported, nor what it references.

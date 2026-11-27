@@ -109,6 +109,7 @@ Compact Markdown meant to be handed as is to a coding agent, much smaller than `
 1. The files entirely unused, whose every top-level declaration other than imports is reported, to delete whole.
 2. Unused code: declarations, imports, parameters, assign-only properties, redundant protocols, empty extensions.
 3. Declaration changes: redundant `public` or `open`, `final`, redundant access levels.
+4. Code used only by tests (`--report-test-only`), to delete with the tests that use it or to use in the app.
 
 Each result gives its line range (doc comments and attributes included), kind and name, the action it calls for and the first line of its declaration:
 

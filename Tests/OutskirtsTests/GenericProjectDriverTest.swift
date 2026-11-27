@@ -145,9 +145,39 @@ final class GenericProjectDriverTest: XCTestCase {
 
             XCTAssertEqual(plan.indexStorePaths, [FilePath(store.path)])
         }
+
+        func testTestTargetSources_areMarkedAsTestFiles() throws {
+            let store = directory.appendingPathComponent("store")
+            let app = try writeFile("let app = 1\n", named: "App.swift", in: directory)
+            let shared = try writeFile("let shared = 1\n", named: "Shared.swift", in: directory)
+            let tests = try writeFile("let tests = 1\n", named: "AppTests.swift", in: directory)
+            try compile([app, shared], module: "App", store: store)
+            try compile([tests, shared], module: "AppTests", store: store)
+            let file = try write(#"{"indexstores": ["\#(store.path)"], "test_targets": ["AppTests"]}"#)
+            let driver = try GenericProjectDriver(genericProjectConfig: file, configuration: Configuration())
+
+            let plan = try driver.plan(logger: Logger(quiet: true, verbose: false, colorMode: .never).contextualized(with: "test"))
+            let isTestFile = Dictionary(uniqueKeysWithValues: plan.sourceFiles.keys.map { ($0.path.lastComponent?.string, $0.isTestFile) })
+
+            XCTAssertEqual(isTestFile, ["App.swift": false, "Shared.swift": false, "AppTests.swift": true])
+        }
     #endif
 
     // MARK: - Private
+
+    #if os(macOS)
+        private func compile(_ sources: [FilePath], module: String, store: URL) throws {
+            let output = directory.appendingPathComponent(module)
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+            let swiftc = Process()
+            swiftc.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+            swiftc.arguments = ["swiftc", "-c", "-parse-as-library", "-module-name", module, "-index-store-path", store.path] + sources.map(\.string)
+            swiftc.currentDirectoryURL = output
+            try swiftc.run()
+            swiftc.waitUntilExit()
+            XCTAssertEqual(swiftc.terminationStatus, 0)
+        }
+    #endif
 
     private func message(of file: FilePath) -> String {
         do {

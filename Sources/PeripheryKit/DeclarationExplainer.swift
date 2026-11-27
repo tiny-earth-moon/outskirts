@@ -100,7 +100,10 @@ public struct DeclarationExplainer {
         let isRetained = graph.isRetained(declaration)
         var lines: [String]
 
-        if isRetained {
+        if let entry = graph.testOnlyEntries[declaration] {
+            let reported = entry == declaration ? "" : ", reported on the entry of its chain, \(describe(entry))"
+            lines = ["\(heading) is test-only\(reported): only code in test files uses it, through the reference chain:"]
+        } else if isRetained {
             lines = ["\(heading) is retained: \(retentionReasons(of: declaration))"]
             guard chain.count > 1 else { return lines.joined(separator: "\n") }
 

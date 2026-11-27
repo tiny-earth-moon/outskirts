@@ -9,15 +9,6 @@ import SystemPackage
 /// `UIImage(named: "Logo")`, an Interface Builder named color or image, an Info.plist launch image or the global
 /// accent color build setting), is used.
 final class AssetCatalogSymbolMarker: SourceGraphMutator {
-    private struct AssetKey: Hashable, Comparable {
-        let kind: AssetCatalogSymbolKind
-        let symbolName: String
-
-        static func < (lhs: Self, rhs: Self) -> Bool {
-            (lhs.kind.rawValue, lhs.symbolName) < (rhs.kind.rawValue, rhs.symbolName)
-        }
-    }
-
     private let graph: SourceGraph
     private let configuration: Configuration
 
@@ -27,45 +18,30 @@ final class AssetCatalogSymbolMarker: SourceGraphMutator {
     }
 
     func mutate() throws {
-        let kinds = AssetCatalogSymbolKind.detected(by: configuration)
-        guard !kinds.isEmpty else { return }
+        let assets = try GeneratedAssetSymbols.assets(in: graph, configuration: configuration)
+        guard !assets.isEmpty else { return }
 
-        let roots = GeneratedAssetSymbols.rootDeclarations(in: graph, configuration: configuration)
-        let rootsByFile = Dictionary(grouping: roots) { $0.location.file.path }
         let locator = AssetCatalogLocator(root: FilePath.current)
 
-        for (file, fileRoots) in rootsByFile.sorted(by: { $0.key.string < $1.key.string }) {
-            let symbols = GeneratedAssetSymbols.symbols(in: fileRoots, kinds: kinds)
-            let assets = Dictionary(grouping: symbols) { AssetKey(kind: $0.1, symbolName: $0.0.name) }
-            var assetNamesByKind: [AssetCatalogSymbolKind: [String: String]] = [:]
+        for asset in assets {
+            let declarations = asset.declarations
 
-            for (key, assetSymbols) in assets.sorted(by: { $0.key < $1.key }) {
-                let declarations = assetSymbols.map(\.0).sorted()
-
-                if assetNamesByKind[key.kind] == nil {
-                    assetNamesByKind[key.kind] = try GeneratedAssetSymbols.assetNames(in: file, kind: key.kind)
-                }
-
-                let assetName = assetNamesByKind[key.kind]?[key.symbolName]
-                let isReferencedByName = assetName.map { graph.assetCatalogNameReferences.contains($0) } ?? false
-
-                if isReferencedByName || declarations.contains(where: graph.isUsed) {
-                    declarations.forEach(graph.markUsed)
-                    continue
-                }
-
-                let resource = declarations.first { $0.parent?.name == key.kind.resourceTypeName } ?? declarations[0]
-
-                for declaration in declarations where declaration != resource {
-                    graph.markIgnored(declaration)
-                }
-
-                let assetPaths = assetName.map { locator.assetPaths(named: $0, kind: key.kind) } ?? []
-                graph.markUnusedAssetCatalogSymbol(
-                    resource,
-                    symbol: AssetCatalogSymbol(kind: key.kind, assetName: assetName, assetPaths: assetPaths)
-                )
+            if asset.isReferencedByName || declarations.contains(where: graph.isUsed) {
+                declarations.forEach(graph.markUsed)
+                continue
             }
+
+            let resource = declarations.first { $0.parent?.name == asset.kind.resourceTypeName } ?? declarations[0]
+
+            for declaration in declarations where declaration != resource {
+                graph.markIgnored(declaration)
+            }
+
+            let assetPaths = asset.name.map { locator.assetPaths(named: $0, kind: asset.kind) } ?? []
+            graph.markUnusedAssetCatalogSymbol(
+                resource,
+                symbol: AssetCatalogSymbol(kind: asset.kind, assetName: asset.name, assetPaths: assetPaths)
+            )
         }
     }
 }

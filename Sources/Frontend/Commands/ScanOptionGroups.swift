@@ -109,6 +109,9 @@ struct AnalysisOptions: ParsableArguments {
     @Flag(inversion: .prefixedNo, help: "Report unused generic parameters of types (structs, classes, enums and actors), which are ignored by default as they may be phantom types")
     var reportUnusedTypeParameters: Bool?
 
+    @Flag(inversion: .prefixedNo, help: "Report the declarations outside the test targets that only test code uses, such as a view kept alive by snapshot tests alone")
+    var reportTestOnly: Bool?
+
     @Flag(inversion: .prefixedNo, help: "Disable identification of unused imports")
     var disableUnusedImportAnalysis: Bool?
 

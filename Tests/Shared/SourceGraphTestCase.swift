@@ -95,6 +95,36 @@ open class SourceGraphTestCase: XCTestCase {
             + Self.graph.unindexedSourceFilesByModule.count
     }
 
+    /// The declarations the last analysis marked test-only, before the results are built.
+    final var markedTestOnlyDeclarations: Set<Declaration> {
+        Self.graph.testOnlyDeclarations
+    }
+
+    /// Each declaration the last analysis marked test-only, and the entry of its chain.
+    final var testOnlyEntries: [Declaration: Declaration] {
+        Self.graph.testOnlyEntries
+    }
+
+    /// The indexed declaration with the given name, and whether the last analysis marked it used.
+    final func indexedDeclaration(named name: String) -> (declaration: Declaration, isUsed: Bool)? {
+        Self.allIndexedDeclarations.first { $0.name == name }.map { ($0, Self.graph.usedDeclarations.contains($0)) }
+    }
+
+    /// The indexed declaration with the given name in the file whose path ends with the given suffix.
+    final func indexedDeclaration(named name: String, inFileEndingWith suffix: String) -> Declaration? {
+        Self.allIndexedDeclarations.first { $0.name == name && $0.location.file.path.string.hasSuffix(suffix) }
+    }
+
+    /// Whether the last analysis retained the declaration.
+    final func isRetained(_ declaration: Declaration) -> Bool {
+        Self.graph.isRetained(declaration)
+    }
+
+    /// The declarations the last analysis retained for code in test files only.
+    final var retainedForTestsOnly: Set<Declaration> {
+        Self.graph.retainedForTestsOnly
+    }
+
     /// The modules whose import is reported unused in the source file with the given name.
     final func unusedImportedModules(inFileNamed fileName: String) -> Set<String> {
         Set(Self.graph.unusedModuleImports

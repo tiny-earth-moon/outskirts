@@ -330,6 +330,13 @@
               "shortDescription" : {
                 "text" : "The string literal names a Metal function that no Metal file declares"
               }
+            },
+            {
+              "helpUri" : "https://outskirts.dev/docs/analysis/#test-only-declarations",
+              "id" : "testOnly",
+              "shortDescription" : {
+                "text" : "The declaration is used only by test code"
+              }
             }
           ],
           "version" : "VERSION"

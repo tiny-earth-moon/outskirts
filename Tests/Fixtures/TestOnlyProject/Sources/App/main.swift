@@ -1,0 +1,8 @@
+AppScreen().show()
+print(SharedFormatter().format())
+Settings().usedByApp()
+_ = finishLaunch(reporter: CrashReporter())
+_ = Theme()
+let report: Describing = Report()
+print(report)
+_ = probeDevice()

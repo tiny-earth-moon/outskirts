@@ -71,6 +71,10 @@ public enum ScanResultBuilder {
             .init(declaration: $0, annotation: .missingMetalFunction)
         }
 
+        let annotatedTestOnlyDeclarations: [ScanResult] = graph.testOnlyDeclarations.map {
+            .init(declaration: $0, annotation: .testOnly)
+        }
+
         let annotatedSuperfluousIgnoreCommands: [ScanResult] = {
             guard configuration.superfluousIgnoreComments else { return [] }
 
@@ -102,6 +106,7 @@ public enum ScanResultBuilder {
             annotatedRedundantAccessLevel +
             annotatedEmptyExtensions +
             annotatedMissingMetalFunctions +
+            annotatedTestOnlyDeclarations +
             annotatedSuperfluousIgnoreCommands
 
         return allAnnotatedDeclarations
@@ -129,8 +134,15 @@ public enum ScanResultBuilder {
                     return true
                 }
 
-                return !graph.retainedDeclarations.contains(result.declaration)
+                return !graph.retainedDeclarations.contains(result.declaration) || isRetainedForTestsOnly(result, graph: graph)
             }
+    }
+
+    /// A declaration retained for the tests alone is still reported as test-only.
+    private static func isRetainedForTestsOnly(_ result: ScanResult, graph: SourceGraph) -> Bool {
+        guard case .testOnly = result.annotation else { return false }
+
+        return graph.retainedForTestsOnly.contains(result.declaration)
     }
 
     /// Checks if a declaration has references from code that is not part of the command ignored set.

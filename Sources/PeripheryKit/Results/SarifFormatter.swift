@@ -39,6 +39,7 @@ final class SarifFormatter: OutputFormatter {
         Rule(id: "unusedAssetCatalogColor", description: "The asset catalog color is never referenced", help: "analysis/#asset-catalog-colors"),
         Rule(id: "unusedAssetCatalogImage", description: "The asset catalog image is never referenced", help: "analysis/#asset-catalog-images"),
         Rule(id: "missingMetalFunction", description: "The string literal names a Metal function that no Metal file declares", help: "analysis/#metal-functions"),
+        Rule(id: "testOnly", description: "The declaration is used only by test code", help: "analysis/#test-only-declarations"),
     ]
 
     let configuration: Configuration

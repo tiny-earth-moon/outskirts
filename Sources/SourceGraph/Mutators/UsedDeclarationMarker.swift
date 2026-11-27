@@ -2,7 +2,14 @@ import Configuration
 import Foundation
 import Shared
 
-final class UsedDeclarationMarker: GraphOnlyMutator {
+final class UsedDeclarationMarker: SourceGraphMutator {
+    /// The full pass marks the graph; the non-test pass, run for `report_test_only`, starts only from the roots outside
+    /// test files and follows no reference located in one, into `nonTestUsedDeclarations`.
+    private enum Pass {
+        case full
+        case nonTest
+    }
+
     private static let previewableProtocolUsrs: Set<String> = [
         "s:7SwiftUI4ViewP",
         "s:7SwiftUI6WidgetP",
@@ -17,12 +24,17 @@ final class UsedDeclarationMarker: GraphOnlyMutator {
     private static let previewProviderUsr = "s:7SwiftUI15PreviewProviderP"
 
     private let graph: SourceGraph
+    private let configuration: Configuration
+    private let reportsTestOnly: Bool
+    private var nonTestUsedDeclarations: Set<Declaration> = []
 
-    init(graph: SourceGraph) {
+    init(graph: SourceGraph, configuration: Configuration, swiftVersion _: SwiftVersion) {
         self.graph = graph
+        self.configuration = configuration
+        reportsTestOnly = configuration.reportTestOnly
     }
 
-    func mutate() {
+    func mutate() throws {
         removeErroneousProtocolReferences()
 
         if graph.recordsExplanations {
@@ -33,6 +45,10 @@ final class UsedDeclarationMarker: GraphOnlyMutator {
         }
 
         markLivePreviewExpansionsUsed()
+
+        if reportsTestOnly {
+            try markTestOnly()
+        }
 
         ignoreUnusedDescendents(in: graph.rootDeclarations,
                                 unusedDeclarations: graph.unusedDeclarations)
@@ -75,27 +91,172 @@ final class UsedDeclarationMarker: GraphOnlyMutator {
     /// Marks the declarations, and everything reachable from them through references and related references, as
     /// used. The walk uses an explicit worklist because a reference chain can be arbitrarily long and walking it by
     /// recursion overflows the stack.
-    private func markUsed(_ declarations: Set<Declaration>) {
+    private func markUsed(_ declarations: Set<Declaration>, in pass: Pass = .full) {
         var pending = Array(declarations)
 
         while let declaration = pending.popLast() {
-            guard !graph.isUsed(declaration) else { continue }
+            guard !isUsed(declaration, in: pass) else { continue }
 
-            graph.markUsed(declaration)
+            markUsed(declaration, in: pass)
+
+            if pass == .nonTest {
+                pending.append(contentsOf: retainedImplicitMembers(of: declaration))
+            }
 
             // With `every_variant`, a used declaration makes its variant twins used, and their references are followed
             // too: the twins compare equal, so none of them is reached on its own.
             for source in graph.withVariantTwins(declaration) {
-                graph.markUsed(source)
+                markUsed(source, in: pass)
 
-                for reference in [source.references, source.related].joined() {
-                    if let referenced = graph.declaration(withUsr: reference.usr), !graph.isUsed(referenced) {
-                        graph.recordUsePredecessor(.reference(reference, from: source), for: referenced)
+                for reference in [source.references, source.related].joined() where follows(reference, in: pass) {
+                    if let referenced = graph.declaration(withUsr: reference.usr), !isUsed(referenced, in: pass) {
+                        if pass == .full {
+                            graph.recordUsePredecessor(.reference(reference, from: source), for: referenced)
+                        }
                         pending.append(referenced)
                     }
                 }
             }
         }
+    }
+
+    private func isUsed(_ declaration: Declaration, in pass: Pass) -> Bool {
+        switch pass {
+        case .full:
+            graph.isUsed(declaration)
+        case .nonTest:
+            nonTestUsedDeclarations.contains(declaration) || declaration.location.file.isTestFile
+        }
+    }
+
+    private func markUsed(_ declaration: Declaration, in pass: Pass) {
+        switch pass {
+        case .full:
+            graph.markUsed(declaration)
+        case .nonTest:
+            nonTestUsedDeclarations.insert(declaration)
+        }
+    }
+
+    /// The non-test pass follows no reference located in a test file, nor the retention of a member that only code in
+    /// test files keeps.
+    private func follows(_ reference: Reference, in pass: Pass) -> Bool {
+        pass == .full || !reference.location.file.isTestFile && !isRetainedForTestsOnly(reference)
+    }
+
+    private func isRetainedForTestsOnly(_ reference: Reference) -> Bool {
+        guard reference.kind == .retained, !graph.retainedForTestsOnly.isEmpty,
+              let declaration = graph.declaration(withUsr: reference.usr)
+        else { return false }
+
+        return graph.retainedForTestsOnly.contains(declaration)
+    }
+
+    /// Marks test-only the declarations outside test files that the full pass reached and the non-test pass did not,
+    /// each with the entry of its chain.
+    private func markTestOnly() throws {
+        markUsed(nonTestRoots(), in: .nonTest)
+        markLivePreviewExpansionsUsed(in: .nonTest)
+        try markAssetCatalogSymbolsUsed(in: .nonTest)
+
+        let testOnly = graph.usedDeclarations.filter { !isUsed($0, in: .nonTest) }
+        for (declaration, entry) in testOnlyChains(testOnly) {
+            graph.markTestOnly(declaration, entry: entry)
+        }
+    }
+
+    /// The entry of the chain of each test-only declaration. An entry is a test-only declaration that no other one
+    /// contains or references outside test files; the other declarations of its chain are reached from it, members and
+    /// protocol witnesses included. A cycle that no entry reaches is entered by its first declaration in sort order.
+    /// Marks used every generated symbol of an asset that has a used symbol or whose name is referenced as a string,
+    /// as `AssetCatalogSymbolMarker` does after the full pass.
+    private func markAssetCatalogSymbolsUsed(in pass: Pass) throws {
+        for asset in try GeneratedAssetSymbols.assets(in: graph, configuration: configuration)
+            where asset.isReferencedByName || asset.declarations.contains(where: { isUsed($0, in: pass) })
+        {
+            markUsed(Set(asset.declarations), in: pass)
+        }
+    }
+
+    private func testOnlyChains(_ testOnly: Set<Declaration>) -> [Declaration: Declaration] {
+        var successors: [Declaration: [Declaration]] = [:]
+        var reached: Set<Declaration> = []
+        for declaration in testOnly {
+            let next = testOnlySuccessors(of: declaration, in: testOnly)
+            successors[declaration] = next
+            reached.formUnion(next)
+        }
+
+        var entries: [Declaration: Declaration] = [:]
+        var cycleEntries: Set<Declaration> = []
+
+        func cover(from entry: Declaration) {
+            var pending = [entry]
+            while let declaration = pending.popLast() {
+                if let current = entries[declaration], current == entry || !cycleEntries.contains(current) {
+                    continue
+                }
+                entries[declaration] = entry
+                pending.append(contentsOf: successors[declaration, default: []])
+            }
+        }
+
+        testOnly.subtracting(reached).sorted().forEach(cover(from:))
+        for declaration in testOnly.sorted() where entries[declaration] == nil {
+            cycleEntries.insert(declaration)
+            cover(from: declaration)
+        }
+
+        return entries
+    }
+
+    private func testOnlySuccessors(of declaration: Declaration, in testOnly: Set<Declaration>) -> [Declaration] {
+        let referenced = graph.withVariantTwins(declaration).flatMap { source in
+            [source.references, source.related].joined()
+                .filter { !$0.location.file.isTestFile }
+                .compactMap { graph.declaration(withUsr: $0.usr) }
+        }
+        return (Array(declaration.declarations) + referenced).filter { $0 != declaration && testOnly.contains($0) }
+    }
+
+    /// The retained members the compiler generated for the declaration, such as a memberwise initializer, when the full
+    /// pass used it: the non-test pass reaches them with the declaration rather than from the roots, so that what
+    /// only they reference is not used by the app when only tests use the declaration.
+    private func retainedImplicitMembers(of declaration: Declaration) -> [Declaration] {
+        declaration.declarations.filter(isRetainedImplicitMemberOfUsedDeclaration)
+    }
+
+    private func isRetainedImplicitMemberOfUsedDeclaration(_ declaration: Declaration) -> Bool {
+        guard declaration.isImplicit, let parent = declaration.parent else { return false }
+
+        return graph.isUsed(parent) && graph.retainedDeclarations.contains(declaration)
+    }
+
+    /// The roots of the non-test pass, outside test files: the retained declarations, but those that only code in test
+    /// files keeps (retained members, and the retained implicit members of a used declaration, are reached through their
+    /// parent), the declarations
+    /// referenced from top-level code, and the declarations named in an `#if` clause, whose branch the index may not
+    /// have compiled, with the initializers of the types among them.
+    private func nonTestRoots() -> Set<Declaration> {
+        let retained = graph.retainedDeclarations.filter {
+            !$0.location.file.isTestFile
+                && !graph.retainedForTestsOnly.contains($0)
+                && !isRetainedImplicitMemberOfUsedDeclaration($0)
+        }
+        let referenced = graph.rootReferences
+            .filter { !$0.location.file.isTestFile }
+            .compactMapSet { graph.declaration(withUsr: $0.usr) }
+        let names = graph.conditionalCompilationNames
+        let conditionallyReferenced = names.isEmpty ? [] : graph.allDeclarations.filter {
+            !$0.location.file.isTestFile
+                && !PlatformConditionalRetainer.nonReferenceableKinds.contains($0.kind)
+                && names.contains(PlatformConditionalRetainer.baseName(of: $0.name))
+        }
+        // A type named in a clause is usually constructed there (`Client(endpoint:)`), which names no initializer.
+        let initializers = conditionallyReferenced.flatMapSet { declaration in
+            declaration.declarations.filter { $0.kind == .functionConstructor }
+        }
+        return retained.union(referenced).union(conditionallyReferenced).union(initializers)
     }
 
     /// The retained declarations and the declarations referenced from top-level code, sorted so that the recorded
@@ -144,32 +305,34 @@ final class UsedDeclarationMarker: GraphOnlyMutator {
 
     /// Marks used each `#Preview` expansion and each `PreviewProvider` that previews a used SwiftUI view or widget,
     /// along with the code it references. Previews that only reference unused code stay unused.
-    private func markLivePreviewExpansionsUsed() {
+    private func markLivePreviewExpansionsUsed(in pass: Pass = .full) {
         var pendingPreviews = graph.references(to: SwiftUIRetainer.previewRegistryUsr)
             .compactMap(\.parent)
-            .filter { $0.isImplicit && !graph.isUsed($0) }
+            .filter { $0.isImplicit && !isUsed($0, in: pass) }
             .mapSet { $0 }
         pendingPreviews.formUnion(graph.declarations(ofKinds: [.class, .struct, .enum]).filter {
-            !graph.isUsed($0) && isPreviewProvider($0)
+            !isUsed($0, in: pass) && isPreviewProvider($0)
         })
 
         while true {
-            let livePreviews = pendingPreviews.filter(previewsUsedView)
+            let livePreviews = pendingPreviews.filter { previewsUsedView($0, in: pass) }
             guard !livePreviews.isEmpty else { break }
 
             pendingPreviews.subtract(livePreviews)
             let previewDeclarations = livePreviews.flatMapSet { $0.descendentDeclarations.union([$0]) }
-            previewDeclarations.forEach { graph.recordUsePredecessor(.livePreview, for: $0) }
-            markUsed(previewDeclarations)
+            if pass == .full {
+                previewDeclarations.forEach { graph.recordUsePredecessor(.livePreview, for: $0) }
+            }
+            markUsed(previewDeclarations, in: pass)
         }
     }
 
-    private func previewsUsedView(_ preview: Declaration) -> Bool {
+    private func previewsUsedView(_ preview: Declaration, in pass: Pass) -> Bool {
         ([preview] + preview.descendentDeclarations)
             .lazy
             .flatMap(\.references)
             .compactMap { self.graph.declaration(withUsr: $0.usr) }
-            .contains { self.graph.isUsed($0) && self.isPreviewable($0) }
+            .contains { self.isUsed($0, in: pass) && self.isPreviewable($0) }
     }
 
     /// Whether the type conforms to a previewable protocol (`View`, `Widget` or `ControlWidget`) or subclasses an AppKit

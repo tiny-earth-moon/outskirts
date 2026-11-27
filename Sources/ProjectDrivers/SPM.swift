@@ -137,6 +137,7 @@ public enum SPM {
 }
 
 public struct PackageDescription: Decodable {
+    public let name: String?
     public let targets: [Target]
 }
 

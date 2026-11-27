@@ -12,6 +12,7 @@ final class SourceFileCollectorStoreTest: FixtureSourceGraphTestCase {
     private func collect(
         excludeTargets: [String] = [],
         excludedModules: Set<String> = [],
+        testModules: Set<String> = [],
         indexExclude: [String] = []
     ) throws -> (sourceFiles: [SourceFile: [IndexUnit]], unreadableUnits: [String]) {
         let configuration = Configuration()
@@ -21,6 +22,7 @@ final class SourceFileCollectorStoreTest: FixtureSourceGraphTestCase {
         return try SourceFileCollector(
             indexStorePaths: Self.plan.indexStorePaths,
             excludedModules: excludedModules,
+            testModules: testModules,
             scanInputs: ScanInputs(sourceFiles: nil, resources: []),
             logger: Self.logger.contextualized(with: "test"),
             configuration: configuration
@@ -57,5 +59,17 @@ final class SourceFileCollectorStoreTest: FixtureSourceGraphTestCase {
 
         XCTAssertTrue(Set(collected.sourceFiles.keys.map(\.path)).isDisjoint(with: excluded))
         XCTAssertEqual(collected.sourceFiles.count, all.count - excluded.count)
+    }
+
+    func testFilesOfTheTestModules_areMarkedAsTestFiles() throws {
+        let collected = try collect(testModules: ["UnusedImportFixtureB"]).sourceFiles
+        let testFiles = Set(collected.keys.filter(\.isTestFile).map(\.path))
+
+        XCTAssertFalse(testFiles.isEmpty)
+        XCTAssertEqual(testFiles, files(ofModule: "UnusedImportFixtureB", in: collected))
+    }
+
+    func testWithoutTestModules_noFileIsATestFile() throws {
+        XCTAssertFalse(try collect().sourceFiles.keys.contains(where: \.isTestFile))
     }
 }
